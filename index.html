@@ -495,6 +495,8 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <input type="file" id="file-importar" accept=".json,application/json" class="oculto">
     <div class="hint">Exportar gera o arquivo <b>historias.json</b>. Se você subir esse arquivo no repositório do GitHub, as histórias aparecem em qualquer celular que abrir o site.</div>
     <div style="height:14px"></div>
+    <button class="btn sm rox" id="btn-transferir">📱 Levar minha configuração para outro aparelho</button>
+    <div style="height:10px"></div>
     <button class="btn sm ghost" id="btn-sync-avancado">🔗 Sincronizar direto com o GitHub (avançado)</button>
     <div id="bloco-sync" class="oculto">
       <div class="aviso" style="margin-top:12px">Isso salva um <b>token do GitHub</b> neste celular. Use um token <b>fine-grained</b> com permissão de <b>Contents: Read and write</b> apenas neste repositório. Se preferir não mexer nisso, use o Exportar/Importar acima — funciona igual.</div>
@@ -943,7 +945,10 @@ async function audioGemini(texto){
   });
   if(!r.ok){
     const t = (await r.text()).slice(0,200);
-    const e = new Error('Gemini voz: '+r.status+' — '+t); e.status=r.status; throw e;
+    let msg = 'Gemini voz: '+r.status+' — '+t;
+    if(r.status===401 || r.status===403) msg = 'O Google não aceitou a chave. Confira se você copiou ela inteira (as novas começam com "AQ." e as antigas com "AIza") e se colou no campo certo.';
+    if(r.status===429) msg = 'A cota grátis do dia bateu no limite. Espere um pouco e tente de novo, ou use a voz do celular nesta noite.';
+    const e = new Error(msg); e.status=r.status; throw e;
   }
   const j = await r.json();
   const b64 = acharAudio(j);
@@ -1840,6 +1845,7 @@ function mesclar(lista){
   return n;
 }
 
+$('#btn-transferir').addEventListener('click', telaTransferencia);
 $('#btn-sync-avancado').addEventListener('click',()=>{
   $('#bloco-sync').classList.toggle('oculto');
 });
@@ -1871,6 +1877,73 @@ $('#btn-apagar-tudo').addEventListener('click',()=>{
   localStorage.removeItem(CHAVE_H); localStorage.removeItem(CHAVE_C); localStorage.removeItem(CHAVE_S);
   location.reload();
 });
+
+/* ---------- levar a configuração para outro aparelho ---------- */
+// Viaja só o necessário para ler e escrever histórias. O token do GitHub NUNCA vai junto.
+const CAMPOS_TRANSF = {
+  mv:'motorVoz', mt:'motorTexto',
+  gk:'geminiKey', gv:'geminiVoice', gmt:'geminiModelTts', gmx:'geminiModel',
+  ek:'elevenKey', ev:'elevenVoice', em:'elevenModel',
+  ok:'openaiKey', ov:'openaiVoice', om:'openaiModel',
+  ak:'anthropicKey', am:'anthropicModel'
+};
+function linkDeConfig(){
+  const c = {};
+  Object.keys(CAMPOS_TRANSF).forEach(k=>{ const v = cfg[CAMPOS_TRANSF[k]]; if(v) c[k]=v; });
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(c))));
+  return location.origin + location.pathname + '#cfg=' + b64;
+}
+function aplicarConfigDaUrl(){
+  const m = (location.hash||'').match(/^#cfg=(.+)$/);
+  if(!m) return;
+  // limpa a URL na hora, antes de qualquer coisa
+  try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){ location.hash=''; }
+  let c;
+  try{ c = JSON.parse(decodeURIComponent(escape(atob(m[1])))); }catch(e){ toast('Link de configuração inválido'); return; }
+  if(!c || typeof c!=='object') return;
+  const quantas = Object.keys(c).length;
+  if(!quantas) return;
+  setTimeout(()=>{
+    modal(`<h3>Configurar este aparelho?</h3>
+      <p class="hint">Você abriu um link que traz as configurações de voz e de IA de outro aparelho seu (${quantas} itens, incluindo as chaves).</p>
+      <div class="aviso" style="margin-top:12px">Só aceite se foi você mesmo que gerou esse link. Ele não mexe nas suas histórias.</div>
+      <div style="height:14px"></div>
+      <button class="btn ok" id="cfg-sim">✅ Configurar este aparelho</button>
+      <div style="height:10px"></div>
+      <button class="btn sm ghost" id="cfg-nao">Agora não</button>`);
+    $('#cfg-sim').onclick=()=>{
+      Object.keys(CAMPOS_TRANSF).forEach(k=>{ if(c[k]) cfg[CAMPOS_TRANSF[k]] = c[k]; });
+      salvarCfg(); aplicarCfgNaTela(); fecharModal();
+      toast('Pronto! Este aparelho já está configurado 💜');
+    };
+    $('#cfg-nao').onclick=fecharModal;
+  }, 400);
+}
+function telaTransferencia(){
+  const link = linkDeConfig();
+  const temChave = !!(cfg.geminiKey || cfg.elevenKey || cfg.openaiKey || cfg.anthropicKey);
+  modal(`<h3>Levar a configuração para o celular</h3>
+    <p class="hint">As chaves ficam guardadas em cada aparelho separadamente — é isso que impede que elas vão parar no GitHub. Este link leva as configurações deste aparelho para outro, sem digitar nada.</p>
+    ${temChave ? '' : '<div class="aviso" style="margin-top:12px">Você ainda não tem nenhuma chave preenchida aqui. Preencha primeiro.</div>'}
+    <div class="aviso" style="margin-top:12px"><b>O link contém suas chaves.</b> Mande só para você mesmo (o jeito mais seguro é o menu do Chrome → <b>Enviar para seus dispositivos</b>). Não poste em grupo nem deixe salvo em lugar público.</div>
+    <div style="height:14px"></div>
+    <button class="btn pri" id="tr-copiar">📋 Copiar o link</button>
+    <div style="height:10px"></div>
+    <div class="info">No outro aparelho, é só abrir esse link uma vez: o site pergunta se pode configurar e pronto — nunca mais precisa fazer isso nele.</div>
+    <div style="height:14px"></div>
+    <button class="btn sm ghost" id="tr-fechar">Fechar</button>`);
+  $('#tr-copiar').onclick=()=>{
+    navigator.clipboard.writeText(link)
+      .then(()=>toast('Link copiado — mande só para você'))
+      .catch(()=>{
+        modal(`<h3>Copie à mão</h3><p class="hint">Seu navegador não deixou copiar sozinho. Selecione tudo abaixo e copie:</p>
+          <textarea readonly style="min-height:140px;font-size:12px">${esc(link)}</textarea>
+          <div style="height:12px"></div><button class="btn sm" id="tr-f2">Fechar</button>`);
+        $('#tr-f2').onclick=fecharModal;
+      });
+  };
+  $('#tr-fechar').onclick=fecharModal;
+}
 
 /* ----------------------------- início ----------------------------- */
 async function carregarDoGithub(){
@@ -1908,6 +1981,7 @@ function aplicarCfgNaTela(){
 })();
 
 novosTemas(); novosPersonagens(); aplicarCfgNaTela(); pintarTudo();
+aplicarConfigDaUrl();
 carregarDoGithub();
 
 // desbloqueia o áudio no primeiro toque (regra dos celulares)

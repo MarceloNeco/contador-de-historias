@@ -62,7 +62,7 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 
 **Onde pegar cada chave:**
 
-- **Gemini** (recomendado) → `aistudio.google.com/apikey` → *Create API key* → *Create project*. A chave começa com `AIza`. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
+- **Gemini** (recomendado) → `aistudio.google.com/apikey` → *Create API key* → *Create project*. As chaves novas começam com `AQ.` (as antigas começavam com `AIza`); as duas funcionam. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
 - **ElevenLabs** → `elevenlabs.io` → conta → *Profile* → *API Key*. Depois, no site, toque em **Carregar minhas vozes** e escolha a que preferir.
 - **OpenAI** → `platform.openai.com` → adicione créditos → *API keys* → *Create new secret key*.
 
@@ -113,6 +113,14 @@ Os seis primeiros são ambientes — ficam tocando baixinho ao fundo até outro 
 ## 💾 Backup e sincronizar entre celulares
 
 As histórias ficam no navegador do aparelho. Para levar para outro:
+
+### Levar as chaves para outro aparelho
+
+As chaves ficam guardadas **em cada aparelho separadamente** — é exatamente isso que impede que elas vazem pelo GitHub. Então, num celular novo, elas não aparecem sozinhas.
+
+Para não digitar tudo de novo: **Ajustes → 📱 Levar minha configuração para outro aparelho** → **Copiar o link**. Abra esse link uma vez no outro aparelho, confirme, e pronto. O link carrega as chaves, então mande só para você mesmo (o mais prático é o menu do Chrome → *Enviar para seus dispositivos*). O token do GitHub nunca vai junto.
+
+---
 
 **Jeito simples (recomendado)**
 
