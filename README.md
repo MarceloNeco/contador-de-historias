@@ -23,7 +23,7 @@ Um site simples e bonito para contar histórias de dormir, feito para funcionar 
 ### 2. Subir os arquivos
 
 1. Na página do repositório recém-criado, clique em **Add file** → **Upload files**.
-2. Arraste os três arquivos: `index.html`, `historias.json` e `README.md`.
+2. Arraste os arquivos: `index.html`, `historias.json`, `capa.jpg` e `README.md`.
 3. Lá embaixo, clique no botão verde **Commit changes**.
 
 ### 3. Ligar o site (GitHub Pages)
@@ -55,12 +55,14 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 
 | Opção | Custo | Qualidade | Precisa de chave? |
 |---|---|---|---|
+| **Gemini** ⭐ | **grátis** na cota do Google | natural, com entonação de verdade | sim (grátis) |
 | **Voz do celular** | grátis | boa, mas robótica | não |
 | **ElevenLabs** | pago | a melhor que existe | sim |
 | **OpenAI** | barato | muito boa | sim |
 
 **Onde pegar cada chave:**
 
+- **Gemini** (recomendado) → `aistudio.google.com/apikey` → *Create API key* → *Create project*. A chave começa com `AIza`. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
 - **ElevenLabs** → `elevenlabs.io` → conta → *Profile* → *API Key*. Depois, no site, toque em **Carregar minhas vozes** e escolha a que preferir.
 - **OpenAI** → `platform.openai.com` → adicione créditos → *API keys* → *Create new secret key*.
 
@@ -80,6 +82,17 @@ Também na aba **Ajustes**:
 - **OpenAI** — usa a mesma chave da voz.
 
 Você escolhe idade, tamanho, tema e personagens (com sugestões sorteadas), a IA escreve, e aí aparece a tela de **aprovar / ouvir antes / editar / pedir outra**. Só o que você aprovar é guardado.
+
+---
+
+## 📺 Séries com capítulos
+
+Histórias longas, contadas capítulo por capítulo, ficam agrupadas: no acervo aparece **um cartão só** com o nome da série e quantos capítulos tem. Ao tocar, abre a lista em ordem, com ✓ nos que já foram ouvidos e um botão **Continuar do capítulo X**.
+
+- Ao terminar um capítulo, o leitor mostra **➡️ Próximo capítulo**.
+- A tela Início sugere sozinha o próximo capítulo de qualquer série que esteja no meio.
+- Para escrever a continuação: aba **Criar** → **Continuar uma série** → escolha a série. A IA lê o capítulo anterior inteiro e continua de onde parou, respeitando nomes e enredo.
+- Escrevendo à mão, é só preencher o campo **Série** com o mesmo nome.
 
 ---
 
@@ -120,6 +133,7 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 |---|---|
 | `index.html` | O site inteiro — tudo está aqui dentro. |
 | `historias.json` | As histórias que aparecem para todo mundo que abre o site. |
+| `capa.jpg` | A imagem grande da tela Início. Troque quando quiser, mantendo o nome. |
 | `README.md` | Este guia. |
 
 ---

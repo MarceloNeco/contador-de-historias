@@ -123,6 +123,22 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .hist .info b{display:block;font-size:16px;margin-bottom:2px}
 .hist .meta{font-size:12px;color:var(--dim2);display:flex;flex-wrap:wrap;gap:8px}
 .tag{background:var(--bg2);border:1px solid var(--line);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.hist.serie .cap{background:linear-gradient(140deg,#7a5cd8,#4a3a78);position:relative}
+.hist.serie .cap::after{content:attr(data-n);position:absolute;right:-5px;bottom:-5px;
+  background:var(--gold);color:#2a1705;font-size:10px;font-weight:800;border-radius:999px;
+  min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;
+  border:2px solid var(--card)}
+.cap-item{display:flex;gap:11px;align-items:center;padding:12px 10px;border-radius:13px;
+  border:1px solid var(--line);background:var(--card);margin-bottom:8px}
+.cap-item:active{background:var(--card2)}
+.cap-item .num{width:29px;height:29px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:800;background:var(--bg2);color:var(--dim2);border:1px solid var(--line)}
+.cap-item.lido .num{background:var(--verde);color:#06301f;border-color:transparent}
+.cap-item.proximo{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.cap-item .t{flex:1;min-width:0}
+.cap-item .t b{display:block;font-size:15px;font-weight:600}
+.cap-item .t span{font-size:11px;color:var(--dim2)}
+#btn-proximo-cap{margin-top:10px}
 .vazio{text-align:center;padding:44px 20px;color:var(--dim2)}
 .vazio .em{font-size:44px;display:block;margin-bottom:10px}
 /* ---------- leitor ---------- */
@@ -263,6 +279,10 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       </div>
       <div class="hint" id="hint-idade"></div>
 
+      <label class="f">Continuar uma série?</label>
+      <select id="sel-continuar"><option value="">Não — história nova e avulsa</option></select>
+      <div class="hint" id="hint-continuar"></div>
+
       <label class="f">Tamanho</label>
       <div class="seg" id="sel-tam">
         <button data-tam="curta">Curtinha<br><span style="font-weight:500;font-size:11px">~3 min</span></button>
@@ -303,6 +323,9 @@ input[type=range]{width:100%;accent-color:var(--gold)}
         <button data-idade="10+">10 +</button>
         <button data-idade="mista">As duas</button>
       </div>
+      <label class="f">Faz parte de uma série? <span style="color:var(--dim2);font-weight:500">(opcional)</span></label>
+      <input type="text" id="man-serie" list="lista-series" placeholder="Ex.: Zootopia 4 — deixe vazio se for avulsa">
+      <datalist id="lista-series"></datalist>
       <label class="f">A história</label>
       <textarea id="man-texto" placeholder="Era uma vez..." style="min-height:220px"></textarea>
       <div class="hint">Dica: você pode colocar efeitos sonoros no meio do texto escrevendo, por exemplo, <b>[som:chuva]</b> numa linha. Toque no botão abaixo para ver a lista.</div>
@@ -531,6 +554,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <button class="rd" id="btn-avancar-fr">⏭</button>
     </div>
     <div class="st" id="leitor-status">toque no play para começar</div>
+    <button class="btn ok oculto" id="btn-proximo-cap">➡️ Próximo capítulo</button>
   </div>
 </div>
 
@@ -1072,6 +1096,13 @@ const Leitor = (function(){
       status('fim da história 💜');
       if(!contou){ contou=true; registrarLeitura(); }
       somarTempo();
+      const prox = proximoCapitulo(hist);
+      const btn = $('#btn-proximo-cap');
+      if(prox){
+        btn.textContent = '➡️ Próximo: ' + prox.titulo;
+        btn.classList.remove('oculto');
+        btn.onclick = ()=>{ btn.classList.add('oculto'); Leitor.abrir(prox); };
+      }
     }
   }
 
@@ -1135,11 +1166,14 @@ const Leitor = (function(){
       montarFila(); render(); barra();
       $('#leitor-titulo').textContent = h.titulo;
       $('#lt-h2').textContent = h.titulo;
-      $('#lt-sub').textContent = `${rotuloIdade(h.idade)} · ${minutosDe(h.texto)} min de leitura · ${h.leituras||0}× lida`;
+      const caps = h.serie ? (listaSeries().get(h.serie)||[]) : [];
+      const pref = h.serie ? `${h.serie} · capítulo ${Math.max(1, caps.findIndex(c=>c.id===h.id)+1)} de ${caps.length} · ` : '';
+      $('#lt-sub').textContent = pref + `${rotuloIdade(h.idade)} · ${minutosDe(h.texto)} min de leitura · ${h.leituras||0}× lida`;
       $('#lt-texto').style.fontSize = cfg.fonte+'px';
       $('#leitor-corpo').scrollTop=0;
       $('#btn-fav').textContent = h.favorita ? '★' : '☆';
       $('#leitor').classList.add('on');
+      $('#btn-proximo-cap').classList.add('oculto');
       iconePlay(false); status('toque no play para começar');
       document.body.style.overflow='hidden';
     },
@@ -1205,6 +1239,37 @@ const PERFIS = {
   'mista':{rotulo:'para as duas juntas', guia:'Precisa funcionar ao mesmo tempo para uma criança de 4 e uma de 8 anos: enredo simples e sonoro o bastante para a menor acompanhar, mas com uma camada de humor e um pequeno mistério que prendam a maior. Dê algo para cada uma: um bicho engraçado e repetitivo para a pequena, e uma pista a desvendar para a grande.'}
 };
 const TAMANHOS = { curta:{p:'cerca de 350 palavras'}, media:{p:'cerca de 750 palavras'}, longa:{p:'cerca de 1300 palavras'} };
+
+function montarPromptSerie(o, anterior){
+  const trecho = anterior.texto.length>6000 ? anterior.texto.slice(-6000) : anterior.texto;
+  return `Você é um contador de histórias brasileiro. Um pai vem contando para as filhas, capítulo por capítulo, uma série chamada "${o.serie}". Escreva o PRÓXIMO capítulo.
+
+O capítulo anterior chamava-se "${anterior.titulo}" e dizia:
+
+===== CAPÍTULO ANTERIOR =====
+${trecho}
+===== FIM DO CAPÍTULO ANTERIOR =====
+
+PÚBLICO: ${PERFIS[o.idade].rotulo}. ${PERFIS[o.idade].guia}
+TAMANHO: ${TAMANHOS[o.tam].p}.
+${o.tema ? 'O QUE O PAI QUER QUE ACONTEÇA: '+o.tema : ''}
+${o.personagens ? 'PERSONAGENS A INCLUIR: '+o.personagens : ''}
+${o.extra ? 'PEDIDO ESPECIAL: '+o.extra : ''}
+
+REGRAS:
+- Continue exatamente de onde o capítulo anterior parou, respeitando os nomes, o tom e tudo o que já aconteceu. Não recomece nem resuma o anterior.
+- Português do Brasil, com frases que soem bem faladas em voz alta.
+- Termine este capítulo num gancho gostoso, mas num tom calmo, porque é hora de dormir.
+- Nada de violência, morte ou medo pesado.
+- Use de 4 a 8 efeitos sonoros, sozinhos em uma linha, no formato exato [som:nome], apenas com estes nomes: chuva, vento, mar, floresta, fogueira, noite, trovao, magia, sino, passos, coracao. Termine com [som:fim].
+- Separe os parágrafos com uma linha em branco.
+
+FORMATO DA RESPOSTA (siga exatamente):
+Linha 1: apenas o título deste capítulo, sem aspas e sem a palavra "Capítulo".
+Linha 2: em branco.
+Depois: o capítulo.
+Não escreva mais nada.`;
+}
 
 function montarPrompt(o){
   return `Você é um contador de histórias brasileiro, escrevendo uma história de dormir em português do Brasil para um pai ler (ou o celular ler em voz alta) para as filhas dele.
@@ -1288,15 +1353,23 @@ async function gerarHistoria(){
     tam: $('#sel-tam .on').dataset.tam,
     tema: $('#in-tema').value.trim(),
     personagens: $('#in-personagens').value.trim(),
-    extra: $('#in-extra').value.trim()
+    extra: $('#in-extra').value.trim(),
+    serie: $('#sel-continuar').value
   };
+  let anterior=null;
+  if(o.serie){
+    const caps = listaSeries().get(o.serie)||[];
+    anterior = caps[caps.length-1];
+    if(!anterior){ toast('Não achei os capítulos dessa série'); return; }
+  }
   const btn=$('#btn-gerar');
-  btn.disabled=true; btn.innerHTML='<span class="load"></span> escrevendo a história…';
+  btn.disabled=true; btn.innerHTML='<span class="load"></span> '+(o.serie?'escrevendo o próximo capítulo…':'escrevendo a história…');
   try{
-    const saida = await chamarIA(montarPrompt(o));
+    const saida = await chamarIA(anterior ? montarPromptSerie(o,anterior) : montarPrompt(o));
     const {titulo,texto} = separarTitulo(saida);
     if(!texto) throw new Error('Veio vazio. Tente de novo.');
     rascunho = { id:uid(), titulo, texto, idade:o.idade, tema:o.tema, personagens:o.personagens,
+                 serie:o.serie||'', ordem:o.serie?proximaOrdem(o.serie):0,
                  criadaEm:new Date().toISOString(), origem:'ia', leituras:0, favorita:false };
     mostrarAprovacao();
   }catch(e){
@@ -1313,7 +1386,7 @@ function mostrarAprovacao(){
   const h=rascunho;
   modal(`
     <h3>${esc(h.titulo)}</h3>
-    <div class="hint">${rotuloIdade(h.idade)} · ${minutosDe(h.texto)} min · ${contarPalavras(h.texto)} palavras</div>
+    <div class="hint">${h.serie? esc(h.serie)+' · capítulo '+h.ordem+' · ' : ''}${rotuloIdade(h.idade)} · ${minutosDe(h.texto)} min · ${contarPalavras(h.texto)} palavras</div>
     <div style="height:12px"></div>
     <div style="max-height:38vh;overflow-y:auto;background:var(--card);border:1px solid var(--line);
       border-radius:14px;padding:14px;line-height:1.75;font-size:15px;white-space:pre-wrap">${esc(h.texto)}</div>
@@ -1335,6 +1408,7 @@ function mostrarAprovacao(){
     $$('#modo-nova button').forEach(b=>b.classList.toggle('on', b.dataset.modo==='manual'));
     $('#bloco-ia').classList.add('oculto'); $('#bloco-manual').classList.remove('oculto');
     $('#man-titulo').value=rascunho.titulo; $('#man-texto').value=rascunho.texto;
+    $('#man-serie').value=rascunho.serie||'';
     $$('#man-idade button').forEach(b=>b.classList.toggle('on', b.dataset.idade===rascunho.idade));
     toast('Edite à vontade e salve'); };
   $('#ap-outra').onclick=()=>{ fecharModal(); gerarHistoria(); };
@@ -1356,6 +1430,28 @@ $('#btn-config-topo').addEventListener('click',()=>irTela('config'));
 $('#btn-ir-nova').addEventListener('click',()=>irTela('nova'));
 $('#btn-ir-acervo').addEventListener('click',()=>irTela('acervo'));
 
+function proximaOrdem(nome){
+  const caps = listaSeries().get(nome)||[];
+  return caps.reduce((a,c)=>Math.max(a, c.ordem||0), 0) + 1;
+}
+function pintarSeries(){
+  const mapa = listaSeries();
+  const nomes = Array.from(mapa.keys()).sort();
+  $('#lista-series').innerHTML = nomes.map(n=>'<option value="'+esc(n)+'">').join('');
+  const sel = $('#sel-continuar'), antes = sel.value;
+  sel.innerHTML = '<option value="">Nao|historia nova e avulsa</option>'.replace('Nao|','Não — ') +
+    nomes.map(n=>'<option value="'+esc(n)+'">'+esc(n)+' — escrever o capítulo '+((mapa.get(n)||[]).length+1)+'</option>').join('');
+  if(antes && nomes.indexOf(antes)>=0) sel.value = antes;
+  atualizarHintContinuar();
+}
+function atualizarHintContinuar(){
+  const n = $('#sel-continuar').value;
+  $('#hint-continuar').textContent = n
+    ? 'A IA vai ler o último capítulo de "'+n+'" e continuar de onde parou.'
+    : '';
+  $('#in-tema').placeholder = n ? 'opcional — o que você quer que aconteça nesse capítulo'
+                                : 'Ex.: uma viagem ao fundo do mar';
+}
 function pintarStats(){
   $('#s-total').textContent = historias.length;
   $('#s-leituras').textContent = stats.leituras||0;
@@ -1376,10 +1472,59 @@ function cartaoHistoria(h){
   </div>`;
 }
 function ligarCartoes(sel){
-  $$(sel+' .hist').forEach(el=>el.addEventListener('click',()=>{
+  $$(sel+' .hist:not(.serie)').forEach(el=>el.addEventListener('click',()=>{
     const h = historias.find(x=>x.id===el.dataset.id);
     if(h) Leitor.abrir(h);
   }));
+}
+
+/* ------------------------- séries ------------------------- */
+function listaSeries(){
+  const m = new Map();
+  historias.forEach(h=>{ if(h.serie){ if(!m.has(h.serie)) m.set(h.serie,[]); m.get(h.serie).push(h); } });
+  m.forEach(v=>v.sort((a,b)=>(a.ordem||0)-(b.ordem||0)));
+  return m;
+}
+function proximoDaSerie(nome){
+  const caps = (listaSeries().get(nome)||[]);
+  return caps.find(c=>!c.leituras) || null;
+}
+function proximoCapitulo(h){
+  if(!h || !h.serie) return null;
+  const caps = listaSeries().get(h.serie)||[];
+  const i = caps.findIndex(c=>c.id===h.id);
+  return (i>=0 && i+1<caps.length) ? caps[i+1] : null;
+}
+function cartaoSerie(nome, caps){
+  const lidos = caps.filter(c=>c.leituras).length;
+  const prox = caps.find(c=>!c.leituras);
+  const min = caps.reduce((a,c)=>a+minutosDe(c.texto),0);
+  return `<div class="hist serie" data-serie="${esc(nome)}">
+    <div class="cap" data-n="${caps.length}">📺</div>
+    <div class="info"><b>${esc(nome)}</b><div class="meta">
+      <span class="tag">série</span>
+      <span>${caps.length} capítulos · ${min} min</span>
+      <span>${lidos? (lidos===caps.length? '✅ tudo ouvido' : 'no capítulo '+(lidos+1)) : 'ainda não começou'}</span>
+    </div></div>
+    <div style="align-self:center;color:var(--dim2);font-size:20px">›</div>
+  </div>`;
+}
+function abrirSerie(nome){
+  const caps = listaSeries().get(nome)||[];
+  const prox = caps.find(c=>!c.leituras);
+  modal(`<h3>${esc(nome)}</h3>
+    <div class="hint">${caps.length} capítulos · ${caps.reduce((a,c)=>a+minutosDe(c.texto),0)} min no total</div>
+    <div style="height:14px"></div>
+    ${caps.map((c,i)=>`<div class="cap-item ${c.leituras?'lido':''} ${prox&&prox.id===c.id?'proximo':''}" data-id="${esc(c.id)}">
+      <div class="num">${c.leituras?'✓':(i+1)}</div>
+      <div class="t"><b>${esc(c.titulo)}</b><span>${minutosDe(c.texto)} min${c.leituras?' · já ouvido':''}</span></div>
+      <div style="color:var(--dim2)">▶</div></div>`).join('')}
+    ${prox?`<div style="height:8px"></div><button class="btn pri" id="sr-continuar">▶️ Continuar do capítulo ${caps.indexOf(prox)+1}</button>`:''}`);
+  $$('#modal .cap-item').forEach(el=>el.onclick=()=>{
+    const h = historias.find(x=>x.id===el.dataset.id);
+    fecharModal(); if(h) Leitor.abrir(h);
+  });
+  if(prox) $('#sr-continuar').onclick=()=>{ fecharModal(); Leitor.abrir(prox); };
 }
 
 let filtroIdade='todas';
@@ -1388,11 +1533,31 @@ function pintarAcervo(){
   let lista = historias.slice();
   if(filtroIdade==='fav') lista = lista.filter(h=>h.favorita);
   else if(filtroIdade!=='todas') lista = lista.filter(h=>h.idade===filtroIdade);
-  if(q) lista = lista.filter(h=> (h.titulo+' '+h.texto+' '+(h.tema||'')+' '+(h.personagens||'')).toLowerCase().includes(q));
-  $('#lista-acervo').innerHTML = lista.length
-    ? lista.map(cartaoHistoria).join('')
-    : `<div class="vazio"><span class="em">📭</span>${historias.length? 'Nada encontrado com esse filtro.' : 'Seu acervo está vazinho.<br>Vá em <b>Criar</b> e faça a primeira história.'}</div>`;
+  if(q) lista = lista.filter(h=> (h.titulo+' '+h.texto+' '+(h.tema||'')+' '+(h.serie||'')+' '+(h.personagens||'')).toLowerCase().includes(q));
+
+  // agrupa séries num cartão só (a não ser que esteja buscando algo)
+  let html='';
+  if(q || filtroIdade==='fav'){
+    html = lista.map(cartaoHistoria).join('');
+  }else{
+    const series = new Map(), soltas = [];
+    lista.forEach(h=>{
+      if(h.serie){ if(!series.has(h.serie)) series.set(h.serie,[]); series.get(h.serie).push(h); }
+      else soltas.push(h);
+    });
+    series.forEach(v=>v.sort((a,b)=>(a.ordem||0)-(b.ordem||0)));
+    const blocos = [];
+    series.forEach((caps,nome)=> blocos.push({tipo:'s', nome, caps, data:caps[0].criadaEm||''}));
+    soltas.forEach(h=> blocos.push({tipo:'h', h, data:h.criadaEm||''}));
+    blocos.sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+    html = blocos.map(b=> b.tipo==='s' ? cartaoSerie(b.nome,b.caps) : cartaoHistoria(b.h)).join('');
+  }
+  $('#lista-acervo').innerHTML = html ||
+    `<div class="vazio"><span class="em">📭</span>${historias.length? 'Nada encontrado com esse filtro.' : 'Seu acervo está vazinho.<br>Vá em <b>Criar</b> e faça a primeira história.'}</div>`;
   ligarCartoes('#lista-acervo');
+  $$('#lista-acervo .hist.serie').forEach(el=>el.addEventListener('click', e=>{
+    e.stopPropagation(); abrirSerie(el.dataset.serie);
+  }));
 }
 $('#busca').addEventListener('input', pintarAcervo);
 $$('#filtro-idade button').forEach(b=>b.addEventListener('click',()=>{
@@ -1401,14 +1566,22 @@ $$('#filtro-idade button').forEach(b=>b.addEventListener('click',()=>{
 }));
 
 function pintarInicio(){
-  // sugestão da noite: menos lida, preferindo as nunca lidas
-  const cand = historias.slice().sort((a,b)=>(a.leituras||0)-(b.leituras||0) || Math.random()-0.5);
-  const s = cand[0];
+  // 1º: série já começada e não terminada. 2º: história menos lida.
+  let s=null, aviso='';
+  listaSeries().forEach((caps,nome)=>{
+    if(s) return;
+    const lidos = caps.filter(c=>c.leituras).length;
+    if(lidos>0 && lidos<caps.length){ s = caps.find(c=>!c.leituras); aviso = nome+' · capítulo '+(lidos+1); }
+  });
+  if(!s){
+    const cand = historias.slice().sort((a,b)=>(a.leituras||0)-(b.leituras||0) || Math.random()-0.5);
+    s = cand[0];
+  }
   $('#sugestao-conteudo').innerHTML = s
     ? `<div style="display:flex;gap:12px;align-items:center;margin-bottom:14px">
          <div class="cap" style="width:54px;height:54px;font-size:26px;border-radius:15px;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#4a3a78,#2e2450)">${iconeDe(s)}</div>
          <div style="flex:1;min-width:0"><b style="font-size:17px;display:block">${esc(s.titulo)}</b>
-         <span class="hint">${rotuloIdade(s.idade)} · ${minutosDe(s.texto)} min · ${(s.leituras||0)===0?'ainda não foi lida':'lida '+s.leituras+'×'}</span></div>
+         <span class="hint">${aviso? esc(aviso)+' · ' : ''}${rotuloIdade(s.idade)} · ${minutosDe(s.texto)} min · ${(s.leituras||0)===0?'ainda não foi lida':'lida '+s.leituras+'×'}</span></div>
        </div>
        <div class="linha"><button class="btn pri" id="btn-ler-sug">▶️ Ler agora</button>
        <button class="btn sm" id="btn-outra-sug" style="flex:0 0 56px">🎲</button></div>`
@@ -1424,7 +1597,7 @@ function pintarInicio(){
   const h=new Date().getHours();
   $('#sub-hd').textContent = h<12?'bom dia, meninas':(h<18?'boa tarde, meninas':'boa noite, meninas');
 }
-const pintarTudo = ()=>{ pintarStats(); pintarAcervo(); pintarInicio(); };
+const pintarTudo = ()=>{ pintarStats(); pintarSeries(); pintarAcervo(); pintarInicio(); };
 
 /* ----------------------------- leitor: botões ----------------------------- */
 $('#btn-play').addEventListener('click',()=>Leitor.alternar());
@@ -1450,6 +1623,7 @@ $('#btn-menu-hist').addEventListener('click',()=>{
     $$('#modo-nova button').forEach(b=>b.classList.toggle('on', b.dataset.modo==='manual'));
     $('#bloco-ia').classList.add('oculto'); $('#bloco-manual').classList.remove('oculto');
     $('#man-titulo').value=h.titulo; $('#man-texto').value=h.texto;
+    $('#man-serie').value=h.serie||'';
     $$('#man-idade button').forEach(b=>b.classList.toggle('on', b.dataset.idade===h.idade));
     editandoId = h.id; $('#btn-salvar-manual').textContent='💾 Salvar alterações';
   };
@@ -1480,23 +1654,29 @@ segmento('#man-idade');
 $('#btn-mais-temas').addEventListener('click', novosTemas);
 $('#btn-mais-personagens').addEventListener('click', novosPersonagens);
 $('#btn-gerar').addEventListener('click', gerarHistoria);
+$('#sel-continuar').addEventListener('change', ()=>{
+  atualizarHintContinuar();
+  $('#btn-gerar').innerHTML = $('#sel-continuar').value ? '✨ Gerar próximo capítulo' : '✨ Gerar história';
+});
 
 $('#btn-salvar-manual').addEventListener('click',()=>{
   const titulo=$('#man-titulo').value.trim(), texto=$('#man-texto').value.trim();
   if(!titulo){ toast('Dê um título 🙂'); return; }
   if(!texto){ toast('Escreva a história 🙂'); return; }
   const idade=$('#man-idade .on').dataset.idade;
+  const serie=$('#man-serie').value.trim();
   if(editandoId){
     const h=historias.find(x=>x.id===editandoId);
-    if(h){ h.titulo=titulo; h.texto=texto; h.idade=idade; }
+    if(h){ h.titulo=titulo; h.texto=texto; h.idade=idade;
+           if(serie!==h.serie){ h.serie=serie; h.ordem = serie ? proximaOrdem(serie) : 0; } }
     editandoId=null; $('#btn-salvar-manual').textContent='💾 Salvar no acervo';
     toast('Alterações salvas ✅');
   }else{
-    historias.unshift({id:uid(), titulo, texto, idade, criadaEm:new Date().toISOString(),
-      origem:'manual', leituras:0, favorita:false});
+    historias.unshift({id:uid(), titulo, texto, idade, serie, ordem: serie?proximaOrdem(serie):0,
+      criadaEm:new Date().toISOString(), origem:'manual', leituras:0, favorita:false});
     toast('Guardada no acervo 💜');
   }
-  salvarHistorias(); $('#man-titulo').value=''; $('#man-texto').value='';
+  salvarHistorias(); $('#man-titulo').value=''; $('#man-texto').value=''; $('#man-serie').value='';
   pintarTudo(); irTela('acervo');
 });
 $('#btn-ver-sons').addEventListener('click',()=>{
@@ -1651,7 +1831,8 @@ function mesclar(lista){
     const j = historias.find(x=>x.id===h.id || (x.titulo===h.titulo && x.texto===h.texto));
     if(j){ j.leituras = Math.max(j.leituras||0, h.leituras||0); return; }
     historias.push({ id:h.id, titulo:h.titulo||'Sem título', texto:h.texto, idade:h.idade||'6-9',
-      tema:h.tema||'', personagens:h.personagens||'', criadaEm:h.criadaEm||new Date().toISOString(),
+      tema:h.tema||'', personagens:h.personagens||'', serie:h.serie||'', ordem:h.ordem||0,
+      criadaEm:h.criadaEm||new Date().toISOString(),
       origem:h.origem||'manual', leituras:h.leituras||0, favorita:!!h.favorita });
     n++;
   });
