@@ -139,6 +139,21 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .cap-item .t b{display:block;font-size:15px;font-weight:600}
 .cap-item .t span{font-size:11px;color:var(--dim2)}
 #btn-proximo-cap{margin-top:10px}
+.pe .ctrl .rd.cp{width:44px;height:44px;font-size:16px;background:var(--bg2)}
+.retomar{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;
+  font-size:12px;color:var(--gold)}
+.retomar button{font-size:12px;color:var(--dim2);text-decoration:underline;font-weight:600}
+.marcador{display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:12px;
+  border:1px solid var(--line);background:var(--bg2);margin-top:10px;font-size:14px;font-weight:600}
+.marcador .bx{width:24px;height:24px;border-radius:7px;border:2px solid var(--dim2);flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:15px;color:transparent}
+.marcador.on .bx{background:var(--verde);border-color:var(--verde);color:#06301f}
+.marcador.on{border-color:var(--verde);color:var(--verde)}
+.hist .chk{align-self:center;width:26px;height:26px;border-radius:8px;border:2px solid var(--line);
+  flex:none;display:flex;align-items:center;justify-content:center;font-size:15px;color:transparent}
+.hist .chk.on{background:var(--verde);border-color:var(--verde);color:#06301f}
+.prep{height:5px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:8px}
+.prep i{display:block;height:100%;width:0;background:var(--verde);transition:width .3s}
 .vazio{text-align:center;padding:44px 20px;color:var(--dim2)}
 .vazio .em{font-size:44px;display:block;margin-bottom:10px}
 /* ---------- leitor ---------- */
@@ -253,7 +268,14 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <button data-idade="2-5">2–5</button>
     <button data-idade="6-9">6–9</button>
     <button data-idade="10+">10+</button>
-    <button data-idade="fav">★</button>
+    <button data-idade="mista">as duas</button>
+  </div>
+  <div style="height:8px"></div>
+  <div class="seg" id="filtro-estado">
+    <button class="on" data-estado="tudo">Tudo</button>
+    <button data-estado="novas">⭘ Não lidas</button>
+    <button data-estado="lidas">✓ Já lidas</button>
+    <button data-estado="fav">★ Favoritas</button>
   </div>
   <div style="height:16px"></div>
   <div id="lista-acervo"></div>
@@ -352,7 +374,11 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div id="cfg-nativo">
       <label class="f">Voz</label>
       <select id="sel-voz-nativa"></select>
-      <div class="hint">Se aparecer pouca voz, instale vozes em português nas configurações do seu celular (Android: Configurações → Acessibilidade → Saída de texto para voz).</div>
+      <div class="ok oculto" id="aviso-natural" style="margin-top:10px">
+        <b>Dica de voz grátis e instantânea:</b> no <b>computador</b>, abra este site pelo <b>Microsoft Edge</b> — ele traz vozes brasileiras naturais (procure por “Francisca”, “Thalita” ou “Antonio”, marcadas com ⭐) sem chave, sem espera e sem custo.
+        No <b>Android</b>: Configurações → Acessibilidade → Saída de texto para voz → engine do Google → baixe a voz em português de melhor qualidade.
+      </div>
+      <div class="hint">As vozes com ⭐ são as mais naturais que este aparelho tem.</div>
       <label class="f">Velocidade: <span id="lbl-vel">1.00</span>×</label>
       <input type="range" id="rng-vel" min="0.5" max="1.5" step="0.05" value="0.95">
       <label class="f">Tom da voz: <span id="lbl-tom">1.00</span></label>
@@ -509,6 +535,19 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     </div>
   </div>
 
+  <div class="tit">⚡ Velocidade da voz (áudio guardado)</div>
+  <div class="card">
+    <div class="ok">Cada trecho de voz que o site gera fica <b>guardado neste aparelho</b>. Da segunda vez em diante, a mesma história toca <b>na hora</b> — e até sem internet.</div>
+    <div class="sw">
+      <div class="txt"><b>Preparar a história inteira ao abrir</b><span>Enquanto vocês escolhem, o site já vai gerando os próximos trechos.</span></div>
+      <div class="toggle on" id="tg-adiantar"></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="hint" id="txt-guarda">calculando…</div>
+    <div style="height:10px"></div>
+    <button class="btn sm ghost" id="btn-limpar-audio">🗑️ Apagar os áudios guardados</button>
+  </div>
+
   <div class="tit">📖 Leitura</div>
   <div class="card">
     <label class="f">Tamanho da letra: <span id="lbl-fonte">19</span>px</label>
@@ -545,17 +584,25 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div class="txt">
       <h2 id="lt-h2"></h2>
       <div class="sub" id="lt-sub"></div>
+      <div class="marcador" id="chk-lida"><span class="bx">✓</span> JÁ LIDA</div>
+      <div style="height:18px"></div>
       <div id="lt-texto"></div>
     </div>
   </div>
   <div class="pe">
     <div class="barra"><i id="pg-barra"></i></div>
     <div class="ctrl">
-      <button class="rd" id="btn-voltar-fr">⏮</button>
+      <button class="rd cp oculto" id="btn-cap-ant" title="capítulo anterior">⏪</button>
+      <button class="rd" id="btn-voltar-fr" title="trecho anterior">⏮</button>
       <button class="play" id="btn-play">▶</button>
-      <button class="rd" id="btn-avancar-fr">⏭</button>
+      <button class="rd" id="btn-avancar-fr" title="próximo trecho">⏭</button>
+      <button class="rd cp oculto" id="btn-cap-prox" title="próximo capítulo">⏩</button>
     </div>
     <div class="st" id="leitor-status">toque no play para começar</div>
+    <div class="retomar oculto" id="barra-retomar">
+      <span id="txt-retomar"></span>
+      <button id="btn-do-inicio">⟲ começar do início</button>
+    </div>
     <button class="btn ok oculto" id="btn-proximo-cap">➡️ Próximo capítulo</button>
   </div>
 </div>
@@ -615,7 +662,7 @@ const configPadrao = {
   geminiInstr:'Leia esta história de dormir em português do Brasil como um pai contando para as filhas: voz calma e carinhosa, ritmo tranquilo, pausas naturais, e emoção diferente na fala de cada personagem. Não comente nada, apenas leia o texto.',
   motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-2.5-flash',
   anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
-  efeitos:true, volEfeitos:35,
+  efeitos:true, volEfeitos:35, adiantar:true,
   carregarGithub:true, ghRepo:'', ghToken:'',
   fonte:19, telaAcesa:true, destaque:true
 };
@@ -834,14 +881,17 @@ function carregarVozesNativas(){
   if(!('speechSynthesis' in window)) return;
   vozesNativas = speechSynthesis.getVoices()||[];
   const sel=$('#sel-voz-nativa'); if(!sel) return;
-  const pt = vozesNativas.filter(v=>/pt/i.test(v.lang));
-  const outras = vozesNativas.filter(v=>!/pt/i.test(v.lang));
-  const lista = pt.concat(outras);
+  const natural = v => /natural|online|neural|enhanced|premium|wavenet/i.test(v.name);
+  const nota = v => (/pt/i.test(v.lang)?2:0) + (natural(v)?1:0);
+  const lista = vozesNativas.slice().sort((a,b)=> nota(b)-nota(a) || a.name.localeCompare(b.name));
   sel.innerHTML = lista.length
-    ? lista.map(v=>`<option value="${esc(v.voiceURI)}">${esc(v.name)} — ${esc(v.lang)}${/pt/i.test(v.lang)?' ✅':''}</option>`).join('')
+    ? lista.map(v=>`<option value="${esc(v.voiceURI)}">${natural(v)?'⭐ ':''}${esc(v.name)} — ${esc(v.lang)}${/pt/i.test(v.lang)?' ✅':''}</option>`).join('')
     : '<option value="">(nenhuma voz encontrada ainda)</option>';
+  const temNatural = lista.some(v=>natural(v) && /pt/i.test(v.lang));
+  const av = $('#aviso-natural');
+  if(av) av.classList.toggle('oculto', temNatural);
   if(cfg.vozNativa && lista.some(v=>v.voiceURI===cfg.vozNativa)) sel.value=cfg.vozNativa;
-  else if(pt[0]){ sel.value=pt[0].voiceURI; cfg.vozNativa=pt[0].voiceURI; salvarCfg(); }
+  else if(lista[0]){ sel.value=lista[0].voiceURI; cfg.vozNativa=lista[0].voiceURI; salvarCfg(); }
 }
 if('speechSynthesis' in window){
   speechSynthesis.onvoiceschanged = carregarVozesNativas;
@@ -871,6 +921,59 @@ function falarNativo(texto){
   });
 }
 
+/* ---------------- guarda-áudio (IndexedDB): gera uma vez, toca para sempre ------------- */
+const Guarda = (function(){
+  let db=null, falhou=false;
+  function abrir(){
+    if(db) return Promise.resolve(db);
+    if(falhou || !window.indexedDB) return Promise.resolve(null);
+    return new Promise(res=>{
+      let p;
+      try{ p = indexedDB.open('ch_audio', 1); }catch(e){ falhou=true; return res(null); }
+      p.onupgradeneeded = ()=>{ try{ p.result.createObjectStore('audio'); }catch(e){} };
+      p.onsuccess = ()=>{ db=p.result; res(db); };
+      p.onerror = ()=>{ falhou=true; res(null); };
+    });
+  }
+  function op(modo, fn){
+    return abrir().then(d=>{ if(!d) return null;
+      return new Promise(res=>{
+        let t;
+        try{ t = d.transaction('audio', modo); }catch(e){ return res(null); }
+        const s = t.objectStore('audio');
+        const r = fn(s);
+        if(r){ r.onsuccess = ()=>res(r.result); r.onerror = ()=>res(null); }
+        else { t.oncomplete = ()=>res(true); t.onerror = ()=>res(null); }
+      });
+    });
+  }
+  return {
+    chave(idHistoria, i, txt){
+      const marca = cfg.motorVoz==='gemini' ? (cfg.geminiVoice+'|'+cfg.geminiModelTts)
+                  : cfg.motorVoz==='elevenlabs' ? (cfg.elevenVoice+'|'+cfg.elevenModel)
+                  : cfg.motorVoz==='openai' ? (cfg.openaiVoice+'|'+cfg.openaiModel) : 'nativo';
+      let h=0; for(let k=0;k<txt.length;k++){ h=((h<<5)-h+txt.charCodeAt(k))|0; }
+      return idHistoria+'|'+i+'|'+cfg.motorVoz+'|'+marca+'|'+h;
+    },
+    pegar(k){ return op('readonly', s=>s.get(k)); },
+    guardar(k, blob){ return op('readwrite', s=>s.put(blob,k)); },
+    async quanto(){
+      const d = await abrir(); if(!d) return {n:0, bytes:0};
+      return new Promise(res=>{
+        let n=0, bytes=0;
+        const t=d.transaction('audio','readonly').objectStore('audio').openCursor();
+        t.onsuccess = e=>{ const c=e.target.result;
+          if(c){ n++; bytes += (c.value && c.value.size) || 0; c.continue(); }
+          else res({n,bytes});
+        };
+        t.onerror = ()=>res({n:0,bytes:0});
+      });
+    },
+    limpar(){ return op('readwrite', s=>{ s.clear(); return null; }); }
+  };
+})();
+
+/* ---------------------------- motores de voz (devolvem Blob) ---------------------------- */
 async function audioElevenlabs(texto){
   if(!cfg.elevenKey) throw new Error('Cole sua chave da ElevenLabs em Ajustes.');
   if(!cfg.elevenVoice) throw new Error('Escolha uma voz da ElevenLabs em Ajustes.');
@@ -884,7 +987,7 @@ async function audioElevenlabs(texto){
     })
   });
   if(!r.ok) throw new Error('ElevenLabs: '+ r.status +' — '+ (await r.text()).slice(0,180));
-  return URL.createObjectURL(await r.blob());
+  return await r.blob();
 }
 
 async function audioOpenai(texto){
@@ -897,8 +1000,9 @@ async function audioOpenai(texto){
     body: JSON.stringify(corpo)
   });
   if(!r.ok) throw new Error('OpenAI: '+ r.status +' — '+ (await r.text()).slice(0,180));
-  return URL.createObjectURL(await r.blob());
+  return await r.blob();
 }
+
 const VOZES_GEMINI = [
  ['Sulafat','calorosa'],['Vindemiatrix','gentil'],['Achernar','suave'],['Leda','jovem'],
  ['Callirrhoe','tranquila'],['Umbriel','tranquila'],['Aoede','leve'],['Enceladus','sussurrada'],
@@ -910,8 +1014,8 @@ const VOZES_GEMINI = [
  ['Algenib','rouca'],['Pulcherrima','marcante']
 ];
 
-// o Gemini devolve PCM cru; aqui viram um arquivo WAV que o celular toca
-function pcmParaWav(base64, taxa){
+// o Gemini devolve PCM cru; aqui vira um arquivo WAV que o navegador toca
+function pcmParaWavBlob(base64, taxa){
   const bin = atob(base64), n = bin.length;
   const buf = new ArrayBuffer(44+n), v = new DataView(buf);
   const txt = (p,t)=>{ for(let i=0;i<t.length;i++) v.setUint8(p+i, t.charCodeAt(i)); };
@@ -921,18 +1025,29 @@ function pcmParaWav(base64, taxa){
   txt(36,'data'); v.setUint32(40,n,true);
   const u = new Uint8Array(buf);
   for(let i=0;i<n;i++) u[44+i] = bin.charCodeAt(i);
-  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+  return new Blob([buf],{type:'audio/wav'});
 }
 function acharAudio(o, prof){
   prof = prof||0;
-  if(!o || typeof o!=='object' || prof>6) return null;
-  if(typeof o.data==='string' && o.data.length>500) return o.data;
+  if(!o || typeof o!=='object' || prof>7) return null;
   if(o.inlineData && typeof o.inlineData.data==='string') return o.inlineData.data;
+  if(o.inline_data && typeof o.inline_data.data==='string') return o.inline_data.data;
+  if(typeof o.data==='string' && o.data.length>500) return o.data;
   for(const k in o){ const r = acharAudio(o[k], prof+1); if(r) return r; }
   return null;
 }
-async function audioGemini(texto){
-  if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Ajustes.');
+function erroGemini(status, corpo){
+  let msg = 'Gemini voz: '+status+' — '+corpo;
+  if(status===401 || status===403) msg = 'O Google não aceitou a chave. Confira se copiou ela inteira (as novas começam com "AQ.", as antigas com "AIza").';
+  if(status===429) msg = 'A cota grátis bateu no limite por agora. Espere alguns minutos, ou use a voz do celular nesta noite.';
+  const e = new Error(msg); e.status=status; return e;
+}
+
+// dois caminhos: o endpoint novo e o clássico. O que funcionar fica marcado e é usado sempre.
+let caminhoGemini = null;   // 'interactions' | 'generate'
+const MODELO_CLASSICO = m => /^gemini-3/.test(m||'') ? 'gemini-2.5-flash-preview-tts' : (m || 'gemini-2.5-flash-preview-tts');
+
+async function geminiInteractions(texto){
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
@@ -943,18 +1058,53 @@ async function audioGemini(texto){
       generation_config:{ speech_config:[{ voice: cfg.geminiVoice || 'Sulafat' }] }
     })
   });
-  if(!r.ok){
-    const t = (await r.text()).slice(0,200);
-    let msg = 'Gemini voz: '+r.status+' — '+t;
-    if(r.status===401 || r.status===403) msg = 'O Google não aceitou a chave. Confira se você copiou ela inteira (as novas começam com "AQ." e as antigas com "AIza") e se colou no campo certo.';
-    if(r.status===429) msg = 'A cota grátis do dia bateu no limite. Espere um pouco e tente de novo, ou use a voz do celular nesta noite.';
-    const e = new Error(msg); e.status=r.status; throw e;
-  }
-  const j = await r.json();
-  const b64 = acharAudio(j);
-  if(!b64) throw new Error('O Gemini não devolveu áudio desta vez. Tente de novo.');
-  return pcmParaWav(b64, 24000);
+  if(!r.ok) throw erroGemini(r.status, (await r.text()).slice(0,200));
+  const b64 = acharAudio(await r.json());
+  if(!b64) throw new Error('O Gemini não devolveu áudio. Tente de novo.');
+  return pcmParaWavBlob(b64, 24000);
 }
+
+async function geminiGenerate(texto){
+  const modelo = MODELO_CLASSICO(cfg.geminiModelTts);
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(modelo)+':generateContent',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
+    body: JSON.stringify({
+      contents:[{ parts:[{ text: (cfg.geminiInstr||'') + '\n\n' + semMarcadores(texto) }] }],
+      generationConfig:{
+        responseModalities:['AUDIO'],
+        speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: cfg.geminiVoice || 'Sulafat' } } }
+      }
+    })
+  });
+  if(!r.ok) throw erroGemini(r.status, (await r.text()).slice(0,200));
+  const b64 = acharAudio(await r.json());
+  if(!b64) throw new Error('O Gemini não devolveu áudio. Tente de novo.');
+  return pcmParaWavBlob(b64, 24000);
+}
+
+async function audioGemini(texto){
+  if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Ajustes.');
+  const ordem = caminhoGemini==='generate' ? [['generate',geminiGenerate],['interactions',geminiInteractions]]
+                                           : [['interactions',geminiInteractions],['generate',geminiGenerate]];
+  let ultimo=null;
+  for(const [nome, fn] of ordem){
+    try{
+      const b = await fn(texto);
+      caminhoGemini = nome;
+      return b;
+    }catch(e){
+      ultimo = e;
+      // erro de chave ou de cota não melhora trocando de caminho
+      if(e.status===401 || e.status===403 || e.status===429) throw e;
+    }
+  }
+  if(ultimo && /failed to fetch|networkerror|load failed/i.test(ultimo.message||'')){
+    throw new Error('O navegador não conseguiu nem chegar no servidor do Google. Quase sempre é uma extensão bloqueando (bloqueador de anúncios, antivírus, VPN ou firewall). Teste numa janela anônima com as extensões desligadas, ou use outro navegador.');
+  }
+  throw ultimo || new Error('Não consegui falar com o Gemini.');
+}
+
 function gerarAudio(texto){
   if(cfg.motorVoz==='elevenlabs') return audioElevenlabs(texto);
   if(cfg.motorVoz==='gemini') return audioGemini(texto);
@@ -963,24 +1113,34 @@ function gerarAudio(texto){
 
 /* ----------------------------- o leitor ----------------------------- */
 const Leitor = (function(){
-  let hist=null, partes=[], fila=[], pos=0, tocando=false, pararPedido=false;
-  let audio=null, cache=new Map(), wake=null, inicioLeitura=0, contou=false, execucaoId=0;
+  let hist=null, partes=[], fila=[], pos=0, tocando=false;
+  let audio=null, urlAtual=null, memoria=new Map(), wake=null;
+  let inicioLeitura=0, contou=false, execucaoId=0;
+  let emVoo=0, proximoBaixar=0, esteiraLigada=false;
+
+  const MAX_PARALELO = 2;
+
+  // Pedaços pequenos no começo (a voz sai rápido) e maiores depois (menos pedidos).
+  function tetoDoPedaco(n){
+    if(cfg.motorVoz==='gemini')     return [180, 400, 800, 1400][n] || 1900;
+    if(cfg.motorVoz==='elevenlabs') return [200, 450, 700][n] || 900;
+    if(cfg.motorVoz==='openai')     return [200, 450, 700][n] || 900;
+    return 0;
+  }
 
   function montarFila(){
     fila=[];
     const porApi = cfg.motorVoz!=='nativo';
-    let buffer=[], ids=[];
+    let buffer=[], ids=[], nFalas=0;
     const descarregar = ()=>{
       if(!buffer.length) return;
       fila.push({tipo:'fala', texto:buffer.join(' '), ids:ids.slice()});
-      buffer=[]; ids=[];
+      buffer=[]; ids=[]; nFalas++;
     };
     partes.forEach((p,i)=>{
       if(p.tipo==='som'){ descarregar(); fila.push({tipo:'som', som:p.som}); return; }
       buffer.push(p.texto); ids.push(i);
-      const teto = cfg.motorVoz==='gemini' ? 2200 : 700;
-      const tamanho = buffer.join(' ').length;
-      if(!porApi || tamanho>teto) descarregar();
+      if(!porApi || buffer.join(' ').length > tetoDoPedaco(nFalas)) descarregar();
     });
     descarregar();
   }
@@ -998,15 +1158,14 @@ const Leitor = (function(){
       el.addEventListener('click', ()=>{
         const alvo = Number(el.dataset.i);
         const k = fila.findIndex(f=>f.tipo==='fala' && f.ids.includes(alvo));
-        if(k>=0){ irPara(k); }
+        if(k>=0) irPara(k);
       });
     });
   }
 
   function destacar(step){
-    if(!cfg.destaque){ $$('#lt-texto .fr.now').forEach(e=>e.classList.remove('now')); return; }
     $$('#lt-texto .fr.now').forEach(e=>e.classList.remove('now'));
-    if(!step || step.tipo!=='fala') return;
+    if(!cfg.destaque || !step || step.tipo!=='fala') return;
     let primeiro=null;
     step.ids.forEach(i=>{
       const el=$(`#lt-texto .fr[data-i="${i}"]`);
@@ -1019,41 +1178,73 @@ const Leitor = (function(){
     }
   }
 
-  function barra(){
-    const t = fila.length||1;
-    $('#pg-barra').style.width = Math.min(100, (pos/t)*100) + '%';
-  }
-  function status(t){ $('#leitor-status').textContent = t; }
-  function iconePlay(p){ $('#btn-play').textContent = p ? '⏸' : '▶'; }
+  const barra = ()=>{ $('#pg-barra').style.width = Math.min(100,(pos/(fila.length||1))*100)+'%'; };
+  const status = t => { $('#leitor-status').textContent = t; };
+  const iconePlay = p => { $('#btn-play').textContent = p ? '⏸' : '▶'; };
 
+  /* ---------- cache + esteira de download ---------- */
   async function pegarAudio(i){
-    if(cache.has(i)) return cache.get(i);
+    if(memoria.has(i)) return memoria.get(i);
+    const txt = fila[i].texto;
+    const ch = Guarda.chave(hist.id, i, txt);
+    const salvo = await Guarda.pegar(ch);
+    if(salvo){ memoria.set(i, salvo); return salvo; }
     let ultimo=null;
-    for(let tentativa=0; tentativa<3; tentativa++){
+    for(let t=0; t<3; t++){
       try{
-        const url = await gerarAudio(fila[i].texto);
-        cache.set(i,url);
-        return url;
+        const blob = await gerarAudio(txt);
+        memoria.set(i, blob);
+        Guarda.guardar(ch, blob);
+        return blob;
       }catch(e){
         ultimo=e;
-        const limite = e.status===429 || /429|quota|rate/i.test(e.message||'');
-        if(!limite || tentativa===2) throw e;
-        status('a cota grátis pediu uma pausa… esperando '+((tentativa+1)*8)+'s');
-        await sleep((tentativa+1)*8000);
+        if(e.status===429 && t<2){ await sleep((t+1)*6000); continue; }
+        throw e;
       }
     }
     throw ultimo;
   }
-  function prefetch(i){
-    for(let k=i+1;k<fila.length;k++){
-      if(fila[k].tipo!=='fala') continue;
-      if(!cache.has(k)) pegarAudio(k).catch(()=>{});
-      break;
+
+  function proximaFalaFaltando(desde){
+    for(let k=desde; k<fila.length; k++){
+      if(fila[k].tipo==='fala' && !memoria.has(k)) return k;
+    }
+    return -1;
+  }
+  // vai baixando os próximos pedaços em segundo plano enquanto a história toca
+  function esteira(){
+    if(cfg.motorVoz==='nativo') return;
+    while(emVoo < MAX_PARALELO){
+      const k = proximaFalaFaltando(Math.max(proximoBaixar, pos));
+      if(k<0) return;
+      proximoBaixar = k+1;
+      emVoo++;
+      pegarAudio(k)
+        .catch(()=>{})
+        .then(()=>{ emVoo--; atualizarPreparo(); if(esteiraLigada) esteira(); });
     }
   }
-  function tocarUrl(url){
+  function contarProntos(){
+    let total=0, prontos=0;
+    fila.forEach((f,i)=>{ if(f.tipo==='fala'){ total++; if(memoria.has(i)) prontos++; } });
+    return {total, prontos};
+  }
+  function atualizarPreparo(){
+    const el = $('#prep-barra');
+    if(!el) return;
+    const {total,prontos} = contarProntos();
+    el.style.width = total? (prontos/total*100)+'%' : '0%';
+    const t = $('#prep-txt');
+    if(t) t.textContent = prontos>=total ? 'Tudo pronto — pode tocar sem esperar 💚'
+                                         : `preparando ${prontos} de ${total} trechos…`;
+  }
+
+  function tocarBlob(blob){
     return new Promise((resolve,reject)=>{
-      audio = new Audio(url);
+      if(urlAtual) URL.revokeObjectURL(urlAtual);
+      urlAtual = URL.createObjectURL(blob);
+      audio = new Audio(urlAtual);
+      audio.playbackRate = Math.min(1.4, Math.max(.7, cfg.vel));
       audio.onended = resolve;
       audio.onerror = ()=>reject(new Error('Não consegui tocar o áudio.'));
       audio.play().catch(reject);
@@ -1063,9 +1254,10 @@ const Leitor = (function(){
   async function executar(){
     const meu = ++execucaoId;
     inicioLeitura = Date.now();
+    esteiraLigada = true; proximoBaixar = pos; esteira();
     while(tocando && pos < fila.length && meu===execucaoId){
       const step = fila[pos];
-      barra();
+      barra(); salvarPosicao();
       if(step.tipo==='som'){ Som.tocar(step.som); pos++; continue; }
       destacar(step);
       try{
@@ -1073,20 +1265,28 @@ const Leitor = (function(){
           status('lendo…');
           await falarNativo(step.texto);
         }else{
-          if(!cache.has(pos)) status('preparando a voz…');
-          const url = await pegarAudio(pos);
+          if(!memoria.has(pos)) status('preparando a voz…');
+          const blob = await pegarAudio(pos);
           if(!tocando || meu!==execucaoId) return;
           status('lendo…');
-          prefetch(pos);
-          await tocarUrl(url);
+          esteira();
+          await tocarBlob(blob);
         }
       }catch(e){
         if(meu!==execucaoId) return;
-        tocando=false; iconePlay(false); Som.parar(true);
-        status('erro');
-        modal(`<h3>Não consegui ler 😕</h3><p class="hint">${esc(e.message||e)}</p>
-          <div class="info" style="margin-top:12px">Dica: confira a chave em <b>Ajustes</b>, ou volte para a <b>voz do celular</b>, que funciona sem chave nenhuma.</div>
-          <div style="height:14px"></div><button class="btn" onclick="document.getElementById('modal').classList.remove('on')">Fechar</button>`);
+        tocando=false; esteiraLigada=false; iconePlay(false); Som.parar(true);
+        status('deu erro');
+        modal(`<h3>Não consegui ler 🙁</h3><p class="hint">${esc(e.message||e)}</p>
+          <div class="info" style="margin-top:12px">Você pode continuar agora com a <b>voz do celular</b>, que funciona sem chave e sem espera.</div>
+          <div style="height:14px"></div>
+          <button class="btn" id="err-nativo">📱 Usar a voz do celular agora</button>
+          <div style="height:10px"></div>
+          <button class="btn sm ghost" id="err-fechar">Fechar</button>`);
+        $('#err-nativo').onclick=()=>{
+          cfg.motorVoz='nativo'; salvarCfg(); aplicarCfgNaTela();
+          fecharModal(); memoria=new Map(); montarFila(); barra(); play();
+        };
+        $('#err-fechar').onclick=fecharModal;
         return;
       }
       if(!tocando || meu!==execucaoId) return;
@@ -1095,12 +1295,12 @@ const Leitor = (function(){
     }
     if(meu!==execucaoId) return;
     if(pos>=fila.length && tocando){
-      tocando=false; iconePlay(false); barra();
-      Som.tocar('fim');
-      destacar(null);
+      tocando=false; esteiraLigada=false; iconePlay(false); barra();
+      Som.tocar('fim'); destacar(null);
       status('fim da história 💜');
       if(!contou){ contou=true; registrarLeitura(); }
       somarTempo();
+      if(hist){ hist.lida = true; hist.posicao = 0; salvarHistorias(); marcarCheck(); }
       const prox = proximoCapitulo(hist);
       const btn = $('#btn-proximo-cap');
       if(prox){
@@ -1111,6 +1311,12 @@ const Leitor = (function(){
     }
   }
 
+  function salvarPosicao(){
+    if(!hist) return;
+    hist.posicao = (pos>0 && pos < fila.length-1) ? pos : 0;
+    hist.posicaoTotal = fila.length;
+    salvarHistorias();
+  }
   function somarTempo(){
     if(!inicioLeitura) return;
     stats.segundos += Math.round((Date.now()-inicioLeitura)/1000);
@@ -1129,7 +1335,6 @@ const Leitor = (function(){
     }
     salvarHistorias(); salvarStats(); pintarStats(); pintarInicio();
   }
-
   async function manterTela(ligar){
     try{
       if(ligar && cfg.telaAcesa && 'wakeLock' in navigator){ wake = await navigator.wakeLock.request('screen'); }
@@ -1138,15 +1343,16 @@ const Leitor = (function(){
   }
 
   function pausar(){
-    tocando=false; execucaoId++;
+    tocando=false; esteiraLigada=false; execucaoId++;
     if('speechSynthesis' in window) speechSynthesis.cancel();
     if(audio){ try{ audio.pause(); }catch(e){} }
     Som.parar(true);
-    iconePlay(false); status('pausado'); manterTela(false); somarTempo();
+    iconePlay(false); status('pausado'); manterTela(false); somarTempo(); salvarPosicao();
   }
   function play(){
     if(!fila.length) return;
     Som.ligar();
+    $('#barra-retomar').classList.add('oculto');
     tocando=true; iconePlay(true); manterTela(true);
     executar();
   }
@@ -1154,8 +1360,9 @@ const Leitor = (function(){
     const rodando = tocando;
     if(rodando) pausar();
     pos = Math.max(0, Math.min(k, fila.length-1));
-    barra(); destacar(fila[pos]);
-    if(rodando) setTimeout(play, 160); else status('toque no play para começar');
+    proximoBaixar = pos;
+    barra(); destacar(fila[pos]); salvarPosicao();
+    if(rodando) setTimeout(play, 140); else status('toque no play para começar');
   }
   function passo(dir){
     let k = pos + dir;
@@ -1163,35 +1370,84 @@ const Leitor = (function(){
     if(k<0) k=0; if(k>=fila.length) k=fila.length-1;
     irPara(k);
   }
+  function marcarCheck(){
+    const b=$('#chk-lida');
+    if(b && hist) b.classList.toggle('on', !!hist.lida);
+  }
+
+  async function prepararTudo(){
+    if(cfg.motorVoz==='nativo'){ toast('A voz do celular não precisa de preparo 🙂'); return; }
+    modal(`<h3>Preparando a história</h3>
+      <p class="hint">Estou gerando o áudio de todos os trechos e guardando neste aparelho. Depois disso, a leitura começa na hora — e nas próximas vezes também, mesmo sem internet.</p>
+      <div class="prep"><i id="prep-barra"></i></div>
+      <div class="hint" id="prep-txt" style="text-align:center;margin-top:8px">começando…</div>
+      <div style="height:14px"></div>
+      <button class="btn sm ghost" id="prep-fechar">Deixar rodando em segundo plano</button>`);
+    $('#prep-fechar').onclick=fecharModal;
+    esteiraLigada = true; proximoBaixar = 0; atualizarPreparo(); esteira();
+    const t = setInterval(()=>{
+      atualizarPreparo();
+      const {total,prontos} = contarProntos();
+      if(prontos>=total){ clearInterval(t); esteiraLigada=false; }
+    }, 700);
+  }
 
   return {
     abrir(h){
-      hist=h; contou=false; pos=0; cache.forEach(u=>URL.revokeObjectURL(u)); cache=new Map();
-      partes = analisar(h.texto);
-      montarFila(); render(); barra();
+      hist=h; contou=false;
+      memoria=new Map(); partes = analisar(h.texto);
+      montarFila(); render();
+      const caps = h.serie ? (listaSeries().get(h.serie)||[]) : [];
+      const iCap = caps.findIndex(c=>c.id===h.id);
+      $('#btn-cap-ant').classList.toggle('oculto', !(iCap>0));
+      $('#btn-cap-prox').classList.toggle('oculto', !(iCap>=0 && iCap+1<caps.length));
       $('#leitor-titulo').textContent = h.titulo;
       $('#lt-h2').textContent = h.titulo;
-      const caps = h.serie ? (listaSeries().get(h.serie)||[]) : [];
-      const pref = h.serie ? `${h.serie} · capítulo ${Math.max(1, caps.findIndex(c=>c.id===h.id)+1)} de ${caps.length} · ` : '';
+      const pref = h.serie ? `${h.serie} · capítulo ${Math.max(1,iCap+1)} de ${caps.length} · ` : '';
       $('#lt-sub').textContent = pref + `${rotuloIdade(h.idade)} · ${minutosDe(h.texto)} min de leitura · ${h.leituras||0}× lida`;
       $('#lt-texto').style.fontSize = cfg.fonte+'px';
       $('#leitor-corpo').scrollTop=0;
       $('#btn-fav').textContent = h.favorita ? '★' : '☆';
-      $('#leitor').classList.add('on');
       $('#btn-proximo-cap').classList.add('oculto');
-      iconePlay(false); status('toque no play para começar');
+      $('#leitor').classList.add('on');
       document.body.style.overflow='hidden';
+      marcarCheck();
+      // retoma de onde parou
+      const salva = (h.posicao && h.posicaoTotal===fila.length) ? h.posicao : 0;
+      pos = salva;
+      barra(); iconePlay(false);
+      if(salva>0){
+        $('#barra-retomar').classList.remove('oculto');
+        $('#txt-retomar').textContent = '⏸ você parou em ' + Math.round(salva/fila.length*100) + '%';
+        destacar(fila[pos]);
+        status('toque no play para continuar');
+      }else{
+        $('#barra-retomar').classList.add('oculto');
+        status('toque no play para começar');
+      }
+      // já vai adiantando os primeiros pedaços
+      if(cfg.motorVoz!=='nativo' && cfg.adiantar){ esteiraLigada=true; proximoBaixar=pos; esteira(); }
     },
     fechar(){
-      pausar(); Som.parar(true);
-      cache.forEach(u=>URL.revokeObjectURL(u)); cache=new Map();
+      pausar(); Som.parar(true); esteiraLigada=false;
+      if(urlAtual){ URL.revokeObjectURL(urlAtual); urlAtual=null; }
+      memoria=new Map();
       $('#leitor').classList.remove('on');
       document.body.style.overflow='';
       pintarAcervo(); pintarInicio();
     },
     alternar(){ tocando ? pausar() : play(); },
-    passo, atual(){ return hist; },
-    recarregar(){ if(hist){ const p = pos; montarFila(); render(); irPara(Math.min(p,fila.length-1)); } }
+    doInicio(){ irPara(0); $('#barra-retomar').classList.add('oculto'); },
+    passo, prepararTudo,
+    capitulo(dir){
+      if(!hist || !hist.serie) return;
+      const caps = listaSeries().get(hist.serie)||[];
+      const i = caps.findIndex(c=>c.id===hist.id);
+      const alvo = caps[i+dir];
+      if(alvo) Leitor.abrir(alvo); else toast(dir>0?'Esse é o último capítulo':'Esse é o primeiro capítulo');
+    },
+    marcarCheck,
+    atual(){ return hist; }
   };
 })();
 
@@ -1430,7 +1686,10 @@ function irTela(nome){
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tela===nome));
   window.scrollTo({top:0,behavior:'instant'});
 }
-$$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>irTela(b.dataset.tela)));
+$$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  irTela(b.dataset.tela);
+  if(b.dataset.tela==='config' && typeof mostrarGuarda==='function') mostrarGuarda();
+}));
 $('#btn-config-topo').addEventListener('click',()=>irTela('config'));
 $('#btn-ir-nova').addEventListener('click',()=>irTela('nova'));
 $('#btn-ir-acervo').addEventListener('click',()=>irTela('acervo'));
@@ -1468,19 +1727,33 @@ function cartaoHistoria(h){
   const tags = [];
   tags.push(`<span class="tag">${rotuloIdade(h.idade)}</span>`);
   tags.push(`<span>${minutosDe(h.texto)} min</span>`);
-  if(h.leituras) tags.push(`<span>${h.leituras}× lida</span>`);
+  if(h.posicao) tags.push(`<span>⏸ ${Math.round(h.posicao/(h.posicaoTotal||1)*100)}%</span>`);
+  else if(h.leituras) tags.push(`<span>${h.leituras}× lida</span>`);
   if(h.origem==='ia') tags.push(`<span>✨ IA</span>`);
   return `<div class="hist" data-id="${esc(h.id)}">
     <div class="cap">${h.favorita?'⭐':iconeDe(h)}</div>
     <div class="info"><b>${esc(h.titulo)}</b><div class="meta">${tags.join('')}</div></div>
-    <div style="align-self:center;color:var(--dim2);font-size:20px">▶</div>
+    <div class="chk ${h.lida?'on':''}" data-chk="${esc(h.id)}" title="já lida">✓</div>
   </div>`;
+}
+function ligarChecks(sel){
+  $$(sel+' .chk').forEach(el=>el.addEventListener('click', e=>{
+    e.stopPropagation();
+    const h = historias.find(x=>x.id===el.dataset.chk);
+    if(!h) return;
+    h.lida = !h.lida;
+    if(h.lida && !h.leituras) h.leituras = 1;
+    if(!h.lida) h.posicao = 0;
+    salvarHistorias(); el.classList.toggle('on', h.lida);
+    pintarInicio();
+  }));
 }
 function ligarCartoes(sel){
   $$(sel+' .hist:not(.serie)').forEach(el=>el.addEventListener('click',()=>{
     const h = historias.find(x=>x.id===el.dataset.id);
     if(h) Leitor.abrir(h);
   }));
+  ligarChecks(sel);
 }
 
 /* ------------------------- séries ------------------------- */
@@ -1492,7 +1765,7 @@ function listaSeries(){
 }
 function proximoDaSerie(nome){
   const caps = (listaSeries().get(nome)||[]);
-  return caps.find(c=>!c.leituras) || null;
+  return caps.find(c=>!(c.lida||c.leituras)) || null;
 }
 function proximoCapitulo(h){
   if(!h || !h.serie) return null;
@@ -1501,8 +1774,8 @@ function proximoCapitulo(h){
   return (i>=0 && i+1<caps.length) ? caps[i+1] : null;
 }
 function cartaoSerie(nome, caps){
-  const lidos = caps.filter(c=>c.leituras).length;
-  const prox = caps.find(c=>!c.leituras);
+  const lidos = caps.filter(c=>c.lida||c.leituras).length;
+  const prox = caps.find(c=>!(c.lida||c.leituras));
   const min = caps.reduce((a,c)=>a+minutosDe(c.texto),0);
   return `<div class="hist serie" data-serie="${esc(nome)}">
     <div class="cap" data-n="${caps.length}">📺</div>
@@ -1516,13 +1789,13 @@ function cartaoSerie(nome, caps){
 }
 function abrirSerie(nome){
   const caps = listaSeries().get(nome)||[];
-  const prox = caps.find(c=>!c.leituras);
+  const prox = caps.find(c=>!(c.lida||c.leituras));
   modal(`<h3>${esc(nome)}</h3>
     <div class="hint">${caps.length} capítulos · ${caps.reduce((a,c)=>a+minutosDe(c.texto),0)} min no total</div>
     <div style="height:14px"></div>
     ${caps.map((c,i)=>`<div class="cap-item ${c.leituras?'lido':''} ${prox&&prox.id===c.id?'proximo':''}" data-id="${esc(c.id)}">
-      <div class="num">${c.leituras?'✓':(i+1)}</div>
-      <div class="t"><b>${esc(c.titulo)}</b><span>${minutosDe(c.texto)} min${c.leituras?' · já ouvido':''}</span></div>
+      <div class="num">${(c.lida||c.leituras)?'✓':(i+1)}</div>
+      <div class="t"><b>${esc(c.titulo)}</b><span>${minutosDe(c.texto)} min${(c.lida||c.leituras)?' · já ouvido':''}${c.posicao?' · parou em '+Math.round(c.posicao/(c.posicaoTotal||1)*100)+'%':''}</span></div>
       <div style="color:var(--dim2)">▶</div></div>`).join('')}
     ${prox?`<div style="height:8px"></div><button class="btn pri" id="sr-continuar">▶️ Continuar do capítulo ${caps.indexOf(prox)+1}</button>`:''}`);
   $$('#modal .cap-item').forEach(el=>el.onclick=()=>{
@@ -1532,17 +1805,19 @@ function abrirSerie(nome){
   if(prox) $('#sr-continuar').onclick=()=>{ fecharModal(); Leitor.abrir(prox); };
 }
 
-let filtroIdade='todas';
+let filtroIdade='todas', filtroEstado='tudo';
 function pintarAcervo(){
   const q = $('#busca').value.trim().toLowerCase();
   let lista = historias.slice();
-  if(filtroIdade==='fav') lista = lista.filter(h=>h.favorita);
-  else if(filtroIdade!=='todas') lista = lista.filter(h=>h.idade===filtroIdade);
+  if(filtroIdade!=='todas') lista = lista.filter(h=>h.idade===filtroIdade);
+  if(filtroEstado==='fav')   lista = lista.filter(h=>h.favorita);
+  if(filtroEstado==='lidas') lista = lista.filter(h=>h.lida);
+  if(filtroEstado==='novas') lista = lista.filter(h=>!h.lida);
   if(q) lista = lista.filter(h=> (h.titulo+' '+h.texto+' '+(h.tema||'')+' '+(h.serie||'')+' '+(h.personagens||'')).toLowerCase().includes(q));
 
   // agrupa séries num cartão só (a não ser que esteja buscando algo)
   let html='';
-  if(q || filtroIdade==='fav'){
+  if(q || filtroEstado!=='tudo' || filtroIdade!=='todas'){
     html = lista.map(cartaoHistoria).join('');
   }else{
     const series = new Map(), soltas = [];
@@ -1569,17 +1844,21 @@ $$('#filtro-idade button').forEach(b=>b.addEventListener('click',()=>{
   $$('#filtro-idade button').forEach(x=>x.classList.remove('on'));
   b.classList.add('on'); filtroIdade=b.dataset.idade; pintarAcervo();
 }));
+$$('#filtro-estado button').forEach(b=>b.addEventListener('click',()=>{
+  $$('#filtro-estado button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); filtroEstado=b.dataset.estado; pintarAcervo();
+}));
 
 function pintarInicio(){
   // 1º: série já começada e não terminada. 2º: história menos lida.
   let s=null, aviso='';
   listaSeries().forEach((caps,nome)=>{
     if(s) return;
-    const lidos = caps.filter(c=>c.leituras).length;
+    const lidos = caps.filter(c=>c.lida||c.leituras).length;
     if(lidos>0 && lidos<caps.length){ s = caps.find(c=>!c.leituras); aviso = nome+' · capítulo '+(lidos+1); }
   });
   if(!s){
-    const cand = historias.slice().sort((a,b)=>(a.leituras||0)-(b.leituras||0) || Math.random()-0.5);
+    const cand = historias.slice().sort((a,b)=>(a.lida?1:0)-(b.lida?1:0) || (a.leituras||0)-(b.leituras||0) || Math.random()-0.5);
     s = cand[0];
   }
   $('#sugestao-conteudo').innerHTML = s
@@ -1608,6 +1887,17 @@ const pintarTudo = ()=>{ pintarStats(); pintarSeries(); pintarAcervo(); pintarIn
 $('#btn-play').addEventListener('click',()=>Leitor.alternar());
 $('#btn-avancar-fr').addEventListener('click',()=>Leitor.passo(1));
 $('#btn-voltar-fr').addEventListener('click',()=>Leitor.passo(-1));
+$('#btn-cap-prox').addEventListener('click',()=>Leitor.capitulo(1));
+$('#btn-cap-ant').addEventListener('click',()=>Leitor.capitulo(-1));
+$('#btn-do-inicio').addEventListener('click',()=>Leitor.doInicio());
+$('#chk-lida').addEventListener('click',()=>{
+  const h=Leitor.atual(); if(!h) return;
+  h.lida = !h.lida;
+  if(h.lida && !h.leituras) h.leituras = 1;
+  if(!h.lida) h.posicao = 0;
+  salvarHistorias(); Leitor.marcarCheck(); pintarInicio();
+  toast(h.lida ? 'Marcada como já lida ✓' : 'Marcada como não lida');
+});
 $('#btn-fechar-leitor').addEventListener('click',()=>Leitor.fechar());
 $('#btn-fav').addEventListener('click',()=>{
   const h=Leitor.atual(); if(!h) return;
@@ -1620,9 +1910,11 @@ $('#btn-menu-hist').addEventListener('click',()=>{
   modal(`<h3>${esc(h.titulo)}</h3>
     <div class="hint">${rotuloIdade(h.idade)} · ${contarPalavras(h.texto)} palavras · criada em ${new Date(h.criadaEm).toLocaleDateString('pt-BR')}</div>
     <div style="height:16px"></div>
+    <button class="btn sm ok" id="mh-preparar">⚡ Preparar o áudio agora</button><div style="height:10px"></div>
     <button class="btn sm" id="mh-editar">✏️ Editar o texto</button><div style="height:10px"></div>
     <button class="btn sm" id="mh-copiar">📋 Copiar a história</button><div style="height:10px"></div>
     <button class="btn sm ghost" id="mh-apagar" style="color:var(--vermelho)">🗑️ Apagar do acervo</button>`);
+  $('#mh-preparar').onclick=()=>{ Leitor.prepararTudo(); };
   $('#mh-editar').onclick=()=>{
     fecharModal(); Leitor.fechar(); irTela('nova');
     $$('#modo-nova button').forEach(b=>b.classList.toggle('on', b.dataset.modo==='manual'));
@@ -1760,6 +2052,20 @@ function chave(sel, campoCfg, depois){
   });
 }
 chave('#tg-efeitos','efeitos', ()=>{ if(!cfg.efeitos) Som.parar(true); });
+chave('#tg-adiantar','adiantar');
+
+function mostrarGuarda(){
+  Guarda.quanto().then(q=>{
+    const mb = (q.bytes/1048576);
+    $('#txt-guarda').innerHTML = q.n
+      ? `<b>${q.n}</b> trechos de voz guardados neste aparelho (${mb<1? Math.round(q.bytes/1024)+' KB' : mb.toFixed(1)+' MB'}). Essas partes tocam na hora, sem espera.`
+      : 'Nenhum áudio guardado ainda. Assim que você ouvir uma história, ela fica pronta para a próxima vez.';
+  });
+}
+$('#btn-limpar-audio').addEventListener('click',()=>{
+  if(!confirm('Apagar os áudios guardados? As histórias continuam aqui; só a voz vai precisar ser gerada de novo.')) return;
+  Guarda.limpar().then(()=>{ toast('Áudios apagados'); mostrarGuarda(); });
+});
 chave('#tg-github','carregarGithub');
 chave('#tg-tela','telaAcesa');
 chave('#tg-destaque','destaque');
@@ -1771,7 +2077,9 @@ $('#btn-testar-voz').addEventListener('click', async ()=>{
     if(cfg.motorVoz==='nativo'){ if('speechSynthesis' in window) speechSynthesis.cancel(); await falarNativo(frase); }
     else { const url=await gerarAudio(frase); const a=new Audio(url); await a.play(); }
     toast('Era pra ter falado agora 🔊');
-  }catch(e){ modal(`<h3>Falhou 😕</h3><p class="hint">${esc(e.message||e)}</p><div style="height:14px"></div>
+  }catch(e){ modal(`<h3>Falhou 🙁</h3><p class="hint">${esc(e.message||e)}</p>
+    ${/failed to fetch|networkerror|load failed/i.test(e.message||'') ? '<div class="aviso" style="margin-top:12px">Esse erro vem de fora do site: alguma extensão do navegador (bloqueador, antivírus, VPN) está barrando a conexão com o Google. Tente numa janela anônima.</div>' : ''}
+    <div style="height:14px"></div>
     <button class="btn" onclick="document.getElementById('modal').classList.remove('on')">Fechar</button>`); }
   finally{ b.disabled=false; b.innerHTML='▶️ Testar a voz'; }
 });
@@ -1838,7 +2146,8 @@ function mesclar(lista){
     historias.push({ id:h.id, titulo:h.titulo||'Sem título', texto:h.texto, idade:h.idade||'6-9',
       tema:h.tema||'', personagens:h.personagens||'', serie:h.serie||'', ordem:h.ordem||0,
       criadaEm:h.criadaEm||new Date().toISOString(),
-      origem:h.origem||'manual', leituras:h.leituras||0, favorita:!!h.favorita });
+      origem:h.origem||'manual', leituras:h.leituras||0, favorita:!!h.favorita,
+      lida:!!h.lida, posicao:h.posicao||0, posicaoTotal:h.posicaoTotal||0 });
     n++;
   });
   if(n) historias.sort((a,b)=> (b.criadaEm||'').localeCompare(a.criadaEm||''));

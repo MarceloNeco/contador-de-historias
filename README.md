@@ -85,14 +85,48 @@ Você escolhe idade, tamanho, tema e personagens (com sugestões sorteadas), a I
 
 ---
 
+## ⚡ Por que a voz demora (e como não demorar)
+
+Vozes de IA geram o áudio **antes** de tocar — quanto maior o trecho, mais demora. O site resolve isso em três camadas:
+
+1. **Começo curtinho.** O primeiro trecho tem só uma ou duas frases, então a leitura começa em segundos. Os trechos seguintes vão ficando maiores.
+2. **Esteira em segundo plano.** Enquanto um trecho toca, o site já está gerando os próximos dois. Na prática, o áudio corre na frente da leitura.
+3. **Fica guardado.** Todo áudio gerado é salvo **neste aparelho**. Da segunda vez, a mesma história toca **na hora** — e até sem internet.
+
+**Dica de ouro:** antes de ir para o quarto, abra a história, toque em **⋯** → **⚡ Preparar o áudio agora**. Em um ou dois minutos ele gera a história inteira. Aí é só dar play e não esperar nada.
+
+Em **Ajustes → Velocidade da voz** você vê quantos trechos estão guardados e pode apagá-los.
+
+---
+
+## 🆓 Voz natural sem chave nenhuma
+
+No **computador**, abra o site pelo **Microsoft Edge** e escolha a voz do celular: o Edge traz vozes brasileiras neurais (**Francisca**, **Thalita**, **Antonio** — aparecem com ⭐ na lista), grátis, sem chave e **sem espera nenhuma**. É a melhor relação qualidade/velocidade para ouvir no PC.
+
+No **Android**: Configurações → Acessibilidade → **Saída de texto para voz** → engine do Google → baixe a voz em português de maior qualidade. Ajuda bastante, mas ainda perde para o Gemini.
+
+---
+
 ## 📺 Séries com capítulos
 
 Histórias longas, contadas capítulo por capítulo, ficam agrupadas: no acervo aparece **um cartão só** com o nome da série e quantos capítulos tem. Ao tocar, abre a lista em ordem, com ✓ nos que já foram ouvidos e um botão **Continuar do capítulo X**.
 
 - Ao terminar um capítulo, o leitor mostra **➡️ Próximo capítulo**.
+- Nos controles, **⏪** e **⏩** pulam capítulo inteiro; **⏮** e **⏭** pulam trecho.
 - A tela Início sugere sozinha o próximo capítulo de qualquer série que esteja no meio.
 - Para escrever a continuação: aba **Criar** → **Continuar uma série** → escolha a série. A IA lê o capítulo anterior inteiro e continua de onde parou, respeitando nomes e enredo.
 - Escrevendo à mão, é só preencher o campo **Série** com o mesmo nome.
+
+---
+
+## ✓ Já lida e retomar de onde parou
+
+- Todo cartão do acervo tem um **quadradinho ✓** à direita: marque a história como **já lida**.
+- Os filtros do acervo incluem **⭘ Não lidas**, **✓ Já lidas** e **★ Favoritas**.
+- Se você pausar no meio, o site **guarda o ponto**. Ao reabrir, aparece *"⏸ você parou em 45%"* e o play continua dali — ou toque em **⟲ começar do início**.
+- Em séries, o capítulo em que vocês pararam aparece na lista e na tela Início.
+
+Tudo isso fica salvo neste aparelho, junto com as histórias.
 
 ---
 
