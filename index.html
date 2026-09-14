@@ -170,6 +170,17 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .oculto{display:none!important}
+/* capa */
+.capa{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);
+  box-shadow:var(--sh);margin-bottom:18px;background:var(--card);aspect-ratio:16/9}
+.capa img{display:block;width:100%;height:100%;object-fit:cover}
+.capa::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(20,15,34,0) 38%,rgba(20,15,34,.55) 70%,rgba(20,15,34,.95) 100%)}
+.capa .frase{position:absolute;left:0;right:0;bottom:0;padding:14px 16px;z-index:2;
+  font-size:15px;font-weight:700;text-shadow:0 2px 12px rgba(0,0,0,.9)}
+.capa .frase span{display:block;font-size:11px;font-weight:600;color:var(--gold);
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.capa.semimg{display:none}
 .sons{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
 .sons button{padding:10px 6px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);
   font-size:12px;font-weight:600;color:var(--dim);display:flex;flex-direction:column;gap:4px;align-items:center}
@@ -191,6 +202,10 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 
 <!-- ====================== INÍCIO ====================== -->
 <section class="tela on" id="tela-inicio">
+  <div class="capa" id="capa">
+    <img id="capa-img" src="capa.jpg" alt="Capa do Contador de Histórias">
+    <div class="frase"><span>hoje tem história</span>Escolhe uma, senta aqui e fecha os olhos.</div>
+  </div>
   <div class="contador">
     <div class="stat destaque"><div class="n" id="s-total">0</div><div class="l">histórias no acervo</div></div>
     <div class="stat"><div class="n" id="s-leituras">0</div><div class="l">leituras feitas</div></div>
@@ -306,6 +321,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div class="seg" id="sel-motor-voz" style="flex-wrap:wrap">
       <button class="on" data-motor="nativo">📱 Voz do celular<br><span style="font-weight:500;font-size:11px">grátis</span></button>
       <button data-motor="elevenlabs">🎙️ ElevenLabs<br><span style="font-weight:500;font-size:11px">premium</span></button>
+      <button data-motor="gemini">💎 Gemini<br><span style="font-weight:500;font-size:11px">natural e grátis</span></button>
       <button data-motor="openai">🤖 OpenAI<br><span style="font-weight:500;font-size:11px">barato</span></button>
     </div>
 
@@ -336,6 +352,24 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       </select>
       <label class="f">Estabilidade: <span id="lbl-estab">0.45</span> <span style="color:var(--dim2);font-weight:500">(quanto menor, mais emoção)</span></label>
       <input type="range" id="rng-estab" min="0" max="1" step="0.05" value="0.45">
+    </div>
+
+    <!-- gemini -->
+    <div id="cfg-gemini" class="oculto">
+      <div class="ok">Voz natural de verdade, com entonação, e <b>de graça</b> na cota do Google. Use a <b>mesma chave</b> da seção "IA que escreve as histórias" — uma chave só faz tudo. Pegue em <b>aistudio.google.com/apikey</b>.</div>
+      <label class="f">Chave do Gemini</label>
+      <input type="password" id="in-gemini-key-voz" placeholder="AIza...">
+      <label class="f">Voz</label>
+      <select id="sel-voz-gemini"></select>
+      <label class="f">Modelo</label>
+      <select id="sel-modelo-gemini-tts">
+        <option value="gemini-3.1-flash-tts-preview">3.1 Flash TTS (grátis na cota)</option>
+        <option value="gemini-2.5-flash-preview-tts">2.5 Flash TTS</option>
+        <option value="gemini-2.5-pro-preview-tts">2.5 Pro TTS</option>
+      </select>
+      <label class="f">Como ela deve ler</label>
+      <input type="text" id="in-gemini-instr">
+      <div class="hint">Isso é uma instrução em português mesmo. Dá para pedir coisas como “sussurre nas partes de suspense” ou “faça vozes diferentes para cada personagem”.</div>
     </div>
 
     <!-- openai -->
@@ -551,6 +585,8 @@ const configPadrao = {
   elevenKey:'', elevenVoice:'', elevenModel:'eleven_multilingual_v2', elevenEstab:0.45,
   openaiKey:'', openaiVoice:'nova', openaiModel:'gpt-4o-mini-tts',
   openaiInstr:'Leia como um pai contando história de dormir: voz calma, carinhosa, pausas naturais e emoção nas falas dos personagens.',
+  geminiVoice:'Sulafat', geminiModelTts:'gemini-3.1-flash-tts-preview',
+  geminiInstr:'Leia esta história de dormir em português do Brasil como um pai contando para as filhas: voz calma e carinhosa, ritmo tranquilo, pausas naturais, e emoção diferente na fala de cada personagem. Não comente nada, apenas leia o texto.',
   motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-2.5-flash',
   anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
   efeitos:true, volEfeitos:35,
@@ -837,7 +873,64 @@ async function audioOpenai(texto){
   if(!r.ok) throw new Error('OpenAI: '+ r.status +' — '+ (await r.text()).slice(0,180));
   return URL.createObjectURL(await r.blob());
 }
-const gerarAudio = texto => cfg.motorVoz==='elevenlabs' ? audioElevenlabs(texto) : audioOpenai(texto);
+const VOZES_GEMINI = [
+ ['Sulafat','calorosa'],['Vindemiatrix','gentil'],['Achernar','suave'],['Leda','jovem'],
+ ['Callirrhoe','tranquila'],['Umbriel','tranquila'],['Aoede','leve'],['Enceladus','sussurrada'],
+ ['Algieba','macia'],['Despina','macia'],['Achird','amigável'],['Zubenelgenubi','descontraída'],
+ ['Erinome','clara'],['Iapetus','clara'],['Autonoe','brilhante'],['Zephyr','brilhante'],
+ ['Laomedeia','animada'],['Puck','animada'],['Sadachbia','vivaz'],['Fenrir','empolgada'],
+ ['Kore','firme'],['Orus','firme'],['Alnilam','firme'],['Schedar','equilibrada'],
+ ['Charon','narradora'],['Rasalgethi','narradora'],['Sadaltager','sábia'],['Gacrux','madura'],
+ ['Algenib','rouca'],['Pulcherrima','marcante']
+];
+
+// o Gemini devolve PCM cru; aqui viram um arquivo WAV que o celular toca
+function pcmParaWav(base64, taxa){
+  const bin = atob(base64), n = bin.length;
+  const buf = new ArrayBuffer(44+n), v = new DataView(buf);
+  const txt = (p,t)=>{ for(let i=0;i<t.length;i++) v.setUint8(p+i, t.charCodeAt(i)); };
+  txt(0,'RIFF'); v.setUint32(4, 36+n, true); txt(8,'WAVE'); txt(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,taxa,true); v.setUint32(28,taxa*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  txt(36,'data'); v.setUint32(40,n,true);
+  const u = new Uint8Array(buf);
+  for(let i=0;i<n;i++) u[44+i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+}
+function acharAudio(o, prof){
+  prof = prof||0;
+  if(!o || typeof o!=='object' || prof>6) return null;
+  if(typeof o.data==='string' && o.data.length>500) return o.data;
+  if(o.inlineData && typeof o.inlineData.data==='string') return o.inlineData.data;
+  for(const k in o){ const r = acharAudio(o[k], prof+1); if(r) return r; }
+  return null;
+}
+async function audioGemini(texto){
+  if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Ajustes.');
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
+    body: JSON.stringify({
+      model: cfg.geminiModelTts,
+      input: (cfg.geminiInstr||'') + '\n\n' + semMarcadores(texto),
+      response_format:{ type:'audio' },
+      generation_config:{ speech_config:[{ voice: cfg.geminiVoice || 'Sulafat' }] }
+    })
+  });
+  if(!r.ok){
+    const t = (await r.text()).slice(0,200);
+    const e = new Error('Gemini voz: '+r.status+' — '+t); e.status=r.status; throw e;
+  }
+  const j = await r.json();
+  const b64 = acharAudio(j);
+  if(!b64) throw new Error('O Gemini não devolveu áudio desta vez. Tente de novo.');
+  return pcmParaWav(b64, 24000);
+}
+function gerarAudio(texto){
+  if(cfg.motorVoz==='elevenlabs') return audioElevenlabs(texto);
+  if(cfg.motorVoz==='gemini') return audioGemini(texto);
+  return audioOpenai(texto);
+}
 
 /* ----------------------------- o leitor ----------------------------- */
 const Leitor = (function(){
@@ -856,8 +949,9 @@ const Leitor = (function(){
     partes.forEach((p,i)=>{
       if(p.tipo==='som'){ descarregar(); fila.push({tipo:'som', som:p.som}); return; }
       buffer.push(p.texto); ids.push(i);
+      const teto = cfg.motorVoz==='gemini' ? 2200 : 700;
       const tamanho = buffer.join(' ').length;
-      if(!porApi || tamanho>420) descarregar();
+      if(!porApi || tamanho>teto) descarregar();
     });
     descarregar();
   }
@@ -905,9 +999,21 @@ const Leitor = (function(){
 
   async function pegarAudio(i){
     if(cache.has(i)) return cache.get(i);
-    const url = await gerarAudio(fila[i].texto);
-    cache.set(i,url);
-    return url;
+    let ultimo=null;
+    for(let tentativa=0; tentativa<3; tentativa++){
+      try{
+        const url = await gerarAudio(fila[i].texto);
+        cache.set(i,url);
+        return url;
+      }catch(e){
+        ultimo=e;
+        const limite = e.status===429 || /429|quota|rate/i.test(e.message||'');
+        if(!limite || tentativa===2) throw e;
+        status('a cota grátis pediu uma pausa… esperando '+((tentativa+1)*8)+'s');
+        await sleep((tentativa+1)*8000);
+      }
+    }
+    throw ultimo;
   }
   function prefetch(i){
     for(let k=i+1;k<fila.length;k++){
@@ -1408,7 +1514,7 @@ $('#btn-ver-sons').addEventListener('click',()=>{
 
 /* ----------------------------- ajustes ----------------------------- */
 function mostrarBlocosVoz(){
-  ['nativo','elevenlabs','openai'].forEach(m=>$('#cfg-'+m).classList.toggle('oculto', cfg.motorVoz!==m));
+  ['nativo','elevenlabs','gemini','openai'].forEach(m=>$('#cfg-'+m).classList.toggle('oculto', cfg.motorVoz!==m));
 }
 function mostrarBlocosTexto(){
   ['manual','gemini','anthropic','openai'].forEach(m=>$('#cfg-txt-'+m).classList.toggle('oculto', cfg.motorTexto!==m));
@@ -1434,6 +1540,7 @@ function campo(sel, chave, tipo){
   });
 }
 campo('#in-eleven-key','elevenKey'); campo('#in-openai-key','openaiKey');
+campo('#in-gemini-instr','geminiInstr');
 campo('#in-openai-instr','openaiInstr'); campo('#in-gemini-key','geminiKey');
 campo('#in-anthropic-key','anthropicKey'); campo('#in-gh-repo','ghRepo'); campo('#in-gh-token','ghToken');
 campo('#rng-vel','vel','num'); campo('#rng-tom','tom','num'); campo('#rng-vol','volEfeitos','num');
@@ -1452,6 +1559,13 @@ selecao('#sel-voz-nativa','vozNativa'); selecao('#sel-modelo-eleven','elevenMode
 selecao('#sel-voz-eleven','elevenVoice'); selecao('#sel-voz-openai','openaiVoice');
 selecao('#sel-modelo-openai','openaiModel'); selecao('#sel-modelo-gemini','geminiModel');
 selecao('#sel-modelo-anthropic','anthropicModel'); selecao('#sel-modelo-openai-txt','openaiModelTxt');
+$('#sel-voz-gemini').innerHTML = VOZES_GEMINI.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}</option>`).join('');
+selecao('#sel-voz-gemini','geminiVoice'); selecao('#sel-modelo-gemini-tts','geminiModelTts');
+
+// a chave do Gemini aparece em dois lugares; mantém as duas iguais
+function espelharGemini(){ $('#in-gemini-key').value=cfg.geminiKey||''; $('#in-gemini-key-voz').value=cfg.geminiKey||''; }
+$('#in-gemini-key-voz').addEventListener('input',()=>{ cfg.geminiKey=$('#in-gemini-key-voz').value.trim(); salvarCfg(); $('#in-gemini-key').value=cfg.geminiKey; });
+$('#in-gemini-key').addEventListener('input',()=>{ $('#in-gemini-key-voz').value=cfg.geminiKey; });
 
 function chave(sel, campoCfg, depois){
   const el=$(sel);
@@ -1600,8 +1714,17 @@ function aplicarCfgNaTela(){
   $('#lbl-estab').textContent=Number(cfg.elevenEstab).toFixed(2);
   $('#lbl-fonte').textContent=cfg.fonte;
   $('#in-openai-key2').value=cfg.openaiKey||'';
+  $('#in-gemini-instr').value=cfg.geminiInstr||'';
+  espelharGemini();
   $('#hint-idade').textContent=PERFIS['6-9'].guia;
 }
+
+// se capa.jpg não estiver no repositório, o bloco simplesmente some
+(function(){
+  const img=$('#capa-img');
+  img.addEventListener('error', ()=>$('#capa').classList.add('semimg'));
+  if(img.complete && img.naturalWidth===0) $('#capa').classList.add('semimg');
+})();
 
 novosTemas(); novosPersonagens(); aplicarCfgNaTela(); pintarTudo();
 carregarDoGithub();
