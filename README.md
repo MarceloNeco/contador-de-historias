@@ -206,4 +206,16 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 
 ---
 
+## ℹ️ Versão e aviso de uso
+
+Em **Ajustes → Sobre** ficam:
+
+- o **número da versão** instalada no aparelho (útil para conferir se o arquivo novo já chegou — o navegador às vezes guarda o antigo; nesse caso, recarregue com Ctrl+Shift+R no computador ou puxando a tela para baixo no celular);
+- **🆕 Novidades**, com o histórico de todas as versões e o que mudou em cada uma;
+- **📄 Aviso de uso**, com o texto sobre privacidade, dados, chaves de terceiros e direitos autorais.
+
+O site é um projeto pessoal, sem finalidade econômica, sem coleta de dados e sem publicidade. Está marcado com `noindex`, ou seja, pedindo aos buscadores que não o incluam em resultados de pesquisa.
+
+---
+
 Feito com carinho, para duas leitoras de 4 e 8 anos. 💜
