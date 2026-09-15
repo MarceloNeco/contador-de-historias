@@ -152,6 +152,13 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .hist .chk{align-self:center;width:26px;height:26px;border-radius:8px;border:2px solid var(--line);
   flex:none;display:flex;align-items:center;justify-content:center;font-size:15px;color:transparent}
 .hist .chk.on{background:var(--verde);border-color:var(--verde);color:#06301f}
+.hist .pbar{height:4px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:7px}
+.hist .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2))}
+.selo{display:inline-flex;align-items:center;gap:3px;background:rgba(95,214,164,.16);
+  border:1px solid rgba(95,214,164,.4);color:var(--verde);padding:2px 7px;border-radius:999px;
+  font-size:11px;font-weight:700}
+.baixar{width:40px;height:40px;border-radius:12px;background:var(--card2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;align-self:center}
 .prep{height:5px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:8px}
 .prep i{display:block;height:100%;width:0;background:var(--verde);transition:width .3s}
 .vazio{text-align:center;padding:44px 20px;color:var(--dim2)}
@@ -201,6 +208,27 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .oculto{display:none!important}
+/* cenário nas laterais — só em tela larga (desktop) */
+.lados{display:none}
+@media (min-width:1080px){
+  .lados{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .lado{position:absolute;top:0;bottom:0;width:calc(50% - 380px);
+    background-image:url('fundo-historia.jpg');
+    background-size:cover;background-repeat:no-repeat}
+  .lado.esq{left:0;background-position:22% center}
+  .lado.dir{right:0;background-position:78% center}
+  .lado::after{content:"";position:absolute;inset:0}
+  .lado.esq::after{background:linear-gradient(90deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.55) 55%,rgba(20,15,34,.96) 100%)}
+  .lado.dir::after{background:linear-gradient(270deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.55) 55%,rgba(20,15,34,.96) 100%)}
+  header{background:rgba(20,15,34,.9)}
+  main.wrap{position:relative;z-index:1;background:rgba(20,15,34,.92);
+    backdrop-filter:blur(8px);border-left:1px solid var(--line);border-right:1px solid var(--line);
+    min-height:100vh;padding-left:24px;padding-right:24px}
+  nav.tabs{background:rgba(29,22,51,.97)}
+  .leitor{z-index:100}
+}
+@media (min-width:1600px){ .lado{width:calc(50% - 380px)} }
+
 /* capa */
 .capa{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);
   box-shadow:var(--sh);margin-bottom:18px;background:var(--card);aspect-ratio:16/9}
@@ -220,6 +248,11 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 </style>
 </head>
 <body>
+
+<div class="lados" aria-hidden="true">
+  <div class="lado esq"></div>
+  <div class="lado dir"></div>
+</div>
 
 <header>
   <div class="hd">
@@ -244,6 +277,9 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div class="stat"><div class="n" id="s-noites">0</div><div class="l">noites seguidas</div></div>
   </div>
 
+  <div class="tit oculto" id="tit-continuar">▶️ Continuar ouvindo</div>
+  <div id="lista-continuar"></div>
+
   <div class="tit">História da noite</div>
   <div class="card" id="card-sugestao">
     <div id="sugestao-conteudo"></div>
@@ -255,7 +291,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <button class="btn" id="btn-ir-acervo">📚 Ver acervo</button>
   </div>
 
-  <div class="tit">Últimas lidas</div>
+  <div class="tit">Ouvidas recentemente</div>
   <div id="lista-recentes"></div>
 </section>
 
@@ -537,7 +573,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 
   <div class="tit">⚡ Velocidade da voz (áudio guardado)</div>
   <div class="card">
-    <div class="ok">Cada trecho de voz que o site gera fica <b>guardado neste aparelho</b>. Da segunda vez em diante, a mesma história toca <b>na hora</b> — e até sem internet.</div>
+    <div class="ok">Cada trecho de voz gerado fica <b>guardado neste aparelho</b>. Repetir uma história, voltar um trecho ou ouvir de novo amanhã <b>não gasta a cota outra vez</b> — o site usa o áudio guardado. E funciona sem internet.</div>
     <div class="sw">
       <div class="txt"><b>Preparar a história inteira ao abrir</b><span>Enquanto vocês escolhem, o site já vai gerando os próximos trechos.</span></div>
       <div class="toggle on" id="tg-adiantar"></div>
@@ -603,6 +639,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <span id="txt-retomar"></span>
       <button id="btn-do-inicio">⟲ começar do início</button>
     </div>
+    <button class="btn sm oculto" id="btn-baixar-voz" style="margin-top:8px">⬇️ Baixar a voz desta história</button>
     <button class="btn ok oculto" id="btn-proximo-cap">➡️ Próximo capítulo</button>
   </div>
 </div>
@@ -948,14 +985,17 @@ const Guarda = (function(){
     });
   }
   return {
+    marca(){
+      return cfg.motorVoz==='gemini' ? ('gemini|'+cfg.geminiVoice+'|'+cfg.geminiModelTts)
+           : cfg.motorVoz==='elevenlabs' ? ('eleven|'+cfg.elevenVoice+'|'+cfg.elevenModel)
+           : cfg.motorVoz==='openai' ? ('openai|'+cfg.openaiVoice+'|'+cfg.openaiModel) : 'nativo';
+    },
     chave(idHistoria, i, txt){
-      const marca = cfg.motorVoz==='gemini' ? (cfg.geminiVoice+'|'+cfg.geminiModelTts)
-                  : cfg.motorVoz==='elevenlabs' ? (cfg.elevenVoice+'|'+cfg.elevenModel)
-                  : cfg.motorVoz==='openai' ? (cfg.openaiVoice+'|'+cfg.openaiModel) : 'nativo';
       let h=0; for(let k=0;k<txt.length;k++){ h=((h<<5)-h+txt.charCodeAt(k))|0; }
-      return idHistoria+'|'+i+'|'+cfg.motorVoz+'|'+marca+'|'+h;
+      return idHistoria+'|'+i+'|'+this.marca()+'|'+h;
     },
     pegar(k){ return op('readonly', s=>s.get(k)); },
+    existe(k){ return op('readonly', s=>s.getKey(k)).then(r=>!!r); },
     guardar(k, blob){ return op('readwrite', s=>s.put(blob,k)); },
     async quanto(){
       const d = await abrir(); if(!d) return {n:0, bytes:0};
@@ -1183,38 +1223,45 @@ const Leitor = (function(){
   const iconePlay = p => { $('#btn-play').textContent = p ? '⏸' : '▶'; };
 
   /* ---------- cache + esteira de download ---------- */
-  async function pegarAudio(i){
+  let paralelo = 2, gerados = 0, cancelarPreparo = false;
+
+  async function pegarAudio(i, aviso){
     if(memoria.has(i)) return memoria.get(i);
     const txt = fila[i].texto;
     const ch = Guarda.chave(hist.id, i, txt);
     const salvo = await Guarda.pegar(ch);
-    if(salvo){ memoria.set(i, salvo); return salvo; }
+    if(salvo){ memoria.set(i, salvo); return salvo; }          // já pago uma vez, nunca mais
+    const esperas = [8000, 20000, 45000];
     let ultimo=null;
-    for(let t=0; t<3; t++){
+    for(let t=0; t<=esperas.length; t++){
       try{
         const blob = await gerarAudio(txt);
+        gerados++;
         memoria.set(i, blob);
-        Guarda.guardar(ch, blob);
+        await Guarda.guardar(ch, blob);
         return blob;
       }catch(e){
         ultimo=e;
-        if(e.status===429 && t<2){ await sleep((t+1)*6000); continue; }
-        throw e;
+        const limite = e.status===429;
+        if(limite) paralelo = 1;
+        if(!limite || t===esperas.length) throw e;
+        const seg = Math.round(esperas[t]/1000);
+        if(aviso) aviso('cota cheia — esperando '+seg+'s e tentando de novo…');
+        else status('cota cheia — esperando '+seg+'s…');
+        await sleep(esperas[t]);
       }
     }
     throw ultimo;
   }
 
   function proximaFalaFaltando(desde){
-    for(let k=desde; k<fila.length; k++){
-      if(fila[k].tipo==='fala' && !memoria.has(k)) return k;
-    }
+    for(let k=desde; k<fila.length; k++) if(fila[k].tipo==='fala' && !memoria.has(k)) return k;
     return -1;
   }
   // vai baixando os próximos pedaços em segundo plano enquanto a história toca
   function esteira(){
     if(cfg.motorVoz==='nativo') return;
-    while(emVoo < MAX_PARALELO){
+    while(emVoo < paralelo){
       const k = proximaFalaFaltando(Math.max(proximoBaixar, pos));
       if(k<0) return;
       proximoBaixar = k+1;
@@ -1229,14 +1276,83 @@ const Leitor = (function(){
     fila.forEach((f,i)=>{ if(f.tipo==='fala'){ total++; if(memoria.has(i)) prontos++; } });
     return {total, prontos};
   }
+  function marcarAudio(){
+    if(!hist) return;
+    const {total,prontos} = contarProntos();
+    hist.audioMarca = Guarda.marca();
+    hist.audioPronto = (total>0 && prontos>=total);
+    hist.audioParcial = prontos;
+    hist.audioTotal = total;
+    salvarHistorias();
+  }
   function atualizarPreparo(){
-    const el = $('#prep-barra');
-    if(!el) return;
+    const el = $('#prep-barra'); if(!el) return;
     const {total,prontos} = contarProntos();
     el.style.width = total? (prontos/total*100)+'%' : '0%';
     const t = $('#prep-txt');
-    if(t) t.textContent = prontos>=total ? 'Tudo pronto — pode tocar sem esperar 💚'
-                                         : `preparando ${prontos} de ${total} trechos…`;
+    if(t) t.textContent = prontos>=total ? '✅ Tudo pronto — pode tocar sem esperar'
+                                         : `${prontos} de ${total} trechos prontos`;
+  }
+
+  // Botão "baixar o áudio": vai um por vez, com aviso de verdade e sem gastar de novo o que já existe.
+  async function prepararTudo(){
+    if(cfg.motorVoz==='nativo'){
+      modal(`<h3>Não precisa preparar</h3><p class="hint">A voz do celular é gerada no próprio aparelho, na hora. O preparo só faz sentido nas vozes de internet (Gemini, ElevenLabs, OpenAI).</p>
+        <div style="height:14px"></div><button class="btn" id="pp-f">Entendi</button>`);
+      $('#pp-f').onclick=fecharModal; return;
+    }
+    esteiraLigada = false; cancelarPreparo = false;
+    const falas = [];
+    fila.forEach((f,i)=>{ if(f.tipo==='fala') falas.push(i); });
+    const gerados0 = gerados;
+
+    modal(`<h3>⬇️ Baixando a voz</h3>
+      <p class="hint">Gerando o áudio de <b>${esc(hist.titulo)}</b> e guardando neste aparelho. Depois disso a história toca na hora, quantas vezes vocês quiserem, sem gastar a cota de novo — e até sem internet.</p>
+      <div class="prep"><i id="prep-barra"></i></div>
+      <div class="hint" id="prep-txt" style="text-align:center;margin-top:8px">começando…</div>
+      <div class="hint" id="prep-aviso" style="text-align:center;color:var(--gold)"></div>
+      <div style="height:16px"></div>
+      <button class="btn sm ghost" id="prep-parar">Parar por aqui</button>
+      <div style="height:8px"></div>
+      <div class="hint" style="text-align:center">Pode fechar esta janela: o download continua.</div>`);
+    $('#prep-parar').onclick=()=>{ cancelarPreparo = true; fecharModal(); toast('Parei. O que já baixou fica guardado.'); };
+    const aviso = t => { const e=$('#prep-aviso'); if(e) e.textContent = t||''; };
+    atualizarPreparo();
+
+    for(const i of falas){
+      if(cancelarPreparo) break;
+      if(memoria.has(i)) continue;
+      try{
+        await pegarAudio(i, aviso);
+        aviso('');
+        atualizarPreparo();
+      }catch(e){
+        marcarAudio();
+        modal(`<h3>Parei no meio 🙁</h3>
+          <p class="hint">${esc(e.message||e)}</p>
+          <div class="ok" style="margin-top:12px">Os trechos que já baixaram <b>ficaram guardados</b>. É só tocar em baixar de novo mais tarde que ele continua de onde parou — sem gastar o que já foi gerado.</div>
+          <div style="height:14px"></div><button class="btn" id="pe-f">Fechar</button>`);
+        $('#pe-f').onclick=fecharModal;
+        pintarAcervo();
+        return;
+      }
+    }
+    marcarAudio();
+    atualizarPreparo();
+    atualizarBotaoBaixar();
+    const {total,prontos} = contarProntos();
+    if(prontos>=total && !cancelarPreparo){
+      aviso('');
+      const novos = gerados - gerados0;
+      modal(`<h3>✅ Pronto!</h3>
+        <p class="hint"><b>${esc(hist.titulo)}</b> está inteira guardada neste aparelho${novos<total? ' ('+(total-novos)+' trecho(s) já estavam prontos e não gastaram nada)' : ''}.</p>
+        <div class="ok" style="margin-top:12px">Agora é só dar play: começa na hora, dá para voltar e repetir à vontade, e funciona mesmo sem internet.</div>
+        <div style="height:14px"></div><button class="btn ok" id="pf-tocar">▶️ Tocar agora</button>
+        <div style="height:10px"></div><button class="btn sm ghost" id="pf-f">Fechar</button>`);
+      $('#pf-tocar').onclick=()=>{ fecharModal(); play(); };
+      $('#pf-f').onclick=fecharModal;
+    }
+    pintarAcervo();
   }
 
   function tocarBlob(blob){
@@ -1300,7 +1416,8 @@ const Leitor = (function(){
       status('fim da história 💜');
       if(!contou){ contou=true; registrarLeitura(); }
       somarTempo();
-      if(hist){ hist.lida = true; hist.posicao = 0; salvarHistorias(); marcarCheck(); }
+      if(hist){ hist.lida = true; hist.posicao = 0; hist.posFrase = 0;
+                hist.ouvidaEm = new Date().toISOString(); salvarHistorias(); marcarCheck(); }
       const prox = proximoCapitulo(hist);
       const btn = $('#btn-proximo-cap');
       if(prox){
@@ -1311,10 +1428,25 @@ const Leitor = (function(){
     }
   }
 
+  function totalFrases(){ return partes.filter(p=>p.tipo==='frase').length; }
+  function fraseDoPasso(k){
+    for(let i=k;i>=0;i--) if(fila[i] && fila[i].tipo==='fala') return fila[i].ids[0];
+    return 0;
+  }
+  function passoDaFrase(idFrase){
+    const k = fila.findIndex(f=>f.tipo==='fala' && f.ids.indexOf(idFrase)>=0);
+    if(k>=0) return k;
+    // se não achar exata, vai para a fala mais próxima depois dela
+    for(let i=0;i<fila.length;i++) if(fila[i].tipo==='fala' && fila[i].ids[0]>=idFrase) return i;
+    return 0;
+  }
   function salvarPosicao(){
     if(!hist) return;
-    hist.posicao = (pos>0 && pos < fila.length-1) ? pos : 0;
-    hist.posicaoTotal = fila.length;
+    const meio = pos>0 && pos < fila.length-1;
+    hist.posFrase = meio ? fraseDoPasso(pos) : 0;
+    hist.frasesTotal = totalFrases();
+    hist.posicao = hist.posFrase;                 // compatibilidade
+    hist.ouvidaEm = meio ? new Date().toISOString() : hist.ouvidaEm;
     salvarHistorias();
   }
   function somarTempo(){
@@ -1370,26 +1502,36 @@ const Leitor = (function(){
     if(k<0) k=0; if(k>=fila.length) k=fila.length-1;
     irPara(k);
   }
+  async function atualizarBotaoBaixar(){
+    const b = $('#btn-baixar-voz');
+    if(!b || !hist) return;
+    if(cfg.motorVoz==='nativo'){ b.classList.add('oculto'); return; }
+    b.classList.remove('oculto');
+    b.disabled = true; b.textContent = 'conferindo o que já está guardado…';
+    let total=0, prontos=0;
+    for(let i=0;i<fila.length;i++){
+      if(fila[i].tipo!=='fala') continue;
+      total++;
+      if(memoria.has(i) || await Guarda.existe(Guarda.chave(hist.id,i,fila[i].texto))) prontos++;
+    }
+    hist.audioPronto = (total>0 && prontos>=total);
+    hist.audioParcial = prontos; hist.audioTotal = total; hist.audioMarca = Guarda.marca();
+    salvarHistorias();
+    b.disabled = false;
+    if(prontos>=total && total>0){
+      b.className = 'btn sm'; b.style.color='var(--verde)';
+      b.textContent = '✅ Áudio guardado — toca na hora, sem gastar cota';
+    }else if(prontos>0){
+      b.className = 'btn sm ok'; b.style.color='';
+      b.textContent = `⬇️ Continuar baixando (${prontos} de ${total} prontos)`;
+    }else{
+      b.className = 'btn sm ok'; b.style.color='';
+      b.textContent = `⬇️ Baixar a voz (${total} trechos) — some a espera`;
+    }
+  }
   function marcarCheck(){
     const b=$('#chk-lida');
     if(b && hist) b.classList.toggle('on', !!hist.lida);
-  }
-
-  async function prepararTudo(){
-    if(cfg.motorVoz==='nativo'){ toast('A voz do celular não precisa de preparo 🙂'); return; }
-    modal(`<h3>Preparando a história</h3>
-      <p class="hint">Estou gerando o áudio de todos os trechos e guardando neste aparelho. Depois disso, a leitura começa na hora — e nas próximas vezes também, mesmo sem internet.</p>
-      <div class="prep"><i id="prep-barra"></i></div>
-      <div class="hint" id="prep-txt" style="text-align:center;margin-top:8px">começando…</div>
-      <div style="height:14px"></div>
-      <button class="btn sm ghost" id="prep-fechar">Deixar rodando em segundo plano</button>`);
-    $('#prep-fechar').onclick=fecharModal;
-    esteiraLigada = true; proximoBaixar = 0; atualizarPreparo(); esteira();
-    const t = setInterval(()=>{
-      atualizarPreparo();
-      const {total,prontos} = contarProntos();
-      if(prontos>=total){ clearInterval(t); esteiraLigada=false; }
-    }, 700);
   }
 
   return {
@@ -1412,14 +1554,17 @@ const Leitor = (function(){
       $('#leitor').classList.add('on');
       document.body.style.overflow='hidden';
       marcarCheck();
-      // retoma de onde parou
-      const salva = (h.posicao && h.posicaoTotal===fila.length) ? h.posicao : 0;
-      pos = salva;
+      atualizarBotaoBaixar();
+      // retoma de onde parou (guardado por frase, então vale mesmo se trocar de voz)
+      const frase = h.posFrase || 0;
+      pos = frase>0 ? passoDaFrase(frase) : 0;
       barra(); iconePlay(false);
-      if(salva>0){
+      if(pos>0){
         $('#barra-retomar').classList.remove('oculto');
-        $('#txt-retomar').textContent = '⏸ você parou em ' + Math.round(salva/fila.length*100) + '%';
+        $('#txt-retomar').textContent = '⏸ você parou em ' + Math.round(frase/(totalFrases()||1)*100) + '%';
         destacar(fila[pos]);
+        setTimeout(()=>{ const el=$(`#lt-texto .fr[data-i="${frase}"]`);
+          if(el) el.scrollIntoView({block:'center'}); }, 120);
         status('toque no play para continuar');
       }else{
         $('#barra-retomar').classList.add('oculto');
@@ -1438,7 +1583,7 @@ const Leitor = (function(){
     },
     alternar(){ tocando ? pausar() : play(); },
     doInicio(){ irPara(0); $('#barra-retomar').classList.add('oculto'); },
-    passo, prepararTudo,
+    passo, prepararTudo, atualizarBotaoBaixar,
     capitulo(dir){
       if(!hist || !hist.serie) return;
       const caps = listaSeries().get(hist.serie)||[];
@@ -1723,17 +1868,28 @@ function pintarStats(){
   $('#s-noites').textContent = stats.sequencia||0;
 }
 
-function cartaoHistoria(h){
+function pctDe(h){
+  if(!h.posFrase || !h.frasesTotal) return 0;
+  return Math.max(1, Math.min(99, Math.round(h.posFrase/h.frasesTotal*100)));
+}
+function temAudio(h){ return h.audioPronto && h.audioMarca===Guarda.marca(); }
+function cartaoHistoria(h, opc){
+  opc = opc||{};
+  const pct = pctDe(h);
   const tags = [];
-  tags.push(`<span class="tag">${rotuloIdade(h.idade)}</span>`);
+  if(h.serie) tags.push(`<span class="tag">${esc(h.serie)}</span>`);
+  else tags.push(`<span class="tag">${rotuloIdade(h.idade)}</span>`);
   tags.push(`<span>${minutosDe(h.texto)} min</span>`);
-  if(h.posicao) tags.push(`<span>⏸ ${Math.round(h.posicao/(h.posicaoTotal||1)*100)}%</span>`);
-  else if(h.leituras) tags.push(`<span>${h.leituras}× lida</span>`);
-  if(h.origem==='ia') tags.push(`<span>✨ IA</span>`);
+  if(pct) tags.push(`<span>⏸ parou em ${pct}%</span>`);
+  else if(h.leituras) tags.push(`<span>${h.leituras}× ouvida</span>`);
+  if(temAudio(h)) tags.push(`<span class="selo">⚡ áudio pronto</span>`);
   return `<div class="hist" data-id="${esc(h.id)}">
     <div class="cap">${h.favorita?'⭐':iconeDe(h)}</div>
-    <div class="info"><b>${esc(h.titulo)}</b><div class="meta">${tags.join('')}</div></div>
-    <div class="chk ${h.lida?'on':''}" data-chk="${esc(h.id)}" title="já lida">✓</div>
+    <div class="info"><b>${esc(h.titulo)}</b><div class="meta">${tags.join('')}</div>
+      ${pct?`<div class="pbar"><i style="width:${pct}%"></i></div>`:''}
+    </div>
+    ${opc.semCheck?'<div style="align-self:center;color:var(--gold);font-size:20px">▶</div>'
+      :`<div class="chk ${h.lida?'on':''}" data-chk="${esc(h.id)}" title="marcar como já lida">✓</div>`}
   </div>`;
 }
 function ligarChecks(sel){
@@ -1743,7 +1899,7 @@ function ligarChecks(sel){
     if(!h) return;
     h.lida = !h.lida;
     if(h.lida && !h.leituras) h.leituras = 1;
-    if(!h.lida) h.posicao = 0;
+    if(!h.lida) { h.posicao = 0; h.posFrase = 0; }
     salvarHistorias(); el.classList.toggle('on', h.lida);
     pintarInicio();
   }));
@@ -1795,7 +1951,7 @@ function abrirSerie(nome){
     <div style="height:14px"></div>
     ${caps.map((c,i)=>`<div class="cap-item ${c.leituras?'lido':''} ${prox&&prox.id===c.id?'proximo':''}" data-id="${esc(c.id)}">
       <div class="num">${(c.lida||c.leituras)?'✓':(i+1)}</div>
-      <div class="t"><b>${esc(c.titulo)}</b><span>${minutosDe(c.texto)} min${(c.lida||c.leituras)?' · já ouvido':''}${c.posicao?' · parou em '+Math.round(c.posicao/(c.posicaoTotal||1)*100)+'%':''}</span></div>
+      <div class="t"><b>${esc(c.titulo)}</b><span>${minutosDe(c.texto)} min${(c.lida||c.leituras)?' · já ouvido':''}${pctDe(c)?' · parou em '+pctDe(c)+'%':''}${temAudio(c)?' · ⚡':''}</span></div>
       <div style="color:var(--dim2)">▶</div></div>`).join('')}
     ${prox?`<div style="height:8px"></div><button class="btn pri" id="sr-continuar">▶️ Continuar do capítulo ${caps.indexOf(prox)+1}</button>`:''}`);
   $$('#modal .cap-item').forEach(el=>el.onclick=()=>{
@@ -1858,7 +2014,8 @@ function pintarInicio(){
     if(lidos>0 && lidos<caps.length){ s = caps.find(c=>!c.leituras); aviso = nome+' · capítulo '+(lidos+1); }
   });
   if(!s){
-    const cand = historias.slice().sort((a,b)=>(a.lida?1:0)-(b.lida?1:0) || (a.leituras||0)-(b.leituras||0) || Math.random()-0.5);
+    const cand = historias.filter(h=>!h.posFrase)
+      .sort((a,b)=>(a.lida?1:0)-(b.lida?1:0) || (a.leituras||0)-(b.leituras||0) || Math.random()-0.5);
     s = cand[0];
   }
   $('#sugestao-conteudo').innerHTML = s
@@ -1874,9 +2031,18 @@ function pintarInicio(){
     $('#btn-ler-sug').onclick=()=>Leitor.abrir(s);
     $('#btn-outra-sug').onclick=()=>{ const r=historias[Math.floor(Math.random()*historias.length)]; if(r) Leitor.abrir(r); };
   }
-  const recentes = historias.filter(h=>h.ultimaLeitura).sort((a,b)=> (b.ultimaLeitura||'').localeCompare(a.ultimaLeitura||'')).slice(0,4);
-  $('#lista-recentes').innerHTML = recentes.length ? recentes.map(cartaoHistoria).join('')
-    : `<div class="hint" style="text-align:center;padding:10px">Quando vocês ouvirem uma história, ela aparece aqui.</div>`;
+  // fila de "continuar ouvindo": tudo que ficou pela metade, mais recente primeiro
+  const emAndamento = historias.filter(h=>h.posFrase>0)
+    .sort((a,b)=> (b.ouvidaEm||'').localeCompare(a.ouvidaEm||''));
+  $('#tit-continuar').classList.toggle('oculto', emAndamento.length===0);
+  $('#lista-continuar').innerHTML = emAndamento.slice(0,4).map(h=>cartaoHistoria(h,{semCheck:true})).join('');
+  ligarCartoes('#lista-continuar');
+
+  const recentes = historias.filter(h=>h.ultimaLeitura||h.ouvidaEm)
+    .sort((a,b)=> ((b.ultimaLeitura||b.ouvidaEm)||'').localeCompare((a.ultimaLeitura||a.ouvidaEm)||''))
+    .filter(h=>!h.posFrase).slice(0,4);
+  $('#lista-recentes').innerHTML = recentes.length ? recentes.map(h=>cartaoHistoria(h,{semCheck:true})).join('')
+    : `<div class="hint" style="text-align:center;padding:10px">Quando vocês terminarem uma história, ela aparece aqui.</div>`;
   ligarCartoes('#lista-recentes');
   const h=new Date().getHours();
   $('#sub-hd').textContent = h<12?'bom dia, meninas':(h<18?'boa tarde, meninas':'boa noite, meninas');
@@ -1890,11 +2056,12 @@ $('#btn-voltar-fr').addEventListener('click',()=>Leitor.passo(-1));
 $('#btn-cap-prox').addEventListener('click',()=>Leitor.capitulo(1));
 $('#btn-cap-ant').addEventListener('click',()=>Leitor.capitulo(-1));
 $('#btn-do-inicio').addEventListener('click',()=>Leitor.doInicio());
+$('#btn-baixar-voz').addEventListener('click',()=>Leitor.prepararTudo());
 $('#chk-lida').addEventListener('click',()=>{
   const h=Leitor.atual(); if(!h) return;
   h.lida = !h.lida;
   if(h.lida && !h.leituras) h.leituras = 1;
-  if(!h.lida) h.posicao = 0;
+  if(!h.lida) { h.posicao = 0; h.posFrase = 0; }
   salvarHistorias(); Leitor.marcarCheck(); pintarInicio();
   toast(h.lida ? 'Marcada como já lida ✓' : 'Marcada como não lida');
 });
@@ -1910,7 +2077,7 @@ $('#btn-menu-hist').addEventListener('click',()=>{
   modal(`<h3>${esc(h.titulo)}</h3>
     <div class="hint">${rotuloIdade(h.idade)} · ${contarPalavras(h.texto)} palavras · criada em ${new Date(h.criadaEm).toLocaleDateString('pt-BR')}</div>
     <div style="height:16px"></div>
-    <button class="btn sm ok" id="mh-preparar">⚡ Preparar o áudio agora</button><div style="height:10px"></div>
+    <button class="btn sm ok" id="mh-preparar">⬇️ Baixar a voz desta história</button><div style="height:10px"></div>
     <button class="btn sm" id="mh-editar">✏️ Editar o texto</button><div style="height:10px"></div>
     <button class="btn sm" id="mh-copiar">📋 Copiar a história</button><div style="height:10px"></div>
     <button class="btn sm ghost" id="mh-apagar" style="color:var(--vermelho)">🗑️ Apagar do acervo</button>`);
@@ -2147,7 +2314,7 @@ function mesclar(lista){
       tema:h.tema||'', personagens:h.personagens||'', serie:h.serie||'', ordem:h.ordem||0,
       criadaEm:h.criadaEm||new Date().toISOString(),
       origem:h.origem||'manual', leituras:h.leituras||0, favorita:!!h.favorita,
-      lida:!!h.lida, posicao:h.posicao||0, posicaoTotal:h.posicaoTotal||0 });
+      lida:!!h.lida, posFrase:h.posFrase||0, frasesTotal:h.frasesTotal||0, ouvidaEm:h.ouvidaEm||'' });
     n++;
   });
   if(n) historias.sort((a,b)=> (b.criadaEm||'').localeCompare(a.criadaEm||''));

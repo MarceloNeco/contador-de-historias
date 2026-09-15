@@ -23,7 +23,7 @@ Um site simples e bonito para contar histórias de dormir, feito para funcionar 
 ### 2. Subir os arquivos
 
 1. Na página do repositório recém-criado, clique em **Add file** → **Upload files**.
-2. Arraste os arquivos: `index.html`, `historias.json`, `capa.jpg` e `README.md`.
+2. Arraste os arquivos: `index.html`, `historias.json`, `capa.jpg`, `fundo-historia.jpg` e `README.md`.
 3. Lá embaixo, clique no botão verde **Commit changes**.
 
 ### 3. Ligar o site (GitHub Pages)
@@ -46,6 +46,15 @@ Abra esse endereço no celular:
 - **iPhone (Safari)**: botão de compartilhar → *Adicionar à Tela de Início*
 
 Pronto: vira um app com ícone, em tela cheia.
+
+---
+
+## 🖼️ As duas imagens
+
+- **`capa.jpg`** — a capa larga no topo da tela Início, em qualquer aparelho.
+- **`fundo-historia.jpg`** — o cenário nas laterais, só em tela de **1080px ou mais** (computador). No celular e no tablet ele nem carrega, para não gastar dados.
+
+Para trocar qualquer uma: suba outra imagem com o mesmo nome por cima. Se o arquivo não existir, o site simplesmente não mostra nada ali — nada quebra.
 
 ---
 
@@ -93,9 +102,17 @@ Vozes de IA geram o áudio **antes** de tocar — quanto maior o trecho, mais de
 2. **Esteira em segundo plano.** Enquanto um trecho toca, o site já está gerando os próximos dois. Na prática, o áudio corre na frente da leitura.
 3. **Fica guardado.** Todo áudio gerado é salvo **neste aparelho**. Da segunda vez, a mesma história toca **na hora** — e até sem internet.
 
-**Dica de ouro:** antes de ir para o quarto, abra a história, toque em **⋯** → **⚡ Preparar o áudio agora**. Em um ou dois minutos ele gera a história inteira. Aí é só dar play e não esperar nada.
+**O botão que resolve tudo:** abra a história e toque em **⬇️ Baixar a voz desta história**, logo abaixo dos controles. Ele gera a história inteira com barra de progresso e guarda no aparelho. A partir daí:
 
-Em **Ajustes → Velocidade da voz** você vê quantos trechos estão guardados e pode apagá-los.
+- começa na hora, sem espera;
+- voltar um trecho, repetir ou ouvir de novo amanhã **não gasta a cota de novo**;
+- funciona **sem internet**.
+
+O botão mostra o estado: *"Baixar a voz (9 trechos)"*, *"Continuar baixando (5 de 9 prontos)"* ou *"✅ Áudio guardado"*. Se parar no meio (cota, internet), o que já baixou fica salvo e o botão continua de onde parou.
+
+No acervo, as histórias com áudio guardado aparecem com o selo **⚡ áudio pronto**.
+
+Em **Ajustes → Velocidade da voz** você vê quanto está guardado e pode apagar.
 
 ---
 
@@ -116,6 +133,14 @@ Histórias longas, contadas capítulo por capítulo, ficam agrupadas: no acervo 
 - A tela Início sugere sozinha o próximo capítulo de qualquer série que esteja no meio.
 - Para escrever a continuação: aba **Criar** → **Continuar uma série** → escolha a série. A IA lê o capítulo anterior inteiro e continua de onde parou, respeitando nomes e enredo.
 - Escrevendo à mão, é só preencher o campo **Série** com o mesmo nome.
+
+---
+
+## ▶️ Continuar ouvindo
+
+Se uma história ficou pela metade, ela aparece numa seção **Continuar ouvindo** no topo da tela Início, com barrinha de progresso e a porcentagem. Toque e o play retoma exatamente do ponto — mesmo que você tenha trocado de voz no meio do caminho.
+
+Mais abaixo, **Ouvidas recentemente** lista as que já foram até o fim.
 
 ---
 
@@ -175,7 +200,8 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 |---|---|
 | `index.html` | O site inteiro — tudo está aqui dentro. |
 | `historias.json` | As histórias que aparecem para todo mundo que abre o site. |
-| `capa.jpg` | A imagem grande da tela Início. Troque quando quiser, mantendo o nome. |
+| `capa.jpg` | A imagem grande da tela Início (aparece em todos os aparelhos). |
+| `fundo-historia.jpg` | O cenário que preenche as laterais **no computador**. Ignorado no celular. |
 | `README.md` | Este guia. |
 
 ---
