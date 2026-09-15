@@ -214,12 +214,15 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   .lados{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
   .lado{position:absolute;top:0;bottom:0;width:calc(50% - 380px);
     background-image:url('fundo-historia.jpg');
-    background-size:cover;background-repeat:no-repeat}
-  .lado.esq{left:0;background-position:22% center}
-  .lado.dir{right:0;background-position:78% center}
+    background-repeat:no-repeat;
+    /* o rosto do menino fica em 51% x 45% da foto: é esse ponto que centralizamos */
+    background-size:auto 106%;
+    background-position:51% 44%}
+  .lado.esq{left:0}
+  .lado.dir{right:0}
   .lado::after{content:"";position:absolute;inset:0}
-  .lado.esq::after{background:linear-gradient(90deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.55) 55%,rgba(20,15,34,.96) 100%)}
-  .lado.dir::after{background:linear-gradient(270deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.55) 55%,rgba(20,15,34,.96) 100%)}
+  .lado.esq::after{background:linear-gradient(90deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.58) 55%,rgba(20,15,34,.97) 100%)}
+  .lado.dir::after{background:linear-gradient(270deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.58) 55%,rgba(20,15,34,.97) 100%)}
   header{background:rgba(20,15,34,.9)}
   main.wrap{position:relative;z-index:1;background:rgba(20,15,34,.92);
     backdrop-filter:blur(8px);border-left:1px solid var(--line);border-right:1px solid var(--line);
