@@ -140,6 +140,13 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .cap-item .t span{font-size:11px;color:var(--dim2)}
 #btn-proximo-cap{margin-top:10px}
 .pe .ctrl .rd.cp{width:44px;height:44px;font-size:16px;background:var(--bg2)}
+.faixa{display:flex;width:100%;align-items:center;justify-content:center;gap:8px;
+  padding:11px 12px;border-radius:12px;font-size:13.5px;font-weight:700;margin-bottom:10px;
+  border:1px solid var(--line);background:var(--bg2);color:var(--dim);text-align:center;line-height:1.35}
+.faixa.verde{background:rgba(95,214,164,.14);border-color:rgba(95,214,164,.5);color:#b6f0d8}
+.faixa.amarela{background:rgba(255,200,121,.14);border-color:rgba(255,200,121,.55);color:var(--gold)}
+.faixa.vermelha{background:rgba(255,122,146,.14);border-color:rgba(255,122,146,.5);color:#ffc2ce}
+.faixa.neutra{opacity:.75;font-weight:600}
 .retomar{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;
   font-size:12px;color:var(--gold)}
 .retomar button{font-size:12px;color:var(--dim2);text-decoration:underline;font-weight:600}
@@ -606,7 +613,8 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <button class="btn sm ghost" id="btn-apagar-tudo" style="color:var(--vermelho)">🗑️ Apagar tudo deste celular</button>
   </div>
   <div style="height:20px"></div>
-  <div class="hint" style="text-align:center">Feito com carinho para as meninas 💜</div>
+  <div class="hint" style="text-align:center">Feito com carinho para as meninas 💜<br>
+    <span style="opacity:.6">versão <b id="txt-versao">—</b></span></div>
 </section>
 
 </main>
@@ -629,6 +637,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     </div>
   </div>
   <div class="pe">
+    <button class="faixa" id="btn-baixar-voz"></button>
     <div class="barra"><i id="pg-barra"></i></div>
     <div class="ctrl">
       <button class="rd cp oculto" id="btn-cap-ant" title="capítulo anterior">⏪</button>
@@ -642,7 +651,6 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <span id="txt-retomar"></span>
       <button id="btn-do-inicio">⟲ começar do início</button>
     </div>
-    <button class="btn sm oculto" id="btn-baixar-voz" style="margin-top:8px">⬇️ Baixar a voz desta história</button>
     <button class="btn ok oculto" id="btn-proximo-cap">➡️ Próximo capítulo</button>
   </div>
 </div>
@@ -673,6 +681,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
    ======================================================================= */
 (function(){
 "use strict";
+const VERSAO = "15/09 — v6";
 
 /* ----------------------------- utilidades ----------------------------- */
 const $  = (s,r)=> (r||document).querySelector(s);
@@ -1395,15 +1404,17 @@ const Leitor = (function(){
         if(meu!==execucaoId) return;
         tocando=false; esteiraLigada=false; iconePlay(false); Som.parar(true);
         status('deu erro');
-        modal(`<h3>Não consegui ler 🙁</h3><p class="hint">${esc(e.message||e)}</p>
-          <div class="info" style="margin-top:12px">Você pode continuar agora com a <b>voz do celular</b>, que funciona sem chave e sem espera.</div>
+        modal(`<h3>A leitura parou 🙁</h3><p class="hint">${esc(e.message||e)}</p>
+          <div class="ok" style="margin-top:12px">Tudo o que já tinha baixado <b>continua guardado</b>. Seu lugar na história também foi salvo — dá para voltar depois e continuar daqui.</div>
           <div style="height:14px"></div>
-          <button class="btn" id="err-nativo">📱 Usar a voz do celular agora</button>
+          <button class="btn ok" id="err-nativo">📱 Continuar agora com a voz do celular</button>
           <div style="height:10px"></div>
-          <button class="btn sm ghost" id="err-fechar">Fechar</button>`);
+          <button class="btn sm ghost" id="err-fechar">Fechar e voltar depois</button>`);
         $('#err-nativo').onclick=()=>{
+          const frase = fraseDoPasso(pos);
           cfg.motorVoz='nativo'; salvarCfg(); aplicarCfgNaTela();
-          fecharModal(); memoria=new Map(); montarFila(); barra(); play();
+          fecharModal(); memoria=new Map(); montarFila();
+          pos = passoDaFrase(frase); barra(); atualizarBotaoBaixar(); play();
         };
         $('#err-fechar').onclick=fecharModal;
         return;
@@ -1491,6 +1502,29 @@ const Leitor = (function(){
     tocando=true; iconePlay(true); manterTela(true);
     executar();
   }
+  // antes de dar play, avisa se o áudio ainda não está todo baixado
+  async function playConferindo(){
+    if(cfg.motorVoz==='nativo'){ play(); return; }
+    const {total, prontos} = await contarNoDisco();
+    atualizarBotaoBaixar();
+    if(total>0 && prontos>=total){ play(); return; }
+    modal(`<h3>${prontos? '🟡 Áudio pela metade' : '🔴 Áudio ainda não baixado'}</h3>
+      <p class="hint">${prontos? `Só <b>${prontos} de ${total}</b> trechos estão guardados.` : `Nenhum dos <b>${total}</b> trechos foi gerado ainda.`}
+      Se você tocar agora, o site vai gerando durante a leitura — e <b>se a cota do Google acabar no meio, a história para</b>, como aconteceu no seu teste.</p>
+      <div class="ok" style="margin-top:12px">O jeito certo é baixar tudo antes. O que já estiver guardado não é gerado de novo.</div>
+      <div style="height:16px"></div>
+      <button class="btn ok" id="pl-baixar">⬇️ Baixar tudo agora (recomendado)</button>
+      <div style="height:10px"></div>
+      <button class="btn sm" id="pl-nativo">📱 Ler com a voz do celular (sem cota, sem espera)</button>
+      <div style="height:10px"></div>
+      <button class="btn sm ghost" id="pl-assim">▶️ Tocar assim mesmo</button>`);
+    $('#pl-baixar').onclick=()=>{ fecharModal(); prepararTudo(); };
+    $('#pl-assim').onclick=()=>{ fecharModal(); play(); };
+    $('#pl-nativo').onclick=()=>{
+      cfg.motorVoz='nativo'; salvarCfg(); aplicarCfgNaTela();
+      fecharModal(); memoria=new Map(); montarFila(); barra(); atualizarBotaoBaixar(); play();
+    };
+  }
   function irPara(k){
     const rodando = tocando;
     if(rodando) pausar();
@@ -1505,31 +1539,41 @@ const Leitor = (function(){
     if(k<0) k=0; if(k>=fila.length) k=fila.length-1;
     irPara(k);
   }
-  async function atualizarBotaoBaixar(){
-    const b = $('#btn-baixar-voz');
-    if(!b || !hist) return;
-    if(cfg.motorVoz==='nativo'){ b.classList.add('oculto'); return; }
-    b.classList.remove('oculto');
-    b.disabled = true; b.textContent = 'conferindo o que já está guardado…';
+  let prontosCache = {total:0, prontos:0};
+  async function contarNoDisco(){
     let total=0, prontos=0;
     for(let i=0;i<fila.length;i++){
       if(fila[i].tipo!=='fala') continue;
       total++;
       if(memoria.has(i) || await Guarda.existe(Guarda.chave(hist.id,i,fila[i].texto))) prontos++;
     }
-    hist.audioPronto = (total>0 && prontos>=total);
-    hist.audioParcial = prontos; hist.audioTotal = total; hist.audioMarca = Guarda.marca();
-    salvarHistorias();
-    b.disabled = false;
-    if(prontos>=total && total>0){
-      b.className = 'btn sm'; b.style.color='var(--verde)';
-      b.textContent = '✅ Áudio guardado — toca na hora, sem gastar cota';
+    prontosCache = {total, prontos};
+    if(hist){
+      hist.audioPronto = (total>0 && prontos>=total);
+      hist.audioParcial = prontos; hist.audioTotal = total; hist.audioMarca = Guarda.marca();
+      salvarHistorias();
+    }
+    return prontosCache;
+  }
+  async function atualizarBotaoBaixar(){
+    const b = $('#btn-baixar-voz');
+    if(!b || !hist) return;
+    if(cfg.motorVoz==='nativo'){
+      b.className = 'faixa neutra';
+      b.textContent = '📱 Voz do celular — não precisa baixar nada';
+      return;
+    }
+    b.className = 'faixa'; b.textContent = 'conferindo o áudio já guardado…';
+    const {total, prontos} = await contarNoDisco();
+    if(total>0 && prontos>=total){
+      b.className = 'faixa verde';
+      b.textContent = '🟢 Áudio completo — pode tocar tranquilo, não gasta cota';
     }else if(prontos>0){
-      b.className = 'btn sm ok'; b.style.color='';
-      b.textContent = `⬇️ Continuar baixando (${prontos} de ${total} prontos)`;
+      b.className = 'faixa amarela';
+      b.textContent = `🟡 Só ${prontos} de ${total} trechos baixados — toque para completar`;
     }else{
-      b.className = 'btn sm ok'; b.style.color='';
-      b.textContent = `⬇️ Baixar a voz (${total} trechos) — some a espera`;
+      b.className = 'faixa vermelha';
+      b.textContent = `🔴 Áudio ainda não baixado (${total} trechos) — toque aqui para baixar antes`;
     }
   }
   function marcarCheck(){
@@ -1584,7 +1628,7 @@ const Leitor = (function(){
       document.body.style.overflow='';
       pintarAcervo(); pintarInicio();
     },
-    alternar(){ tocando ? pausar() : play(); },
+    alternar(){ tocando ? pausar() : playConferindo(); },
     doInicio(){ irPara(0); $('#barra-retomar').classList.add('oculto'); },
     passo, prepararTudo, atualizarBotaoBaixar,
     capitulo(dir){
@@ -2458,6 +2502,14 @@ function aplicarCfgNaTela(){
   img.addEventListener('error', ()=>$('#capa').classList.add('semimg'));
   if(img.complete && img.naturalWidth===0) $('#capa').classList.add('semimg');
 })();
+
+$('#txt-versao').textContent = VERSAO;
+// avisa quando o arquivo novo realmente chegou (ajuda quando o navegador guarda a versão velha)
+try{
+  const antes = localStorage.getItem('ch_versao');
+  if(antes && antes!==VERSAO) setTimeout(()=>toast('Site atualizado para a versão '+VERSAO),1200);
+  localStorage.setItem('ch_versao', VERSAO);
+}catch(e){}
 
 novosTemas(); novosPersonagens(); aplicarCfgNaTela(); pintarTudo();
 aplicarConfigDaUrl();
