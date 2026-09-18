@@ -427,6 +427,28 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 <!-- ====================== CONFIG ====================== -->
 <section class="tela" id="tela-config">
 
+  <div class="tit">👧 Para quem são as histórias</div>
+  <div class="card">
+    <div class="hint">Serve para o site cumprimentar do jeito certo e para a IA escrever falando com quem vai ouvir. Deixando em branco, nada disso aparece.</div>
+    <label class="f">Primeiro nome de quem vai ouvir <span style="color:var(--dim2);font-weight:500">(opcional)</span></label>
+    <input type="text" id="in-publico-nomes" placeholder="Ex.: Lara, Julia — separe por vírgula">
+    <label class="f">Quem costuma ouvir</label>
+    <select id="sel-publico-tipo">
+      <option value="">Prefiro não informar</option>
+      <option value="menina">Uma menina</option>
+      <option value="meninas">Duas ou mais meninas</option>
+      <option value="menino">Um menino</option>
+      <option value="meninos">Dois ou mais meninos</option>
+      <option value="misto">Meninas e meninos</option>
+    </select>
+    <div class="sw">
+      <div class="txt"><b>Cumprimentar pelo nome na história</b><span>A IA começa a história com uma saudação curta dirigida a quem vai ouvir.</span></div>
+      <div class="toggle on" id="tg-publico-historia"></div>
+    </div>
+    <div style="height:8px"></div>
+    <div class="info">No topo da tela vai aparecer: <b id="previa-saudacao">—</b></div>
+  </div>
+
   <div class="tit">🔊 Voz que lê as histórias</div>
   <div class="card">
     <div class="seg" id="sel-motor-voz" style="flex-wrap:wrap">
@@ -745,6 +767,7 @@ $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') fecharModal
 const CHAVE_H='ch_historias', CHAVE_C='ch_config', CHAVE_S='ch_stats';
 
 const configPadrao = {
+  publicoNomes:'', publicoTipo:'', publicoNaHistoria:true,
   motorVoz:'nativo', vozNativa:'', vel:0.95, tom:1.05,
   elevenKey:'', elevenVoice:'', elevenModel:'eleven_multilingual_v2', elevenEstab:0.45,
   openaiKey:'', openaiVoice:'nova', openaiModel:'gpt-4o-mini-tts',
@@ -783,7 +806,12 @@ const SONS = {
   chuva:{e:'🌧️',n:'Chuva'}, vento:{e:'🌬️',n:'Vento'}, mar:{e:'🌊',n:'Mar'},
   floresta:{e:'🌳',n:'Floresta'}, fogueira:{e:'🔥',n:'Fogueira'}, noite:{e:'🌙',n:'Noite'},
   trovao:{e:'⛈️',n:'Trovão'}, magia:{e:'✨',n:'Magia'}, sino:{e:'🔔',n:'Sino'},
-  passos:{e:'👣',n:'Passos'}, coracao:{e:'💗',n:'Coração'}, fim:{e:'🤫',n:'Silêncio'}
+  passos:{e:'👣',n:'Passos'}, coracao:{e:'💗',n:'Coração'},
+  explosao:{e:'💥',n:'Explosão'}, tiro:{e:'🎯',n:'Tiro'}, galope:{e:'🐎',n:'Galope'},
+  latido:{e:'🐶',n:'Cachorro'}, miado:{e:'🐱',n:'Gato'}, mugido:{e:'🐄',n:'Vaca'},
+  rugido:{e:'🦁',n:'Leão'}, chiado:{e:'🐍',n:'Cobra'}, coruja:{e:'🦉',n:'Coruja'},
+  galo:{e:'🐓',n:'Galo'}, sapo:{e:'🐸',n:'Sapo'}, elefante:{e:'🐘',n:'Elefante'},
+  fim:{e:'🤫',n:'Silêncio'}
 };
 const RE_SOM = /\[som:\s*([a-zà-ú]+)\s*\]/gi;
 
@@ -933,6 +961,170 @@ const Som = (function(){
     }
   }
   const pontuais = {
+    explosao(){
+      const t=ctx.currentTime;
+      const s=ruido('branco'), f=ctx.createBiquadFilter(), g=ctx.createGain();
+      f.type='lowpass'; f.frequency.setValueAtTime(1600,t); f.frequency.exponentialRampToValueAtTime(70,t+1.9);
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.85,t+.012);
+      g.gain.exponentialRampToValueAtTime(.0001,t+2);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+2.1);
+      const o=ctx.createOscillator(), og=ctx.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(90,t); o.frequency.exponentialRampToValueAtTime(28,t+.9);
+      og.gain.setValueAtTime(.0001,t); og.gain.exponentialRampToValueAtTime(.6,t+.02);
+      og.gain.exponentialRampToValueAtTime(.0001,t+1.2);
+      o.connect(og); og.connect(master); o.start(t); o.stop(t+1.3);
+    },
+    tiro(){
+      const t=ctx.currentTime;
+      const s=ruido('branco'), f=ctx.createBiquadFilter(), g=ctx.createGain();
+      f.type='highpass'; f.frequency.value=900;
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.7,t+.004);
+      g.gain.exponentialRampToValueAtTime(.0001,t+.18);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+.2);
+      const o=ctx.createOscillator(), og=ctx.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(160,t); o.frequency.exponentialRampToValueAtTime(45,t+.22);
+      og.gain.setValueAtTime(.0001,t); og.gain.exponentialRampToValueAtTime(.45,t+.01);
+      og.gain.exponentialRampToValueAtTime(.0001,t+.3);
+      o.connect(og); og.connect(master); o.start(t); o.stop(t+.35);
+    },
+    galope(){
+      const t=ctx.currentTime;
+      const casco=(q,forte)=>{
+        const s=ruido('marrom'), f=ctx.createBiquadFilter(), g=ctx.createGain();
+        f.type='bandpass'; f.frequency.value=forte?170:240; f.Q.value=2.2;
+        g.gain.setValueAtTime(.0001,q); g.gain.exponentialRampToValueAtTime(forte?.5:.32,q+.006);
+        g.gain.exponentialRampToValueAtTime(.0001,q+.11);
+        s.connect(f); f.connect(g); g.connect(master); s.start(q); s.stop(q+.15);
+      };
+      // dois compassos de galope: ta-ta-TUM
+      [0,.11,.25, .58,.69,.83, 1.16,1.27,1.41].forEach((d,i)=>casco(t+d, i%3===2));
+    },
+    latido(){
+      const t=ctx.currentTime;
+      const au=(q)=>{
+        const o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+        o.type='sawtooth';
+        o.frequency.setValueAtTime(420,q); o.frequency.exponentialRampToValueAtTime(170,q+.16);
+        f.type='bandpass'; f.frequency.setValueAtTime(1100,q); f.frequency.exponentialRampToValueAtTime(700,q+.16); f.Q.value=3;
+        g.gain.setValueAtTime(.0001,q); g.gain.exponentialRampToValueAtTime(.4,q+.012);
+        g.gain.exponentialRampToValueAtTime(.0001,q+.2);
+        o.connect(f); f.connect(g); g.connect(master); o.start(q); o.stop(q+.24);
+        const s=ruido('branco'), nf=ctx.createBiquadFilter(), ng=ctx.createGain();
+        nf.type='bandpass'; nf.frequency.value=1800; nf.Q.value=1.2;
+        ng.gain.setValueAtTime(.0001,q); ng.gain.exponentialRampToValueAtTime(.1,q+.01);
+        ng.gain.exponentialRampToValueAtTime(.0001,q+.14);
+        s.connect(nf); nf.connect(ng); ng.connect(master); s.start(q); s.stop(q+.18);
+      };
+      au(t); au(t+.34);
+    },
+    miado(){
+      const t=ctx.currentTime;
+      const o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain(),
+            lfo=ctx.createOscillator(), lg=ctx.createGain();
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(520,t);
+      o.frequency.linearRampToValueAtTime(880,t+.28);
+      o.frequency.linearRampToValueAtTime(430,t+.95);
+      lfo.frequency.value=6.5; lg.gain.value=22; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t);
+      f.type='bandpass'; f.frequency.setValueAtTime(1300,t);
+      f.frequency.linearRampToValueAtTime(850,t+.95); f.Q.value=3.5;
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.34,t+.1);
+      g.gain.setValueAtTime(.34,t+.6); g.gain.exponentialRampToValueAtTime(.0001,t+1.05);
+      o.connect(f); f.connect(g); g.connect(master);
+      o.start(t); o.stop(t+1.1); lfo.stop(t+1.1);
+    },
+    mugido(){
+      const t=ctx.currentTime;
+      const o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(155,t);
+      o.frequency.linearRampToValueAtTime(128,t+.5);
+      o.frequency.linearRampToValueAtTime(96,t+1.5);
+      f.type='lowpass'; f.frequency.setValueAtTime(700,t); f.frequency.linearRampToValueAtTime(420,t+1.5); f.Q.value=1.4;
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.42,t+.25);
+      g.gain.setValueAtTime(.42,t+.9); g.gain.exponentialRampToValueAtTime(.0001,t+1.7);
+      o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t+1.8);
+    },
+    rugido(){
+      const t=ctx.currentTime;
+      const s=ruido('marrom'), f=ctx.createBiquadFilter(), g=ctx.createGain(),
+            o=ctx.createOscillator(), og=ctx.createGain(),
+            am=ctx.createOscillator(), ag=ctx.createGain();
+      f.type='lowpass'; f.frequency.setValueAtTime(320,t);
+      f.frequency.linearRampToValueAtTime(640,t+.6); f.frequency.linearRampToValueAtTime(220,t+1.8);
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.55,t+.35);
+      g.gain.setValueAtTime(.55,t+1.1); g.gain.exponentialRampToValueAtTime(.0001,t+2);
+      am.frequency.value=27; ag.gain.value=.3; am.connect(ag); ag.connect(g.gain); am.start(t);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+2.1);
+      o.type='sawtooth'; o.frequency.setValueAtTime(78,t); o.frequency.linearRampToValueAtTime(58,t+1.8);
+      og.gain.setValueAtTime(.0001,t); og.gain.exponentialRampToValueAtTime(.3,t+.35);
+      og.gain.exponentialRampToValueAtTime(.0001,t+2);
+      o.connect(og); og.connect(master); o.start(t); o.stop(t+2.1); am.stop(t+2.1);
+    },
+    chiado(){
+      const t=ctx.currentTime;
+      const s=ruido('branco'), f=ctx.createBiquadFilter(), g=ctx.createGain(),
+            lfo=ctx.createOscillator(), lg=ctx.createGain();
+      f.type='bandpass'; f.frequency.value=5200; f.Q.value=1.1;
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.22,t+.15);
+      g.gain.setValueAtTime(.22,t+1.1); g.gain.exponentialRampToValueAtTime(.0001,t+1.6);
+      lfo.frequency.value=9; lg.gain.value=.05; lfo.connect(lg); lg.connect(g.gain); lfo.start(t);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+1.7); lfo.stop(t+1.7);
+    },
+    coruja(){
+      const t=ctx.currentTime;
+      const piu=(q,dur)=>{
+        const o=ctx.createOscillator(), g=ctx.createGain(), lfo=ctx.createOscillator(), lg=ctx.createGain();
+        o.type='sine'; o.frequency.setValueAtTime(430,q);
+        o.frequency.linearRampToValueAtTime(390,q+dur);
+        lfo.frequency.value=5.5; lg.gain.value=9; lfo.connect(lg); lg.connect(o.frequency); lfo.start(q);
+        g.gain.setValueAtTime(.0001,q); g.gain.exponentialRampToValueAtTime(.28,q+.08);
+        g.gain.exponentialRampToValueAtTime(.0001,q+dur);
+        o.connect(g); g.connect(master); o.start(q); o.stop(q+dur+.05); lfo.stop(q+dur+.05);
+      };
+      piu(t,.32); piu(t+.55,.5);
+    },
+    galo(){
+      const t=ctx.currentTime;
+      const nota=(q,fq,dur,vol)=>{
+        const o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+        o.type='sawtooth'; o.frequency.setValueAtTime(fq,q);
+        o.frequency.linearRampToValueAtTime(fq*.92,q+dur);
+        f.type='bandpass'; f.frequency.value=fq*2.1; f.Q.value=2.5;
+        g.gain.setValueAtTime(.0001,q); g.gain.exponentialRampToValueAtTime(vol,q+.03);
+        g.gain.exponentialRampToValueAtTime(.0001,q+dur);
+        o.connect(f); f.connect(g); g.connect(master); o.start(q); o.stop(q+dur+.04);
+      };
+      nota(t,720,.2,.3); nota(t+.24,930,.18,.32); nota(t+.45,1180,.3,.34); nota(t+.8,620,.45,.28);
+    },
+    sapo(){
+      const t=ctx.currentTime;
+      const croac=(q)=>{
+        const o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain(),
+              am=ctx.createOscillator(), ag=ctx.createGain();
+        o.type='sawtooth'; o.frequency.value=185;
+        f.type='lowpass'; f.frequency.value=900;
+        g.gain.setValueAtTime(.0001,q); g.gain.exponentialRampToValueAtTime(.3,q+.03);
+        g.gain.exponentialRampToValueAtTime(.0001,q+.3);
+        am.frequency.value=32; ag.gain.value=.22; am.connect(ag); ag.connect(g.gain); am.start(q);
+        o.connect(f); f.connect(g); g.connect(master); o.start(q); o.stop(q+.34); am.stop(q+.34);
+      };
+      croac(t); croac(t+.5); croac(t+.92);
+    },
+    elefante(){
+      const t=ctx.currentTime;
+      const o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain(),
+            lfo=ctx.createOscillator(), lg=ctx.createGain();
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(210,t);
+      o.frequency.linearRampToValueAtTime(520,t+.35);
+      o.frequency.linearRampToValueAtTime(430,t+1.1);
+      lfo.frequency.value=7; lg.gain.value=26; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t);
+      f.type='bandpass'; f.frequency.value=900; f.Q.value=1.6;
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.4,t+.12);
+      g.gain.setValueAtTime(.4,t+.8); g.gain.exponentialRampToValueAtTime(.0001,t+1.35);
+      o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t+1.4); lfo.stop(t+1.4);
+    },
     trovao(){ const s=ruido('marrom'), f=ctx.createBiquadFilter(), g=ctx.createGain(), t=ctx.currentTime;
       f.type='lowpass'; f.frequency.setValueAtTime(420,t); f.frequency.exponentialRampToValueAtTime(90,t+2.4);
       g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.55,t+.12);
@@ -1661,6 +1853,8 @@ const Leitor = (function(){
       $('#leitor-corpo').scrollTop=0;
       $('#btn-fav').textContent = h.favorita ? '★' : '☆';
       $('#btn-proximo-cap').classList.add('oculto');
+      Som.parar(true);
+      if(typeof limparTeste==='function') limparTeste();
       $('#leitor').classList.add('on');
       document.body.style.overflow='hidden';
       marcarCheck();
@@ -1803,6 +1997,7 @@ ${trecho}
 ===== FIM DO CAPÍTULO ANTERIOR =====
 
 PÚBLICO: ${PERFIS[o.idade].rotulo}. ${PERFIS[o.idade].guia}
+${linhaPublicoParaIA()}
 TAMANHO: ${TAMANHOS[o.tam].p}.
 ${o.tema ? 'O QUE O PAI QUER QUE ACONTEÇA: '+o.tema : ''}
 ${o.personagens ? 'PERSONAGENS A INCLUIR: '+o.personagens : ''}
@@ -1813,7 +2008,7 @@ REGRAS:
 - Português do Brasil, com frases que soem bem faladas em voz alta.
 - Termine este capítulo num gancho gostoso, mas num tom calmo, porque é hora de dormir.
 - Nada de violência, morte ou medo pesado.
-- Use de 4 a 8 efeitos sonoros, sozinhos em uma linha, no formato exato [som:nome], apenas com estes nomes: chuva, vento, mar, floresta, fogueira, noite, trovao, magia, sino, passos, coracao. Termine com [som:fim].
+- Use de 4 a 8 efeitos sonoros, sozinhos em uma linha, no formato exato [som:nome], apenas com estes nomes: chuva, vento, mar, floresta, fogueira, noite, trovao, magia, sino, passos, coracao, explosao, tiro, galope, latido, miado, mugido, rugido, chiado, coruja, galo, sapo, elefante. Termine com [som:fim].
 - Separe os parágrafos com uma linha em branco.
 
 FORMATO DA RESPOSTA (siga exatamente):
@@ -1827,6 +2022,7 @@ function montarPrompt(o){
   return `Você é um contador de histórias brasileiro, escrevendo uma história de dormir em português do Brasil para um pai ler (ou o celular ler em voz alta) para as filhas dele.
 
 PÚBLICO: ${PERFIS[o.idade].rotulo}. ${PERFIS[o.idade].guia}
+${linhaPublicoParaIA()}
 TAMANHO: ${TAMANHOS[o.tam].p}.
 TEMA: ${o.tema || 'escolha um tema encantador e original'}
 PERSONAGENS: ${o.personagens || 'crie personagens cativantes'}
@@ -1840,7 +2036,7 @@ REGRAS:
 - Escreva em português do Brasil, com sabor brasileiro (frutas, bichos, ruas, comidas daqui).
 - A história vai ser LIDA EM VOZ ALTA: use frases que soem bem faladas, com ritmo e pausas naturais.
 - Nada de violência, morte, medo pesado ou tristeza sem saída. Termine sempre num tom quente e tranquilo, bom para dormir.
-- Use EFEITOS SONOROS espalhados pelo texto, sozinhos em uma linha, no formato exato [som:nome]. Use de 4 a 8 deles, nos momentos certos. Nomes permitidos, apenas estes: chuva, vento, mar, floresta, fogueira, noite, trovao, magia, sino, passos, coracao, fim. Termine a história com [som:fim].
+- Use EFEITOS SONOROS espalhados pelo texto, sozinhos em uma linha, no formato exato [som:nome]. Use de 4 a 8 deles, nos momentos certos. Nomes permitidos, apenas estes: chuva, vento, mar, floresta, fogueira, noite, trovao, magia, sino, passos, coracao, explosao, tiro, galope, latido, miado, mugido, rugido, chiado, coruja, galo, sapo, elefante, fim. Termine a história com [som:fim].
 - Separe os parágrafos com uma linha em branco.
 
 FORMATO DA RESPOSTA (siga exatamente):
@@ -1980,12 +2176,63 @@ function mostrarAprovacao(){
   $('#ap-descartar').onclick=()=>{ rascunho=null; fecharModal(); };
 }
 
+/* ------------------------- para quem são as histórias ------------------------- */
+function nomesDoPublico(){
+  return (cfg.publicoNomes||'').split(/\s*,\s*|\s+e\s+/i).map(x=>x.trim()).filter(Boolean);
+}
+function nomesPorExtenso(){
+  const n = nomesDoPublico();
+  if(n.length===0) return '';
+  if(n.length===1) return n[0];
+  return n.slice(0,-1).join(', ') + ' e ' + n[n.length-1];
+}
+// como chamar quem ouve, quando não há nomes: só faz sentido no plural
+const COLETIVO = { meninas:'meninas', meninos:'meninos', misto:'crianças' };
+function vocativo(){
+  const nomes = nomesPorExtenso();
+  if(nomes) return nomes;
+  return COLETIVO[cfg.publicoTipo] || '';
+}
+function periodoDoDia(){
+  const h = new Date().getHours();
+  return h<12 ? 'bom dia' : (h<18 ? 'boa tarde' : 'boa noite');
+}
+function saudacao(){
+  const v = vocativo();
+  return v ? `${periodoDoDia()}, ${v}` : `${periodoDoDia()}! que tal uma história?`;
+}
+function atualizarSaudacao(){
+  const t = saudacao();
+  const el = $('#sub-hd'); if(el) el.textContent = t;
+  const pv = $('#previa-saudacao'); if(pv) pv.textContent = t.toUpperCase();
+}
+// como a IA deve se dirigir a quem ouve
+function linhaPublicoParaIA(){
+  const nomes = nomesPorExtenso();
+  const tipo = cfg.publicoTipo;
+  if(!nomes && !tipo) return '';
+  const quem = {menina:'uma menina', meninas:'duas ou mais meninas', menino:'um menino',
+                meninos:'dois ou mais meninos', misto:'meninas e meninos'}[tipo] || '';
+  let l = 'QUEM VAI OUVIR: ';
+  if(nomes) l += nomes + (quem? ' ('+quem+')' : '');
+  else l += quem;
+  if(cfg.publicoNaHistoria && (nomes || quem)){
+    l += '. Comece com uma saudação curta e carinhosa dirigida' +
+         (nomes? ' a '+nomes : ' a quem vai ouvir') +
+         ', em uma linha só, antes de começar a narrativa. Use a concordância certa de gênero e número. Depois disso, não cite mais quem está ouvindo — a história segue normalmente.';
+  }else{
+    l += '. Não cite quem está ouvindo dentro da história; a informação serve apenas para acertar a concordância e o tom.';
+  }
+  return l;
+}
+
 /* ----------------------------- telas e listas ----------------------------- */
 const ICONES = ['🦉','🐉','🌊','🚀','🐻','🦊','🌟','🐢','🎈','🦋','🐰','🌙','🍄','🐳','🎪','🧸','🦄','🐝'];
 const iconeDe = h => ICONES[ (String(h.id).split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % ICONES.length ];
 const rotuloIdade = i => ({'2-5':'2 a 5 anos','6-9':'6 a 9 anos','10+':'10 anos +','mista':'para as duas'}[i] || 'todas as idades');
 
 function irTela(nome){
+  if(typeof pararSonsDeTeste==='function') pararSonsDeTeste();
   $$('section.tela').forEach(s=>s.classList.toggle('on', s.id==='tela-'+nome));
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tela===nome));
   window.scrollTo({top:0,behavior:'instant'});
@@ -2203,8 +2450,7 @@ function pintarInicio(){
   $('#lista-recentes').innerHTML = recentes.length ? recentes.map(h=>cartaoHistoria(h,{semCheck:true})).join('')
     : `<div class="hint" style="text-align:center;padding:10px">Quando vocês terminarem uma história, ela aparece aqui.</div>`;
   ligarCartoes('#lista-recentes');
-  const h=new Date().getHours();
-  $('#sub-hd').textContent = h<12?'bom dia, meninas':(h<18?'boa tarde, meninas':'boa noite, meninas');
+  atualizarSaudacao();
 }
 const pintarTudo = ()=>{ pintarStats(); pintarSeries(); pintarInspiracaoAcervo(); pintarAcervo(); pintarInicio(); };
 
@@ -2312,7 +2558,10 @@ $('#btn-ver-sons').addEventListener('click',()=>{
       <button class="btn sm" style="width:auto;padding:7px 14px" data-som="${k}">ouvir</button></div>`).join('')}
     <div class="hint" style="margin-top:12px">Os ambientes (chuva, vento, mar, floresta, fogueira, noite) ficam tocando baixinho até outro som entrar. <b>[som:fim]</b> desliga tudo.</div>
     <div style="height:14px"></div><button class="btn" id="msfechar">Fechar</button>`);
-  $$('#modal [data-som]').forEach(b=>b.onclick=()=>{ Som.ligar(); Som.tocar(b.dataset.som); });
+  $$('#modal [data-som]').forEach(b=>b.onclick=()=>{
+    Som.ligar(); Som.parar(true);
+    if(b.dataset.som!=='fim') setTimeout(()=>Som.tocar(b.dataset.som), 70);
+  });
   $('#msfechar').onclick=()=>{ Som.parar(true); fecharModal(); };
 });
 
@@ -2346,6 +2595,12 @@ function campo(sel, chave, tipo){
 }
 campo('#in-eleven-key','elevenKey'); campo('#in-openai-key','openaiKey');
 campo('#in-gemini-instr','geminiInstr');
+$('#in-publico-nomes').addEventListener('input',()=>{
+  cfg.publicoNomes = $('#in-publico-nomes').value; salvarCfg(); atualizarSaudacao();
+});
+$('#sel-publico-tipo').addEventListener('change',()=>{
+  cfg.publicoTipo = $('#sel-publico-tipo').value; salvarCfg(); atualizarSaudacao();
+});
 campo('#in-openai-instr','openaiInstr'); campo('#in-gemini-key','geminiKey');
 campo('#in-anthropic-key','anthropicKey'); campo('#in-gh-repo','ghRepo'); campo('#in-gh-token','ghToken');
 campo('#rng-vel','vel','num'); campo('#rng-tom','tom','num'); campo('#rng-vol','volEfeitos','num');
@@ -2381,6 +2636,7 @@ function chave(sel, campoCfg, depois){
 }
 chave('#tg-efeitos','efeitos', ()=>{ if(!cfg.efeitos) Som.parar(true); });
 chave('#tg-adiantar','adiantar');
+chave('#tg-publico-historia','publicoNaHistoria');
 
 function mostrarGuarda(){
   Guarda.quanto().then(q=>{
@@ -2430,10 +2686,29 @@ $('#btn-carregar-vozes').addEventListener('click', async ()=>{
 // grade de teste dos sons
 $('#sons-teste').innerHTML = Object.entries(SONS).map(([k,v])=>
   `<button data-som="${k}"><span class="e">${v.e}</span>${v.n}</button>`).join('');
+// Na tela de teste vale um som por vez: tocar outro (ou o mesmo) interrompe o anterior.
+// Dentro das histórias nada muda — lá ambiente e voz seguem em paralelo, como sempre.
+function limparTeste(){
+  $$('#sons-teste button').forEach(x=>{ x.classList.remove('on'); if(x._t){ clearTimeout(x._t); x._t=null; } });
+}
+function pararSonsDeTeste(){
+  if($('#leitor').classList.contains('on')) return;   // história tocando: não mexe
+  Som.parar(true);
+  limparTeste();
+}
 $$('#sons-teste button').forEach(b=>b.addEventListener('click',()=>{
-  Som.ligar(); Som.tocar(b.dataset.som);
-  $$('#sons-teste button').forEach(x=>x.classList.remove('on'));
-  if(!['trovao','magia','sino','passos','coracao','fim'].includes(b.dataset.som)) b.classList.add('on');
+  const som = b.dataset.som;
+  const eraLigado = b.classList.contains('on');
+  const ambiente = !!DURACAO_SOM[som];
+  Som.ligar();
+  Som.parar(true);          // qualquer toque corta o que estiver tocando
+  limparTeste();
+  if(eraLigado && ambiente) return;                   // segundo toque no mesmo: desliga
+  if(som==='fim') return;                             // "silêncio" só para tudo
+  setTimeout(()=>Som.tocar(som), 70);
+  b.classList.add('on');
+  const seg = ambiente ? (DURACAO_SOM[som]||10)*(MULT_DURACAO[cfg.durEfeitos]||1)+3 : 1.8;
+  b._t = setTimeout(()=>{ b.classList.remove('on'); b._t=null; }, seg*1000);
 }));
 
 /* ----------------------------- backup / GitHub ----------------------------- */
@@ -2584,6 +2859,13 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.8.0','18/09/2026', [
+    '12 efeitos novos: explosão, tiro, galope, cachorro, gato, vaca, leão, cobra, coruja, galo, sapo e elefante',
+    'Teste de sons: um som por vez, com destaque em todos os botões, e silêncio ao sair da tela',
+    'Ajuste "Para quem são as histórias": nomes e composição de quem vai ouvir',
+    'Saudação do topo adaptada (ou neutra, quando nada é informado)',
+    'A IA passa a cumprimentar quem vai ouvir na abertura da história'
+  ]],
   ['1.7.0','18/09/2026', [
     'Criação de histórias com mais entradas: onde acontece, clima e "parecida com…"',
     'Opção de pedir uma história nova no estilo de outra que já está no acervo',
@@ -2718,6 +3000,9 @@ function aplicarCfgNaTela(){
   $('#lbl-fonte').textContent=cfg.fonte;
   $('#in-openai-key2').value=cfg.openaiKey||'';
   $('#in-gemini-instr').value=cfg.geminiInstr||'';
+  $('#in-publico-nomes').value=cfg.publicoNomes||'';
+  $('#sel-publico-tipo').value=cfg.publicoTipo||'';
+  atualizarSaudacao();
   espelharGemini();
   $('#hint-idade').textContent=PERFIS['6-9'].guia;
 }

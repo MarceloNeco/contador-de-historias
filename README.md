@@ -58,6 +58,19 @@ Para trocar qualquer uma: suba outra imagem com o mesmo nome por cima. Se o arqu
 
 ---
 
+## 👧 Para quem são as histórias
+
+Em **Ajustes**, a primeira seção permite informar os **primeiros nomes** de quem vai ouvir e se é uma menina, um menino, duas ou mais meninas, dois ou mais meninos, ou um grupo misto.
+
+Com isso:
+
+- a saudação do topo passa a ser **"boa noite, Lara e Julia"** (ou "boa noite, meninos", "boa noite, crianças"…);
+- a IA escreve fazendo a concordância certa e, se o botão estiver ligado, **abre a história com uma saudação** a quem vai ouvir.
+
+Deixando tudo em branco, o topo mostra apenas **"BOA NOITE! QUE TAL UMA HISTÓRIA?"** e nada de nome aparece em lugar nenhum. Essa informação fica só no aparelho — não vai para o repositório.
+
+---
+
 ## 🔊 Escolhendo a voz
 
 Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar quando quiser.
@@ -177,7 +190,15 @@ Dentro do texto da história, um marcador sozinho numa linha aciona o som:
 [som:chuva]
 ```
 
-Disponíveis: `chuva`, `vento`, `mar`, `floresta`, `fogueira`, `noite`, `trovao`, `magia`, `sino`, `passos`, `coracao` e `fim` (desliga tudo).
+**Ambientes** (tocam ao fundo e somem devagar): `chuva`, `vento`, `mar`, `floresta`, `fogueira`, `noite`.
+
+**Momentos** (tocam uma vez): `trovao`, `magia`, `sino`, `passos`, `coracao`, `explosao`, `tiro`, `galope`.
+
+**Bichos** (tocam uma vez): `latido` (cachorro), `miado` (gato), `mugido` (vaca), `rugido` (leão), `chiado` (cobra), `coruja`, `galo`, `sapo`, `elefante`.
+
+E `fim`, que desliga tudo.
+
+Todos são **criados pelo próprio site**, com síntese de som — não existe nenhum arquivo de áudio no repositório. Por isso os bichos soam estilizados, meio de desenho animado, e não como gravação real. Em **Ajustes → Efeitos sonoros** dá para ouvir os 24 antes de usar.
 
 Os seis primeiros são ambientes — ficam tocando baixinho ao fundo até outro entrar. Os outros tocam uma vez só. A IA já coloca esses marcadores sozinha nas histórias que gera.
 
