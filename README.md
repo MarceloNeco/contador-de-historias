@@ -90,6 +90,8 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 
 - **Gemini** (recomendado) → `aistudio.google.com/apikey` → *Create API key* → *Create project*. As chaves novas começam com `AQ.` (as antigas começavam com `AIza`); as duas funcionam.
 
+> **Se aparecer "o Google está lotado" (erro 503):** não é nada seu. O site já espera e tenta de novo sozinho (três vezes, com pausas crescentes) e, se continuar lotado, tenta um modelo reserva. Se mesmo assim falhar, espere um minuto e toque em gerar de novo. Numa geração de vários capítulos, os que já saíram ficam guardados e **Tentar de novo** continua do capítulo seguinte.
+
 > **Se aparecer "este modelo não está mais disponível":** o Google aposenta modelos de tempos em tempos. Vá em **Ajustes → IA que escreve as histórias** e toque em **🔄 Ver os modelos que a minha chave aceita** — o site pergunta ao Google quais existem hoje e preenche a lista. Escolha um e pronto. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
 - **ElevenLabs** → `elevenlabs.io` → conta → *Profile* → *API Key*. Depois, no site, toque em **Carregar minhas vozes** e escolha a que preferir.
 - **OpenAI** → `platform.openai.com` → adicione créditos → *API keys* → *Create new secret key*.
@@ -244,6 +246,7 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 | `index.html` | O site inteiro — tudo está aqui dentro. |
 | `historias.json` | As histórias que aparecem para todo mundo que abre o site. |
 | `capa.jpg` | A imagem grande da tela Início (aparece em todos os aparelhos). |
+| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v2`), para os aparelhos buscarem os arquivos novos. |
 | `fundo-historia.jpg` | O cenário que preenche as laterais **no computador**. Ignorado no celular. |
 | `README.md` | Este guia. |
 

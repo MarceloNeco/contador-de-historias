@@ -2133,28 +2133,66 @@ Depois: a história.
 Não escreva mais nada além disso — sem comentários, sem explicações, sem markdown.`;
 }
 
-async function chamarIA(prompt){
+// um pedido ao Gemini, sem insistir
+async function geminiTexto(prompt, modelo){
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(modelo)+':generateContent',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
+    body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:4096} })
+  });
+  if(!r.ok){
+    const corpo = (await r.text()).slice(0,300);
+    const e = new Error('Gemini: '+r.status+' — '+corpo.slice(0,200));
+    e.status = r.status;
+    if(r.status===404 && /no longer available|not found|is not supported/i.test(corpo)){
+      e.message = 'O modelo "'+modelo+'" saiu de linha no Google. Em Ajustes → IA que escreve as histórias, toque em "Ver os modelos que a minha chave aceita" e escolha outro da lista.';
+      e.modeloVelho = true;
+    }
+    if(r.status===503 || /high demand|overloaded|UNAVAILABLE/i.test(corpo)) e.sobrecarga = true;
+    if(r.status===429) e.cota = true;
+    throw e;
+  }
+  const j = await r.json();
+  const t = (((j.candidates||[])[0]||{}).content||{}).parts||[];
+  const saida = t.map(p=>p.text||'').join('').trim();
+  if(!saida) throw new Error('O Gemini não devolveu texto. Tente de novo.');
+  return saida;
+}
+// modelo reserva para quando o principal está lotado
+function modeloReserva(m){
+  if(/lite/.test(m)) return 'gemini-3.6-flash';
+  return 'gemini-3.5-flash-lite';
+}
+
+// aviso(texto) atualiza a tela enquanto a IA pensa
+async function chamarIA(prompt, aviso){
   const m = cfg.motorTexto;
+  aviso = aviso || function(){};
   if(m==='gemini'){
     if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Ajustes → IA que escreve.');
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(cfg.geminiModel)+':generateContent',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
-      body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:4096} })
-    });
-    if(!r.ok){
-      const corpo = (await r.text()).slice(0,300);
-      if(r.status===404 && /no longer available|not found|is not supported/i.test(corpo)){
-        const e = new Error('O modelo "'+cfg.geminiModel+'" saiu de linha no Google. Em Ajustes → IA que escreve as histórias, toque em "Ver os modelos que a minha chave aceita" e escolha outro da lista.');
-        e.modeloVelho = true; throw e;
+    const esperas = [6000, 15000, 30000];
+    let ultimo = null;
+    for(let t=0; t<=esperas.length; t++){
+      try{
+        // na última tentativa, se o problema for lotação, muda para o modelo reserva
+        const modelo = (t===esperas.length && ultimo && ultimo.sobrecarga) ? modeloReserva(cfg.geminiModel) : cfg.geminiModel;
+        if(modelo!==cfg.geminiModel) aviso('o '+cfg.geminiModel+' está lotado — tentando com o '+modelo+'…');
+        return await geminiTexto(prompt, modelo);
+      }catch(e){
+        ultimo = e;
+        if(e.modeloVelho) throw e;
+        const passageiro = e.sobrecarga || e.cota || /failed to fetch|networkerror/i.test(e.message||'');
+        if(!passageiro || t===esperas.length){
+          if(e.sobrecarga) e.message = 'O Google está lotado neste momento (não é nada seu, nem da chave, nem da cota). Espere um minutinho e toque em gerar de novo.';
+          if(e.cota) e.message = 'A cota gratuita bateu no limite por agora. Espere alguns minutos e tente de novo.';
+          throw e;
+        }
+        const seg = Math.round(esperas[t]/1000);
+        aviso((e.sobrecarga ? 'o Google está lotado' : e.cota ? 'cota cheia' : 'sem resposta') + ' — esperando '+seg+'s e tentando de novo… ('+(t+1)+' de '+esperas.length+')');
+        await sleep(esperas[t]);
       }
-      throw new Error('Gemini: '+r.status+' — '+corpo.slice(0,200));
     }
-    const j = await r.json();
-    const t = (((j.candidates||[])[0]||{}).content||{}).parts||[];
-    const saida = t.map(p=>p.text||'').join('').trim();
-    if(!saida) throw new Error('O Gemini não devolveu texto. Tente de novo.');
-    return saida;
+    throw ultimo;
   }
   if(m==='anthropic'){
     if(!cfg.anthropicKey) throw new Error('Cole sua chave da Anthropic em Ajustes → IA que escreve.');
@@ -2192,7 +2230,7 @@ function separarTitulo(saida){
   return {titulo, texto};
 }
 
-let rascunho=null, rascunhoSerie=null;
+let rascunho=null, rascunhoSerie=null, parcial=null;
 
 function dadosDoFormulario(){
   const o = {
@@ -2248,11 +2286,12 @@ async function gerarHistoria(){
   const btn=$('#btn-gerar');
   const rotulo = btn.innerHTML;
   btn.disabled=true; btn.innerHTML='<span class="load"></span> escrevendo…';
+  const avisoBtn = t => { btn.innerHTML = '<span class="load"></span> '+esc(t); };
 
   try{
     // ---- continuação de uma série que já existe: um capítulo só ----
     if(anterior){
-      const saida = await chamarIA(montarPromptSerie(o, anterior));
+      const saida = await chamarIA(montarPromptSerie(o, anterior), avisoBtn);
       const {titulo,texto} = separarTitulo(saida);
       if(!texto) throw new Error('Veio vazio. Tente de novo.');
       rascunhoSerie = null;
@@ -2263,7 +2302,7 @@ async function gerarHistoria(){
 
     // ---- história única ----
     if(o.capitulos <= 1){
-      const saida = await chamarIA(montarPrompt(o));
+      const saida = await chamarIA(montarPrompt(o), avisoBtn);
       const {titulo,texto} = separarTitulo(saida);
       if(!texto) throw new Error('Veio vazio. Tente de novo.');
       rascunhoSerie = null;
@@ -2272,33 +2311,40 @@ async function gerarHistoria(){
       return;
     }
 
-    // ---- série nova, capítulo por capítulo ----
+    // ---- série nova, capítulo por capítulo (retoma de onde parou, se der erro no meio) ----
     const n = o.capitulos;
-    avisoGeracao(`Escrevendo ${n} capítulos`, 'capítulo 1 de '+n+'…');
-    const caps = [];
-    for(let k=1; k<=n; k++){
+    const mesmaSerie = parcial && parcial.assinatura === JSON.stringify(o);
+    const caps = mesmaSerie ? parcial.caps.slice() : [];
+    parcial = { assinatura: JSON.stringify(o), caps };
+    avisoGeracao(`Escrevendo ${n} capítulos`, 'capítulo '+(caps.length+1)+' de '+n+'…');
+    const avisoModal = t => { const el=$('#ger-txt'); if(el) el.textContent = t; };
+    for(let k=caps.length+1; k<=n; k++){
       avisoGeracaoPasso(k, n, `escrevendo o capítulo ${k} de ${n}…`);
       const oc = Object.assign({}, o, {capIndice:k, capTotal:n});
-      const saida = await chamarIA(k===1 ? montarPrompt(oc) : montarPromptSerie(oc, caps[k-2]));
+      const saida = await chamarIA(k===1 ? montarPrompt(oc) : montarPromptSerie(oc, caps[k-2]), avisoModal);
       const {titulo,texto} = separarTitulo(saida);
       if(!texto) throw new Error('O capítulo '+k+' veio vazio. Tente de novo.');
       caps.push({titulo, texto});
     }
     avisoGeracaoPasso(n+1, n, 'pronto!');
     const nomeSerie = o.nomeSerie || caps[0].titulo;
-    rascunho = null;
+    rascunho = null; parcial = null;
     rascunhoSerie = caps.map((c,i)=> novaHistoria(o, c.titulo, c.texto, nomeSerie, i+1));
     fecharModal();
     mostrarAprovacaoSerie(nomeSerie);
 
   }catch(e){
     const velho = !!e.modeloVelho;
-    modal(`<h3>Não deu certo 🙁</h3><p class="hint">${esc(e.message||e)}</p>
-      ${velho ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Ajustes → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
+    const feitos = parcial ? parcial.caps.length : 0;
+    modal(`<h3>${e.sobrecarga ? 'O Google está lotado agora 🙁' : 'Não deu certo 🙁'}</h3><p class="hint">${esc(e.message||e)}</p>
+      ${feitos ? `<div class="ok" style="margin-top:12px">Os <b>${feitos}</b> capítulo(s) que já ficaram prontos estão guardados. Ao tocar em gerar de novo, com os mesmos campos, ele continua do capítulo ${feitos+1} — sem gastar cota com o que já saiu.</div>` : ''}
+      ${(velho||e.sobrecarga||e.cota||feitos) ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Ajustes → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
       <div style="height:14px"></div>
       ${velho ? '<button class="btn ok" id="m-ajustes">Ir para os Ajustes</button><div style="height:10px"></div>' : ''}
+      ${(e.sobrecarga||e.cota||feitos) ? '<button class="btn ok" id="m-denovo">🔄 Tentar de novo</button><div style="height:10px"></div>' : ''}
       <button class="btn sm ghost" id="mfechar">Fechar</button>`);
     $('#mfechar').onclick=fecharModal;
+    const dn=$('#m-denovo'); if(dn) dn.onclick=()=>{ fecharModal(); gerarHistoria(); };
     if(velho) $('#m-ajustes').onclick=()=>{ fecharModal(); irTela('config');
       setTimeout(()=>{ const el=$('#btn-modelos-gemini'); if(el) el.scrollIntoView({block:'center'}); },300); };
   }finally{
@@ -3133,6 +3179,11 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.9.1','18/09/2026', [
+    'Quando o Google está lotado (erro 503), o site espera e tenta de novo sozinho, até 3 vezes, e depois usa um modelo reserva',
+    'Gerando vários capítulos, um erro no meio não perde os que já saíram: "Tentar de novo" continua de onde parou',
+    'Mensagens de erro explicando o que é passageiro e o que precisa de ação'
+  ]],
   ['1.9.0','18/09/2026', [
     'Modelos do Gemini atualizados, com botão para listar os que a chave aceita',
     'Gerar de 1 a 6 capítulos de uma vez, cada um lendo o anterior',

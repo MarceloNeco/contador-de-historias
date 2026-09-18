@@ -2,7 +2,7 @@
    como app no celular e no computador.
    Ao publicar uma versao nova do seu site, troque o numero de VERSAO
    abaixo (ex.: 'v1' -> 'v2') para o aparelho pegar os arquivos novos. */
-var VERSAO = 'v1';
+var VERSAO = 'v2';
 var CACHE = 'dgo-' + VERSAO;
 
 self.addEventListener('install', function (e) {
@@ -22,7 +22,7 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;   // nao mexe em API externa
+  if (url.origin !== self.location.origin) return; // nao mexe em API externa
 
   /* paginas: tenta a rede primeiro (conteudo sempre atual), cache como reserva */
   if (req.mode === 'navigate') {
