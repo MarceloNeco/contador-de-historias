@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Teste — Contador de Histórias</title>
+<link rel="icon" href="icone-192.png">
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:#140b22;color:#e2e8f0;line-height:1.55}
+  .env{max-width:820px;margin:0 auto;padding:22px 16px 80px}
+  h1{font-size:22px;margin:10px 0 2px}
+  .sub{font-size:13px;color:#94a3b8;margin:0 0 4px}
+  h2{font-size:14px;margin:24px 0 8px;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em}
+  .cartao{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+    border-radius:14px;padding:14px;margin:10px 0}
+  button.app{background:#a78bfa;color:#04121f;border:0;border-radius:10px;padding:11px 15px;
+    font-size:14px;font-weight:700;cursor:pointer;margin:4px 6px 4px 0;min-height:44px}
+  button.app.b2{background:transparent;border:1px solid rgba(255,255,255,.22);color:#e2e8f0}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td{padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.08)}
+  td:first-child{color:#94a3b8;width:50%}
+  .mini{font-size:12px;color:#64748b}
+  .saida{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:12.5px;color:#a5b4fc;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="env">
+
+  <h1>Teste — Contador de Histórias</h1>
+  <p class="sub">Página de conferência. Nada aqui altera o seu app.</p>
+  <p class="mini">Arquivo <b>TESTE-contador-de-historias.html</b> &nbsp;·&nbsp; gaveta de dados <b>contador-de-historias</b></p>
+
+  <h2>1. Datas</h2>
+  <div class="cartao">
+    <table>
+      <tr><td>Escrita como 17/09/2026</td><td>17/09/2026</td></tr>
+      <tr><td>Escrita como 2026-12-25</td><td>2026-12-25</td></tr>
+      <tr><td>Dentro de uma frase</td><td>Atualizado em 05/03/2026 pela manhã.</td></tr>
+      <tr><td>Calculada pelo app</td><td><span id="agora"></span></td></tr>
+      <tr><td>Não deve mudar (placar 10/20)</td><td>10/20</td></tr>
+    </table>
+  </div>
+
+  <h2>2. Tradução — use o botão PT / EN no canto</h2>
+  <div class="cartao">
+    <p>Nova história, Acervo, Personagens e Efeitos sonoros. Última atualização em 15/09/2026.</p>
+    <p data-dgo-ignorar><b>Trecho protegido:</b> Nova história, Acervo, Personagens e Efeitos sonoros. Última atualização em 15/09/2026. Este não muda em inglês.</p>
+    <button class="app b2" onclick="acrescentar()">Acrescentar conteúdo novo</button>
+    <div id="novo"></div>
+  </div>
+
+  <h2>3. Conta: apelido, e-mail e senha</h2>
+  <div class="cartao">
+    <button class="app" onclick="DGO.abrirLogin('pagante')">Abrir tela de acesso</button>
+    <button class="app b2" onclick="DGO.auth.abrirRecuperacao()">Esqueci a senha</button>
+    <button class="app b2" onclick="DGO.sair()">Sair</button>
+    <button class="app b2" onclick="ver('s1', DGO.sessao())">Ver sessão</button>
+    <p class="mini">Crie uma conta de teste, anote o código de recuperação que aparece e depois
+       use "Esqueci a senha" com esse código. Entrar funciona pelo apelido ou pelo e-mail.</p>
+    <div class="saida" id="s1"></div>
+  </div>
+
+  <h2>4. Anúncio do topo</h2>
+  <div class="cartao">
+    <button class="app b2" onclick="DGO.anuncios.mostrar()">Mostrar</button>
+    <button class="app b2" onclick="DGO.anuncios.esconder()">Esconder</button>
+    <p class="mini">Entrando como assinante o banner não aparece. O × fecha só nesta sessão.</p>
+  </div>
+
+  <h2>5. Notificações</h2>
+  <div class="cartao">
+    <button class="app" onclick="DGO.notificacoes.pedirPermissao().then(function(){ver('s2',DGO.notificacoes.estado());})">Ativar</button>
+    <button class="app b2" onclick="DGO.notificacoes.mostrar('hora-da-historia',{titulo:'Aviso de teste',texto:'Funcionou',urgente:true})">Enviar aviso</button>
+    <button class="app b2" onclick="DGO.notificacoes.abrirPainel()">Painel de avisos</button>
+    <button class="app b2" onclick="ver('s2', DGO.notificacoes.estado())">Ver estado</button>
+    <div class="saida" id="s2"></div>
+  </div>
+
+  <h2>6. OCR</h2>
+  <div class="cartao">
+    <button class="app" onclick="DGO.ocr.abrir({aoTexto:function(t,dd){ver('s3',{texto:t,dados:dd});}})">Escanear</button>
+    <p class="mini">Aqui o OCR serve para digitar menos: aponte a câmera para a página de um livro infantil e o texto entra no editor de histórias.</p>
+    <div class="saida" id="s3"></div>
+  </div>
+
+  <h2>7. Configurações, nuvem, compartilhar, instalar</h2>
+  <div class="cartao">
+    <button class="app" onclick="DGO.abrirConfiguracoes()">Abrir configurações</button>
+    <button class="app b2" onclick="DGO.compartilhar({texto:'Contador de Histórias'})">Compartilhar</button>
+    <button class="app b2" onclick="DGO.pwa.instalar()">Instalar como app</button>
+    <button class="app b2" onclick="DGO.nuvem.salvarArquivo(DGO.exportarDados())">Backup em arquivo</button>
+  </div>
+
+  <h2>8. O que este navegador permite agora</h2>
+  <div class="cartao"><div class="saida" id="diag"></div></div>
+
+</div>
+
+<script src="diretrizes.js"></script>
+<script src="diretrizes-config.js"></script>
+<script>
+  DGO.adicionarTraducoes({
+    'Datas':'Dates', 'Escrita como':'Written as', 'Dentro de uma frase':'Inside a sentence',
+    'Atualizado em':'Updated on', 'pela manhã.':'in the morning.',
+    'Calculada pelo app':'Computed by the app',
+    'Não deve mudar (placar 10/20)':'Should not change (score 10/20)',
+    'Trecho protegido:':'Protected block:', 'Este não muda em inglês.':'This does not change in English.',
+    'Acrescentar conteúdo novo':'Add new content',
+    'Conta: apelido, e-mail e senha':'Account: alias, e-mail and password',
+    'Abrir tela de acesso':'Open the sign-in screen', 'Ver sessão':'Show session',
+    'Mostrar':'Show', 'Esconder':'Hide', 'Ativar':'Enable', 'Enviar aviso':'Send an alert',
+    'Painel de avisos':'Alerts panel', 'Ver estado':'Show status', 'Escanear':'Scan',
+    'Abrir configurações':'Open settings', 'Instalar como app':'Install as an app',
+    'Backup em arquivo':'Backup to a file',
+    'O que este navegador permite agora':'What this browser allows right now',
+    'Página de conferência. Nada aqui altera o seu app.':
+      'Check page. Nothing here changes your app.',
+    'gaveta de dados':'data drawer', 'Arquivo':'File',
+    'Anúncio do topo':'Top banner ad', 'Tradução — use o botão PT / EN no canto':
+      'Translation - use the PT / EN button in the corner'
+  });
+
+  function ver(id, obj) { document.getElementById(id).textContent = JSON.stringify(obj, null, 2); }
+  document.getElementById('agora').textContent = DGO.formatarData(new Date());
+  var n = 0;
+  function acrescentar() {
+    n++;
+    var p = document.createElement('p');
+    p.textContent = 'Linha ' + n + ' criada agora, em 0' + (n % 9 + 1) + '/10/2026.';
+    document.getElementById('novo').appendChild(p);
+  }
+  document.addEventListener('dgo:idioma', function () {
+    document.getElementById('agora').textContent = DGO.formatarData(new Date());
+    diagnostico();
+  });
+  function diagnostico() {
+    var https = location.protocol === 'https:';
+    var e = DGO.notificacoes.estado();
+    document.getElementById('diag').textContent = [
+      'endereço: ' + location.protocol + (https ? '   (publicado — tudo liberado)' : '   (arquivo local — algumas coisas ficam desligadas)'),
+      'plataforma: ' + DGO.plataforma.qual() + (DGO.plataforma.ehCelular() ? '   (celular)' : '   (computador)'),
+      'idioma: ' + DGO.idioma() + '      data de hoje: ' + DGO.formatarData(new Date()),
+      'notificações: suporte=' + e.suporte + '   permissão=' + e.permissao,
+      'avisos ligados: ' + (e.tiposLigados.join(', ') || '(nenhum)'),
+      'câmera: ' + (navigator.mediaDevices ? 'disponível' : 'indisponível'),
+      'senha protegida: ' + (window.crypto && window.crypto.subtle ? 'sim' : 'não — precisa de https'),
+      'instalar como app: ' + (DGO.pwa.instalado() ? 'já instalado' : (DGO.pwa.prompt ? 'disponível' : 'o navegador ainda não ofereceu')),
+      'compartilhar nativo: ' + (navigator.share ? 'sim' : 'não — usa o menu de reserva'),
+      'e-mail configurado: ' + (DGO.email.configurado() ? 'sim' : 'não')
+    ].join('\n');
+  }
+  setTimeout(diagnostico, 900);
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+Contador de Histórias — LEIA-ME
+===============================
+
+ESTE ZIP E SO DESTE APP.
+Repositorio: contador-de-historias
+
+1) TESTE PRIMEIRO
+   Dois cliques em TESTE-contador-de-historias.html. Nada do seu site e tocado.
+
+2) SUBA NO GITHUB (raiz do repositorio contador-de-historias)
+   github.com/MarceloNeco/contador-de-historias  ->  Add file -> Upload files
+   Arraste estes 7 arquivos:
+     diretrizes.js
+     diretrizes-config.js      <- os ajustes DESTE app
+     sw.js
+     manifest.json             <- ja preenchido, nao precisa editar
+     icone-192.png
+     icone-512.png
+     TESTE-contador-de-historias.html         <- opcional, mas util para testar no celular
+   Depois: Commit changes.
+
+3) COLE 2 LINHAS NO index.html
+   
+   Abra a pagina -> lapis -> va ao fim -> antes de </body>:
+
+     <script src="diretrizes.js"></script>
+     <script src="diretrizes-config.js"></script>
+
+   Commit changes. E isso. Sao as mesmas 2 linhas nos tres apps.
+
+4) NAO PRECISA MAIS NADA
+   O que era para editar no seu HTML (proteger a cifra / o texto da
+   historia, empurrar a barra do topo) ja veio resolvido dentro do
+   diretrizes-config.js. Detalhes na secao 4 do PASSO-A-PASSO.
+
+NAO SOBEM NO GITHUB: este LEIA-ME e o PASSO-A-PASSO.
+
+ENQUANTO VOCE NAO COLAR AS 2 LINHAS, o site continua exatamente igual.
+Os arquivos ficam parados la, sem fazer nada. Nada quebra.
