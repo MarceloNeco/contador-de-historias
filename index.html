@@ -353,12 +353,46 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <select id="sel-continuar"><option value="">Não — história nova e avulsa</option></select>
       <div class="hint" id="hint-continuar"></div>
 
-      <label class="f">Tamanho</label>
+      <label class="f">Quantos capítulos</label>
+      <select id="sel-capitulos">
+        <option value="1">1 — história única</option>
+        <option value="2">2 capítulos</option>
+        <option value="3">3 capítulos</option>
+        <option value="4">4 capítulos</option>
+        <option value="5">5 capítulos</option>
+        <option value="6">6 capítulos</option>
+      </select>
+      <div class="hint" id="hint-capitulos"></div>
+
+      <div id="bloco-nome-serie" class="oculto">
+        <label class="f">Nome da série <span style="color:var(--dim2);font-weight:500">(opcional)</span></label>
+        <input type="text" id="in-nome-serie" placeholder="Em branco, uso o título do capítulo 1">
+      </div>
+
+      <label class="f" id="lbl-tamanho">Duração da história</label>
       <div class="seg" id="sel-tam">
         <button data-tam="curta">Curtinha<br><span style="font-weight:500;font-size:11px">~3 min</span></button>
         <button class="on" data-tam="media">Média<br><span style="font-weight:500;font-size:11px">~6 min</span></button>
         <button data-tam="longa">Longa<br><span style="font-weight:500;font-size:11px">~10 min</span></button>
+        <button data-tam="custom">Escolher<br><span style="font-weight:500;font-size:11px">minutos</span></button>
       </div>
+      <div id="bloco-minutos" class="oculto">
+        <label class="f">Minutos de leitura: <span id="lbl-minutos">6</span></label>
+        <input type="range" id="in-minutos" min="2" max="25" step="1" value="6">
+      </div>
+
+      <label class="f">Como a história deve terminar</label>
+      <select id="sel-desfecho">
+        <option value="">Deixe a IA decidir</option>
+        <option value="feliz">Final feliz e calminho, de dormir</option>
+        <option value="reviravolta">Com uma reviravolta surpreendente</option>
+        <option value="licao">Com uma pequena lição, sem moralismo</option>
+        <option value="engracado">Final engraçado, de fazer rir</option>
+        <option value="circular">Fecha voltando à primeira cena</option>
+        <option value="reencontro">Todos se reencontram no fim</option>
+        <option value="revelacao">A revelação só vem na última frase</option>
+        <option value="aberto">Final aberto, com gancho para continuar</option>
+      </select>
 
       <label class="f">Tema da história <span style="color:var(--dim2);font-weight:500">(toque nas sugestões ou escreva)</span></label>
       <input type="text" id="in-tema" placeholder="Ex.: uma viagem ao fundo do mar">
@@ -579,9 +613,12 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <input type="password" id="in-gemini-key" placeholder="AIza...">
       <label class="f">Modelo</label>
       <select id="sel-modelo-gemini">
-        <option value="gemini-2.5-flash">gemini-2.5-flash (rápido, cota grátis)</option>
-        <option value="gemini-2.5-pro">gemini-2.5-pro (melhor escrita)</option>
+        <option value="gemini-3.6-flash">gemini-3.6-flash (equilibrado)</option>
+        <option value="gemini-3.8-flash">gemini-3.8-flash (o mais novo)</option>
+        <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (o mais rápido)</option>
       </select>
+      <button class="btn sm ghost" id="btn-modelos-gemini" style="margin-top:10px">🔄 Ver os modelos que a minha chave aceita</button>
+      <div class="hint">O Google troca os modelos de tempos em tempos. Se aparecer erro dizendo que o modelo saiu de linha, toque no botão acima e escolha um da lista.</div>
     </div>
     <div id="cfg-txt-anthropic" class="oculto">
       <div class="info">Crie a chave em <b>console.anthropic.com</b> → API Keys. É pago por uso (cada história custa centavos).</div>
@@ -781,7 +818,7 @@ const configPadrao = {
   openaiInstr:'Leia como um pai contando história de dormir: voz calma, carinhosa, pausas naturais e emoção nas falas dos personagens.',
   geminiVoice:'Sulafat', geminiModelTts:'gemini-3.1-flash-tts-preview',
   geminiInstr:'Leia esta história de dormir em português do Brasil como um pai contando para as filhas: voz calma e carinhosa, ritmo tranquilo, pausas naturais, e emoção diferente na fala de cada personagem. Não comente nada, apenas leia o texto.',
-  motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-2.5-flash',
+  motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-3.6-flash',
   anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
   efeitos:true, volEfeitos:35, durEfeitos:'medio', adiantar:true,
   carregarGithub:true, ghRepo:'', ghToken:'',
@@ -796,6 +833,11 @@ function ler(chave, padrao){
 function salvar(chave,valor){ try{ localStorage.setItem(chave, JSON.stringify(valor)); }catch(e){ toast('Sem espaço para salvar 😕'); } }
 
 let cfg = ler(CHAVE_C, configPadrao);
+// modelos que o Google tirou do ar para novas chaves: troca e grava
+if(/^gemini-(1\.|2\.0|2\.5-flash$|2\.5-pro$|2\.5-flash-lite$)/.test(cfg.geminiModel||'')){
+  cfg.geminiModel = 'gemini-3.6-flash';
+  try{ localStorage.setItem(CHAVE_C, JSON.stringify(cfg)); }catch(e){}
+}
 let stats = ler(CHAVE_S, statsPadrao);
 let historias = [];
 try{ historias = JSON.parse(localStorage.getItem(CHAVE_H)||'[]'); }catch(e){ historias=[]; }
@@ -1973,16 +2015,19 @@ const novosPersonagens = ()=> pintarChips('#chips-personagem', sortear(PERSONAGE
 const novosAmbientes = ()=> pintarChips('#chips-ambiente', sortear(AMBIENTES,5), '#in-ambiente');
 const novasInspiracoes = ()=> pintarChips('#chips-inspiracao', sortear(INSPIRACOES,5), '#in-inspiracao');
 
-// o clima é escolha única
-let tomEscolhido = '';
+// o clima aceita mais de uma escolha
+let tonsEscolhidos = [];
 function pintarTons(){
   $('#chips-tom').innerHTML = TONS.map(t=>`<button class="chip" type="button">${esc(t)}</button>`).join('');
   $$('#chips-tom .chip').forEach(b=>b.addEventListener('click',()=>{
-    const jaEra = b.classList.contains('on');
-    $$('#chips-tom .chip').forEach(x=>x.classList.remove('on'));
-    if(!jaEra){ b.classList.add('on'); tomEscolhido = b.textContent; } else tomEscolhido = '';
+    b.classList.toggle('on');
+    tonsEscolhidos = $$('#chips-tom .chip.on').map(x=>x.textContent);
   }));
 }
+const tomPorExtenso = ()=> tonsEscolhidos.length
+  ? (tonsEscolhidos.length===1 ? tonsEscolhidos[0]
+     : tonsEscolhidos.slice(0,-1).join(', ') + ' e ' + tonsEscolhidos[tonsEscolhidos.length-1])
+  : '';
 function pintarInspiracaoAcervo(){
   const sel = $('#sel-inspiracao-acervo'); if(!sel) return;
   const antes = sel.value;
@@ -1999,7 +2044,32 @@ const PERFIS = {
   '10+':{rotulo:'10 anos ou mais', guia:'Enredo mais elaborado, com uma reviravolta e personagens com sentimentos ambíguos. Vocabulário mais rico. Pode ter um toque de mistério.'},
   'mista':{rotulo:'para as duas juntas', guia:'Precisa funcionar ao mesmo tempo para uma criança de 4 e uma de 8 anos: enredo simples e sonoro o bastante para a menor acompanhar, mas com uma camada de humor e um pequeno mistério que prendam a maior. Dê algo para cada uma: um bicho engraçado e repetitivo para a pequena, e uma pista a desvendar para a grande.'}
 };
-const TAMANHOS = { curta:{p:'cerca de 350 palavras'}, media:{p:'cerca de 750 palavras'}, longa:{p:'cerca de 1300 palavras'} };
+const TAMANHOS = { curta:350, media:750, longa:1300 };
+function palavrasDe(o){
+  const n = o.tam==='custom' ? Math.round((o.minutos||6)*140) : (TAMANHOS[o.tam]||750);
+  return `cerca de ${n} palavras (${Math.max(1,Math.round(n/140))} minutos de leitura em voz alta)`;
+}
+const DESFECHOS = {
+  feliz:'termine com um final feliz e calminho, próprio para dormir logo em seguida',
+  reviravolta:'termine com uma reviravolta surpreendente, que faça repensar o que veio antes',
+  licao:'termine deixando uma pequena lição implícita — mostre, nunca explique a moral',
+  engracado:'termine com uma cena engraçada, de fazer rir alto',
+  circular:'termine retomando a primeira cena da história, fechando em círculo',
+  reencontro:'termine com todos os personagens se reencontrando',
+  revelacao:'guarde a revelação principal para a última frase',
+  aberto:'termine com um gancho gostoso, deixando a história em aberto para continuar depois'
+};
+function linhaDesfecho(o){
+  const partes = [];
+  if(o.capTotal && o.capTotal>1){
+    partes.push(`Este é o capítulo ${o.capIndice} de ${o.capTotal}.`);
+    if(o.capIndice < o.capTotal) partes.push('Termine este capítulo num gancho gostoso, sem resolver a história.');
+    else partes.push('Este é o ÚLTIMO capítulo: feche a história por completo.');
+  }
+  if(DESFECHOS[o.desfecho] && (!o.capTotal || o.capIndice===o.capTotal || o.capTotal===1))
+    partes.push('DESFECHO: ' + DESFECHOS[o.desfecho] + '.');
+  return partes.join(' ');
+}
 
 function montarPromptSerie(o, anterior){
   const trecho = anterior.texto.length>6000 ? anterior.texto.slice(-6000) : anterior.texto;
@@ -2013,7 +2083,8 @@ ${trecho}
 
 PÚBLICO: ${PERFIS[o.idade].rotulo}. ${PERFIS[o.idade].guia}
 ${linhaPublicoParaIA()}
-TAMANHO: ${TAMANHOS[o.tam].p}.
+TAMANHO: ${palavrasDe(o)}.
+${linhaDesfecho(o)}
 ${o.tema ? 'O QUE O PAI QUER QUE ACONTEÇA: '+o.tema : ''}
 ${o.personagens ? 'PERSONAGENS A INCLUIR: '+o.personagens : ''}
 ${o.extra ? 'PEDIDO ESPECIAL: '+o.extra : ''}
@@ -2038,7 +2109,8 @@ function montarPrompt(o){
 
 PÚBLICO: ${PERFIS[o.idade].rotulo}. ${PERFIS[o.idade].guia}
 ${linhaPublicoParaIA()}
-TAMANHO: ${TAMANHOS[o.tam].p}.
+TAMANHO: ${palavrasDe(o)}.
+${linhaDesfecho(o)}
 TEMA: ${o.tema || 'escolha um tema encantador e original'}
 PERSONAGENS: ${o.personagens || 'crie personagens cativantes'}
 ${o.ambiente ? 'ONDE ACONTECE: '+o.ambiente : ''}
@@ -2070,7 +2142,14 @@ async function chamarIA(prompt){
       headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
       body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:4096} })
     });
-    if(!r.ok) throw new Error('Gemini: '+r.status+' — '+(await r.text()).slice(0,200));
+    if(!r.ok){
+      const corpo = (await r.text()).slice(0,300);
+      if(r.status===404 && /no longer available|not found|is not supported/i.test(corpo)){
+        const e = new Error('O modelo "'+cfg.geminiModel+'" saiu de linha no Google. Em Ajustes → IA que escreve as histórias, toque em "Ver os modelos que a minha chave aceita" e escolha outro da lista.');
+        e.modeloVelho = true; throw e;
+      }
+      throw new Error('Gemini: '+r.status+' — '+corpo.slice(0,200));
+    }
     const j = await r.json();
     const t = (((j.candidates||[])[0]||{}).content||{}).parts||[];
     const saida = t.map(p=>p.text||'').join('').trim();
@@ -2113,49 +2192,155 @@ function separarTitulo(saida){
   return {titulo, texto};
 }
 
-let rascunho=null;
-async function gerarHistoria(){
+let rascunho=null, rascunhoSerie=null;
+
+function dadosDoFormulario(){
   const o = {
     idade: $('#sel-idade .on').dataset.idade,
     tam: $('#sel-tam .on').dataset.tam,
+    minutos: Math.max(2, Math.min(25, Number($('#in-minutos').value)||6)),
+    capitulos: Math.max(1, Math.min(8, Number($('#sel-capitulos').value)||1)),
+    desfecho: $('#sel-desfecho').value,
     tema: $('#in-tema').value.trim(),
     personagens: $('#in-personagens').value.trim(),
     ambiente: $('#in-ambiente').value.trim(),
-    tom: tomEscolhido,
+    tom: tomPorExtenso(),
     inspiracao: $('#in-inspiracao').value.trim(),
     extra: $('#in-extra').value.trim(),
-    serie: $('#sel-continuar').value
+    serie: $('#sel-continuar').value,
+    nomeSerie: $('#in-nome-serie').value.trim()
   };
   const refId = $('#sel-inspiracao-acervo').value;
   if(refId){
     const ref = historias.find(h=>h.id===refId);
     if(ref) o.estiloTexto = semMarcadores(ref.texto).slice(0, 2500);
   }
-  let anterior=null;
+  return o;
+}
+
+function novaHistoria(o, titulo, texto, serie, ordem){
+  return { id:uid(), titulo, texto, idade:o.idade, tema:o.tema, personagens:o.personagens,
+           ambiente:o.ambiente||'', tom:o.tom||'', inspiracao:o.inspiracao||'',
+           serie:serie||'', ordem:ordem||0,
+           criadaEm:new Date().toISOString(), origem:'ia', leituras:0, favorita:false };
+}
+
+function avisoGeracao(texto, sub){
+  modal(`<h3>${esc(texto)}</h3>
+    <div class="prep"><i id="ger-barra"></i></div>
+    <div class="hint" id="ger-txt" style="text-align:center;margin-top:10px">${esc(sub||'')}</div>
+    <div style="height:14px"></div>
+    <div class="hint" style="text-align:center">Não feche esta janela até terminar.</div>`);
+}
+function avisoGeracaoPasso(k, n, txt){
+  const b=$('#ger-barra'); if(b) b.style.width = Math.round((k-1)/n*100)+'%';
+  const t=$('#ger-txt'); if(t) t.textContent = txt;
+}
+
+async function gerarHistoria(){
+  const o = dadosDoFormulario();
+  let anterior = null;
   if(o.serie){
     const caps = listaSeries().get(o.serie)||[];
     anterior = caps[caps.length-1];
     if(!anterior){ toast('Não achei os capítulos dessa série'); return; }
   }
   const btn=$('#btn-gerar');
-  btn.disabled=true; btn.innerHTML='<span class="load"></span> '+(o.serie?'escrevendo o próximo capítulo…':'escrevendo a história…');
+  const rotulo = btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<span class="load"></span> escrevendo…';
+
   try{
-    const saida = await chamarIA(anterior ? montarPromptSerie(o,anterior) : montarPrompt(o));
-    const {titulo,texto} = separarTitulo(saida);
-    if(!texto) throw new Error('Veio vazio. Tente de novo.');
-    rascunho = { id:uid(), titulo, texto, idade:o.idade, tema:o.tema, personagens:o.personagens,
-                 ambiente:o.ambiente||'', tom:o.tom||'', inspiracao:o.inspiracao||'',
-                 serie:o.serie||'', ordem:o.serie?proximaOrdem(o.serie):0,
-                 criadaEm:new Date().toISOString(), origem:'ia', leituras:0, favorita:false };
-    mostrarAprovacao();
+    // ---- continuação de uma série que já existe: um capítulo só ----
+    if(anterior){
+      const saida = await chamarIA(montarPromptSerie(o, anterior));
+      const {titulo,texto} = separarTitulo(saida);
+      if(!texto) throw new Error('Veio vazio. Tente de novo.');
+      rascunhoSerie = null;
+      rascunho = novaHistoria(o, titulo, texto, o.serie, proximaOrdem(o.serie));
+      mostrarAprovacao();
+      return;
+    }
+
+    // ---- história única ----
+    if(o.capitulos <= 1){
+      const saida = await chamarIA(montarPrompt(o));
+      const {titulo,texto} = separarTitulo(saida);
+      if(!texto) throw new Error('Veio vazio. Tente de novo.');
+      rascunhoSerie = null;
+      rascunho = novaHistoria(o, titulo, texto, '', 0);
+      mostrarAprovacao();
+      return;
+    }
+
+    // ---- série nova, capítulo por capítulo ----
+    const n = o.capitulos;
+    avisoGeracao(`Escrevendo ${n} capítulos`, 'capítulo 1 de '+n+'…');
+    const caps = [];
+    for(let k=1; k<=n; k++){
+      avisoGeracaoPasso(k, n, `escrevendo o capítulo ${k} de ${n}…`);
+      const oc = Object.assign({}, o, {capIndice:k, capTotal:n});
+      const saida = await chamarIA(k===1 ? montarPrompt(oc) : montarPromptSerie(oc, caps[k-2]));
+      const {titulo,texto} = separarTitulo(saida);
+      if(!texto) throw new Error('O capítulo '+k+' veio vazio. Tente de novo.');
+      caps.push({titulo, texto});
+    }
+    avisoGeracaoPasso(n+1, n, 'pronto!');
+    const nomeSerie = o.nomeSerie || caps[0].titulo;
+    rascunho = null;
+    rascunhoSerie = caps.map((c,i)=> novaHistoria(o, c.titulo, c.texto, nomeSerie, i+1));
+    fecharModal();
+    mostrarAprovacaoSerie(nomeSerie);
+
   }catch(e){
-    modal(`<h3>Não deu certo 😕</h3><p class="hint">${esc(e.message||e)}</p>
-      <div class="info" style="margin-top:12px">Confira a chave em <b>Ajustes → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>
-      <div style="height:14px"></div><button class="btn" id="mfechar">Fechar</button>`);
+    const velho = !!e.modeloVelho;
+    modal(`<h3>Não deu certo 🙁</h3><p class="hint">${esc(e.message||e)}</p>
+      ${velho ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Ajustes → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
+      <div style="height:14px"></div>
+      ${velho ? '<button class="btn ok" id="m-ajustes">Ir para os Ajustes</button><div style="height:10px"></div>' : ''}
+      <button class="btn sm ghost" id="mfechar">Fechar</button>`);
     $('#mfechar').onclick=fecharModal;
+    if(velho) $('#m-ajustes').onclick=()=>{ fecharModal(); irTela('config');
+      setTimeout(()=>{ const el=$('#btn-modelos-gemini'); if(el) el.scrollIntoView({block:'center'}); },300); };
   }finally{
-    btn.disabled=false; btn.innerHTML='✨ Gerar história';
+    btn.disabled=false; btn.innerHTML = rotulo;
   }
+}
+
+function mostrarAprovacaoSerie(nome){
+  const caps = rascunhoSerie || [];
+  const min = caps.reduce((a,c)=>a+minutosDe(c.texto),0);
+  modal(`
+    <h3>${esc(nome)}</h3>
+    <div class="hint">${caps.length} capítulos · ${min} min no total · ${rotuloIdade(caps[0].idade)}</div>
+    <div style="height:14px"></div>
+    ${caps.map((c,i)=>`
+      <div class="cap-item" data-i="${i}">
+        <div class="num">${i+1}</div>
+        <div class="t"><b>${esc(c.titulo)}</b><span>${minutosDe(c.texto)} min · ${contarPalavras(c.texto)} palavras</span></div>
+        <div style="color:var(--dim2)">👁️</div>
+      </div>`).join('')}
+    <div style="height:14px"></div>
+    <button class="btn ok" id="as-salvar">💾 Aprovar e guardar os ${caps.length} capítulos</button>
+    <div style="height:10px"></div>
+    <button class="btn sm ghost" id="as-descartar" style="color:var(--vermelho)">Descartar tudo</button>`);
+  $$('#modal .cap-item').forEach(el=>el.onclick=()=>{
+    const c = caps[Number(el.dataset.i)];
+    modal(`<h3>${esc(c.titulo)}</h3>
+      <div class="hint">capítulo ${Number(el.dataset.i)+1} de ${caps.length}</div>
+      <div style="height:12px"></div>
+      <div style="max-height:46vh;overflow-y:auto;background:var(--card);border:1px solid var(--line);
+        border-radius:14px;padding:14px;line-height:1.75;font-size:15px;white-space:pre-wrap">${esc(c.texto)}</div>
+      <div style="height:14px"></div>
+      <button class="btn sm" id="av-voltar">‹ Voltar para a lista</button>`);
+    $('#av-voltar').onclick=()=>mostrarAprovacaoSerie(nome);
+  });
+  $('#as-salvar').onclick=()=>{
+    caps.slice().reverse().forEach(c=>historias.unshift(c));
+    salvarHistorias(); rascunhoSerie=null; fecharModal();
+    toast(caps.length+' capítulos guardados 💜');
+    pintarTudo(); irTela('acervo');
+  };
+  $('#as-descartar').onclick=()=>{ rascunhoSerie=null; fecharModal(); };
 }
 
 function mostrarAprovacao(){
@@ -2539,7 +2724,24 @@ function segmento(sel, cb){
   }));
 }
 segmento('#sel-idade', b=>{ $('#hint-idade').textContent = PERFIS[b.dataset.idade].guia; });
-segmento('#sel-tam');
+segmento('#sel-tam', ()=>atualizarCriar());
+$('#sel-capitulos').addEventListener('change', atualizarCriar);
+$('#in-minutos').addEventListener('input',()=>{ $('#lbl-minutos').textContent = $('#in-minutos').value; });
+
+function atualizarCriar(){
+  const n = Number($('#sel-capitulos').value)||1;
+  const continuando = !!$('#sel-continuar').value;
+  const tam = ($('#sel-tam .on')||{dataset:{}}).dataset.tam;
+  $('#bloco-minutos').classList.toggle('oculto', tam!=='custom');
+  $('#bloco-nome-serie').classList.toggle('oculto', !(n>1 && !continuando));
+  $('#lbl-tamanho').textContent = (n>1 && !continuando) ? 'Duração de cada capítulo' : 'Duração da história';
+  $('#hint-capitulos').textContent = continuando
+    ? 'Continuando uma série: a IA escreve o próximo capítulo.'
+    : (n>1 ? `A IA vai escrever ${n} capítulos em sequência, um lendo o anterior. Leva alguns minutos e usa ${n} pedidos da cota.`
+           : '');
+  $('#btn-gerar').innerHTML = continuando ? '✨ Gerar próximo capítulo'
+                            : (n>1 ? `✨ Gerar os ${n} capítulos` : '✨ Gerar história');
+}
 segmento('#man-idade');
 $('#btn-mais-temas').addEventListener('click', novosTemas);
 $('#btn-mais-personagens').addEventListener('click', novosPersonagens);
@@ -2547,7 +2749,7 @@ $('#btn-mais-ambientes').addEventListener('click', novosAmbientes);
 $('#btn-gerar').addEventListener('click', gerarHistoria);
 $('#sel-continuar').addEventListener('change', ()=>{
   atualizarHintContinuar();
-  $('#btn-gerar').innerHTML = $('#sel-continuar').value ? '✨ Gerar próximo capítulo' : '✨ Gerar história';
+  atualizarCriar();
 });
 
 $('#btn-salvar-manual').addEventListener('click',()=>{
@@ -2711,6 +2913,33 @@ $('#btn-testar-voz').addEventListener('click', async ()=>{
     <div style="height:14px"></div>
     <button class="btn" onclick="document.getElementById('modal').classList.remove('on')">Fechar</button>`); }
   finally{ b.disabled=false; b.innerHTML='▶️ Testar a voz'; }
+});
+
+$('#btn-modelos-gemini').addEventListener('click', async ()=>{
+  const b=$('#btn-modelos-gemini'), rot='🔄 Ver os modelos que a minha chave aceita';
+  if(!cfg.geminiKey){ toast('Cole a chave do Gemini primeiro'); return; }
+  b.disabled=true; b.innerHTML='<span class="load"></span> consultando o Google…';
+  try{
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models',
+                          {headers:{'x-goog-api-key':cfg.geminiKey}});
+    if(!r.ok) throw new Error('Google: '+r.status+' — '+(await r.text()).slice(0,160));
+    const j = await r.json();
+    const bons = (j.models||[])
+      .filter(m=>(m.supportedGenerationMethods||[]).indexOf('generateContent')>=0)
+      .map(m=>String(m.name||'').replace(/^models\//,''))
+      .filter(n=>/^gemini/.test(n) && !/tts|embedding|image|vision|aqa/i.test(n))
+      .sort();
+    if(!bons.length) throw new Error('A lista veio vazia.');
+    const sel = $('#sel-modelo-gemini');
+    sel.innerHTML = bons.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    if(bons.indexOf(cfg.geminiModel)>=0) sel.value = cfg.geminiModel;
+    else { cfg.geminiModel = bons.find(n=>/3\.\d-flash$/.test(n)) || bons[0]; sel.value = cfg.geminiModel; salvarCfg(); }
+    toast(bons.length+' modelos disponíveis');
+  }catch(e){
+    modal(`<h3>Não consegui listar</h3><p class="hint">${esc(e.message||e)}</p>
+      <div style="height:14px"></div><button class="btn" id="lm-f">Fechar</button>`);
+    $('#lm-f').onclick=fecharModal;
+  }finally{ b.disabled=false; b.innerHTML=rot; }
 });
 
 $('#btn-carregar-vozes').addEventListener('click', async ()=>{
@@ -2904,6 +3133,13 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.9.0','18/09/2026', [
+    'Modelos do Gemini atualizados, com botão para listar os que a chave aceita',
+    'Gerar de 1 a 6 capítulos de uma vez, cada um lendo o anterior',
+    'Duração escolhida em minutos, por capítulo ou pela história inteira',
+    'Escolha do tipo de desfecho',
+    'Clima da história aceita mais de uma marcação ao mesmo tempo'
+  ]],
   ['1.8.1','18/09/2026', [
     'Botão para ouvir o cumprimento nos Ajustes, com a voz escolhida',
     'Opção de falar o cumprimento em voz alta antes de cada história'
@@ -3074,7 +3310,7 @@ try{
   localStorage.setItem('ch_versao', VERSAO);
 }catch(e){}
 
-novosTemas(); novosPersonagens(); novosAmbientes(); novasInspiracoes(); pintarTons();
+novosTemas(); novosPersonagens(); novosAmbientes(); novasInspiracoes(); pintarTons(); atualizarCriar();
 aplicarCfgNaTela(); pintarTudo();
 aplicarConfigDaUrl();
 carregarDoGithub();

@@ -129,3 +129,37 @@ idiomas, porque estão gravados nas histórias já existentes. Apenas o rótulo 
 
 A junção dos nomes segue a regra do idioma: em português, vírgulas e um "e" antes do último
 ("Ana, Bia e Caio"); em inglês, "and" no mesmo lugar ("Ana, Bia and Caio").
+
+
+---
+
+# v1.9.0 — Capítulos, duração e desfecho
+
+| Chave sugerida | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| `criar.capitulos.rotulo` | Quantos capítulos | How many chapters |
+| `criar.capitulos.um` | 1 — história única | 1 — single story |
+| `criar.capitulos.varios` | {n} capítulos | {n} chapters |
+| `criar.capitulos.aviso` | A IA vai escrever {n} capítulos em sequência, um lendo o anterior. Leva alguns minutos e usa {n} pedidos da cota. | The AI will write {n} chapters in sequence, each reading the previous one. It takes a few minutes and uses {n} requests from the quota. |
+| `criar.serie.rotulo` | Nome da série | Series name |
+| `criar.serie.dica` | Em branco, uso o título do capítulo 1 | Left blank, the title of chapter 1 is used |
+| `criar.duracao.historia` | Duração da história | Length of the story |
+| `criar.duracao.capitulo` | Duração de cada capítulo | Length of each chapter |
+| `criar.duracao.escolher` | Escolher minutos | Pick minutes |
+| `criar.duracao.minutos` | Minutos de leitura: | Minutes of reading: |
+| `criar.desfecho.rotulo` | Como a história deve terminar | How the story should end |
+| `criar.desfecho.ia` | Deixe a IA decidir | Let the AI decide |
+| `criar.desfecho.feliz` | Final feliz e calminho, de dormir | Happy, calm ending, for falling asleep |
+| `criar.desfecho.reviravolta` | Com uma reviravolta surpreendente | With a surprising twist |
+| `criar.desfecho.licao` | Com uma pequena lição, sem moralismo | With a gentle lesson, never preachy |
+| `criar.desfecho.engracado` | Final engraçado, de fazer rir | Funny ending, laugh-out-loud |
+| `criar.desfecho.circular` | Fecha voltando à primeira cena | Closes by returning to the first scene |
+| `criar.desfecho.reencontro` | Todos se reencontram no fim | Everyone reunites at the end |
+| `criar.desfecho.revelacao` | A revelação só vem na última frase | The reveal lands only in the final sentence |
+| `criar.desfecho.aberto` | Final aberto, com gancho para continuar | Open ending, with a hook to continue |
+| `criar.gerar.um` | ✨ Gerar história | ✨ Generate story |
+| `criar.gerar.varios` | ✨ Gerar os {n} capítulos | ✨ Generate the {n} chapters |
+| `criar.gerando` | escrevendo o capítulo {k} de {n}… | writing chapter {k} of {n}… |
+| `criar.aprovar.serie` | 💾 Aprovar e guardar os {n} capítulos | 💾 Approve and save the {n} chapters |
+| `modelos.listar` | 🔄 Ver os modelos que a minha chave aceita | 🔄 See which models my key accepts |
+| `modelos.aviso` | O Google troca os modelos de tempos em tempos. Se aparecer erro dizendo que o modelo saiu de linha, toque no botão acima e escolha um da lista. | Google retires models from time to time. If an error says the model is gone, tap the button above and pick one from the list. |

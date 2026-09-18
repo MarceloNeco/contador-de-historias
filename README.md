@@ -88,7 +88,9 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 
 **Onde pegar cada chave:**
 
-- **Gemini** (recomendado) → `aistudio.google.com/apikey` → *Create API key* → *Create project*. As chaves novas começam com `AQ.` (as antigas começavam com `AIza`); as duas funcionam. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
+- **Gemini** (recomendado) → `aistudio.google.com/apikey` → *Create API key* → *Create project*. As chaves novas começam com `AQ.` (as antigas começavam com `AIza`); as duas funcionam.
+
+> **Se aparecer "este modelo não está mais disponível":** o Google aposenta modelos de tempos em tempos. Vá em **Ajustes → IA que escreve as histórias** e toque em **🔄 Ver os modelos que a minha chave aceita** — o site pergunta ao Google quais existem hoje e preenche a lista. Escolha um e pronto. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
 - **ElevenLabs** → `elevenlabs.io` → conta → *Profile* → *API Key*. Depois, no site, toque em **Carregar minhas vozes** e escolha a que preferir.
 - **OpenAI** → `platform.openai.com` → adicione créditos → *API keys* → *Create new secret key*.
 
@@ -112,11 +114,13 @@ A aba **Criar** tem estas entradas, todas com sugestões sorteáveis:
 | Entrada | O que faz |
 |---|---|
 | **Para quem é** | 2–5, 6–9, 10+ ou "as duas juntas" — muda vocabulário e complexidade |
-| **Tamanho** | Curtinha (~3 min), Média (~6 min) ou Longa (~10 min) |
+| **Quantos capítulos** | 1 (história única) até 6. Com 2 ou mais, a IA escreve os capítulos em sequência, cada um lendo o anterior, e salva tudo como uma série |
+| **Duração** | Curtinha (~3 min), Média (~6 min), Longa (~10 min) ou escolhida em minutos (2 a 25). Com vários capítulos, vale **para cada capítulo** |
+| **Desfecho** | Final feliz, reviravolta, lição sem moralismo, engraçado, fecha em círculo, reencontro, revelação na última frase, ou final aberto |
 | **Tema** | O enredo em uma frase |
 | **Personagens** | Quem aparece na história |
 | **Onde acontece** | O cenário |
-| **Clima** | Engraçada, misteriosa, emocionante, com reviravolta, calminha… |
+| **Clima** | Engraçada, misteriosa, emocionante, com reviravolta, calminha… — **pode marcar várias ao mesmo tempo** |
 | **Parecida com…** | Inspiração: pega o espírito de uma obra conhecida, sem copiar nada dela |
 | **No estilo de uma história que já temos** | A IA lê uma das suas histórias e imita o **jeito de contar** — ritmo, humor, tamanho das frases — com enredo novo |
 | **Pedido especial** | Qualquer instrução livre |
