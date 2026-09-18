@@ -102,3 +102,30 @@ prioridade sobre o coletivo.
 
 Os nomes dos marcadores dentro do texto (`[som:latido]`) permanecem em português nos dois
 idiomas, porque estão gravados nas histórias já existentes. Apenas o rótulo visível muda.
+
+
+---
+
+# v1.8.1 — Cumprimento falado
+
+| Chave sugerida | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| `publico.falar.titulo` | Falar o cumprimento antes da história | Say the greeting before the story |
+| `publico.falar.ajuda` | Antes de começar a leitura, a voz diz o cumprimento abaixo. | Before the reading starts, the voice says the greeting below. |
+| `publico.previa.tela` | No topo da tela: | At the top of the screen: |
+| `publico.previa.voz` | Em voz alta: | Out loud: |
+| `publico.ouvir` | 🔈 Ouvir o cumprimento | 🔈 Hear the greeting |
+| `publico.ouvir.carregando` | preparando a voz… | preparing the voice… |
+
+## A frase falada
+
+| Situação | Português | English |
+|---|---|---|
+| Com nomes | Olá Lara e Julia, vamos ouvir uma historinha? | Hi Lara and Julia, shall we listen to a little story? |
+| Só "duas ou mais meninas" | Olá meninas, vamos ouvir uma historinha? | Hi girls, shall we listen to a little story? |
+| Só "dois ou mais meninos" | Olá meninos, vamos ouvir uma historinha? | Hi boys, shall we listen to a little story? |
+| Só "meninas e meninos" | Olá crianças, vamos ouvir uma historinha? | Hi everyone, shall we listen to a little story? |
+| Nada informado | Olá, vamos ouvir uma historinha? | Hi there, shall we listen to a little story? |
+
+A junção dos nomes segue a regra do idioma: em português, vírgulas e um "e" antes do último
+("Ana, Bia e Caio"); em inglês, "and" no mesmo lugar ("Ana, Bia and Caio").

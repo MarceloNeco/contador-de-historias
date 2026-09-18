@@ -445,8 +445,15 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <div class="txt"><b>Cumprimentar pelo nome na história</b><span>A IA começa a história com uma saudação curta dirigida a quem vai ouvir.</span></div>
       <div class="toggle on" id="tg-publico-historia"></div>
     </div>
-    <div style="height:8px"></div>
-    <div class="info">No topo da tela vai aparecer: <b id="previa-saudacao">—</b></div>
+    <div class="sw">
+      <div class="txt"><b>Falar o cumprimento antes da história</b><span>Antes de começar a leitura, a voz diz o cumprimento abaixo.</span></div>
+      <div class="toggle on" id="tg-saudar-antes"></div>
+    </div>
+    <div style="height:10px"></div>
+    <div class="info">No topo da tela: <b id="previa-saudacao">—</b><br>
+      <span style="opacity:.85">Em voz alta: “<span id="previa-fala">—</span>”</span></div>
+    <div style="height:12px"></div>
+    <button class="btn sm ok" id="btn-ouvir-cumprimento">🔈 Ouvir o cumprimento</button>
   </div>
 
   <div class="tit">🔊 Voz que lê as histórias</div>
@@ -767,7 +774,7 @@ $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') fecharModal
 const CHAVE_H='ch_historias', CHAVE_C='ch_config', CHAVE_S='ch_stats';
 
 const configPadrao = {
-  publicoNomes:'', publicoTipo:'', publicoNaHistoria:true,
+  publicoNomes:'', publicoTipo:'', publicoNaHistoria:true, saudarAntes:true,
   motorVoz:'nativo', vozNativa:'', vel:0.95, tom:1.05,
   elevenKey:'', elevenVoice:'', elevenModel:'eleven_multilingual_v2', elevenEstab:0.45,
   openaiKey:'', openaiVoice:'nova', openaiModel:'gpt-4o-mini-tts',
@@ -1437,6 +1444,10 @@ const Leitor = (function(){
 
   function montarFila(){
     fila=[];
+    if(cfg.saudarAntes){
+      const f = fraseCumprimento();
+      if(f) fila.push({tipo:'fala', texto:f, ids:[], saudacao:true});
+    }
     const porApi = cfg.motorVoz!=='nativo';
     let buffer=[], ids=[], nFalas=0;
     const descarregar = ()=>{
@@ -1495,7 +1506,7 @@ const Leitor = (function(){
   async function pegarAudio(i, aviso){
     if(memoria.has(i)) return memoria.get(i);
     const txt = fila[i].texto;
-    const ch = Guarda.chave(hist.id, i, txt);
+    const ch = fila[i].saudacao ? ('saudacao|'+Guarda.marca()+'|'+txt) : Guarda.chave(hist.id, i, txt);
     const salvo = await Guarda.pegar(ch);
     if(salvo){ memoria.set(i, salvo); return salvo; }          // já pago uma vez, nunca mais
     const esperas = [8000, 20000, 45000];
@@ -1699,7 +1710,9 @@ const Leitor = (function(){
 
   function totalFrases(){ return partes.filter(p=>p.tipo==='frase').length; }
   function fraseDoPasso(k){
-    for(let i=k;i>=0;i--) if(fila[i] && fila[i].tipo==='fala') return fila[i].ids[0];
+    for(let i=k;i>=0;i--){
+      if(fila[i] && fila[i].tipo==='fala' && fila[i].ids && fila[i].ids.length) return fila[i].ids[0];
+    }
     return 0;
   }
   function passoDaFrase(idFrase){
@@ -1800,7 +1813,9 @@ const Leitor = (function(){
     for(let i=0;i<fila.length;i++){
       if(fila[i].tipo!=='fala') continue;
       total++;
-      if(memoria.has(i) || await Guarda.existe(Guarda.chave(hist.id,i,fila[i].texto))) prontos++;
+      const k = fila[i].saudacao ? ('saudacao|'+Guarda.marca()+'|'+fila[i].texto)
+                                  : Guarda.chave(hist.id,i,fila[i].texto);
+      if(memoria.has(i) || await Guarda.existe(k)) prontos++;
     }
     prontosCache = {total, prontos};
     if(hist){
@@ -2201,10 +2216,16 @@ function saudacao(){
   const v = vocativo();
   return v ? `${periodoDoDia()}, ${v}` : `${periodoDoDia()}! que tal uma história?`;
 }
+// o que a voz fala antes da história
+function fraseCumprimento(){
+  const v = vocativo();
+  return v ? `Olá ${v}, vamos ouvir uma historinha?` : 'Olá, vamos ouvir uma historinha?';
+}
 function atualizarSaudacao(){
   const t = saudacao();
   const el = $('#sub-hd'); if(el) el.textContent = t;
   const pv = $('#previa-saudacao'); if(pv) pv.textContent = t.toUpperCase();
+  const pf = $('#previa-fala'); if(pf) pf.textContent = fraseCumprimento();
 }
 // como a IA deve se dirigir a quem ouve
 function linhaPublicoParaIA(){
@@ -2637,6 +2658,7 @@ function chave(sel, campoCfg, depois){
 chave('#tg-efeitos','efeitos', ()=>{ if(!cfg.efeitos) Som.parar(true); });
 chave('#tg-adiantar','adiantar');
 chave('#tg-publico-historia','publicoNaHistoria');
+chave('#tg-saudar-antes','saudarAntes');
 
 function mostrarGuarda(){
   Guarda.quanto().then(q=>{
@@ -2653,6 +2675,29 @@ $('#btn-limpar-audio').addEventListener('click',()=>{
 chave('#tg-github','carregarGithub');
 chave('#tg-tela','telaAcesa');
 chave('#tg-destaque','destaque');
+
+$('#btn-ouvir-cumprimento').addEventListener('click', async ()=>{
+  const b=$('#btn-ouvir-cumprimento'), rotulo='🔈 Ouvir o cumprimento';
+  b.disabled=true; b.innerHTML='<span class="load"></span> preparando a voz…';
+  try{
+    const frase = fraseCumprimento();
+    if(cfg.motorVoz==='nativo'){
+      if('speechSynthesis' in window) speechSynthesis.cancel();
+      await falarNativo(frase);
+    }else{
+      const ch = 'saudacao|'+Guarda.marca()+'|'+frase;
+      let blob = await Guarda.pegar(ch);
+      if(!blob){ blob = await gerarAudio(frase); Guarda.guardar(ch, blob); }
+      const u = URL.createObjectURL(blob);
+      const a = new Audio(u); await a.play();
+      a.onended = ()=>URL.revokeObjectURL(u);
+    }
+  }catch(e){
+    modal(`<h3>Não consegui falar 🙁</h3><p class="hint">${esc(e.message||e)}</p>
+      <div style="height:14px"></div><button class="btn" id="oc-f">Fechar</button>`);
+    $('#oc-f').onclick=fecharModal;
+  }finally{ b.disabled=false; b.innerHTML=rotulo; }
+});
 
 $('#btn-testar-voz').addEventListener('click', async ()=>{
   const b=$('#btn-testar-voz'); b.disabled=true; b.innerHTML='<span class="load"></span> preparando…';
@@ -2859,6 +2904,10 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.8.1','18/09/2026', [
+    'Botão para ouvir o cumprimento nos Ajustes, com a voz escolhida',
+    'Opção de falar o cumprimento em voz alta antes de cada história'
+  ]],
   ['1.8.0','18/09/2026', [
     '12 efeitos novos: explosão, tiro, galope, cachorro, gato, vaca, leão, cobra, coruja, galo, sapo e elefante',
     'Teste de sons: um som por vez, com destaque em todos os botões, e silêncio ao sair da tela',

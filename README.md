@@ -69,6 +69,10 @@ Com isso:
 
 Deixando tudo em branco, o topo mostra apenas **"BOA NOITE! QUE TAL UMA HISTÓRIA?"** e nada de nome aparece em lugar nenhum. Essa informação fica só no aparelho — não vai para o repositório.
 
+**🔈 Ouvir o cumprimento** — o botão fala, com a voz escolhida, a frase *"Olá Lara e Julia, vamos ouvir uma historinha?"*. Sem nomes, usa o coletivo ("Olá meninas…"); sem nada informado, vira *"Olá, vamos ouvir uma historinha?"*.
+
+Com o botão **Falar o cumprimento antes da história** ligado, essa frase é dita antes de cada leitura. O áudio dela é gerado **uma única vez** e reaproveitado em todas as histórias — não consome cota de novo.
+
 ---
 
 ## 🔊 Escolhendo a voz
