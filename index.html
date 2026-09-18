@@ -372,6 +372,24 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <div class="chips" id="chips-personagem"></div>
       <button class="btn sm ghost" id="btn-mais-personagens" style="margin-top:10px">🎲 Sortear outros personagens</button>
 
+      <label class="f">Onde a história acontece <span style="color:var(--dim2);font-weight:500">(opcional)</span></label>
+      <input type="text" id="in-ambiente" placeholder="Ex.: um sítio com rio e galinheiro">
+      <div style="height:10px"></div>
+      <div class="chips" id="chips-ambiente"></div>
+      <button class="btn sm ghost" id="btn-mais-ambientes" style="margin-top:10px">🎲 Sortear outros lugares</button>
+
+      <label class="f">Clima da história</label>
+      <div class="chips" id="chips-tom"></div>
+
+      <label class="f">Parecida com… <span style="color:var(--dim2);font-weight:500">(inspiração, opcional)</span></label>
+      <input type="text" id="in-inspiracao" placeholder="Ex.: parecida com Procurando Nemo">
+      <div style="height:10px"></div>
+      <div class="chips" id="chips-inspiracao"></div>
+
+      <label class="f">Ou no estilo de uma história que já temos</label>
+      <select id="sel-inspiracao-acervo"><option value="">— nenhuma —</option></select>
+      <div class="hint">A IA lê um trecho da história escolhida e imita o jeito de contar: ritmo, humor, tamanho das frases. O enredo continua novo.</div>
+
       <label class="f">Algum pedido especial? <span style="color:var(--dim2);font-weight:500">(opcional)</span></label>
       <input type="text" id="in-extra" placeholder="Ex.: que ensine a dividir os brinquedos">
     </div>
@@ -692,6 +710,11 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <button data-tela="config"><span class="i">⚙️</span>Ajustes</button>
   </div>
 </nav>
+
+<!-- diretrizes globais (idioma, datas, avisos). Se os arquivos ainda não
+     estiverem no repositório, o site funciona igual — só ignora estas linhas. -->
+<script src="diretrizes.js"></script>
+<script src="diretrizes-config.js"></script>
 
 <script>
 /* =======================================================================
@@ -1695,6 +1718,21 @@ const TEMAS = ["uma viagem ao fundo do mar","a estrela que caiu no quintal","o d
 "a lua que queria tirar férias","o sapato que escolhia o caminho","a floresta que só existia de noite",
 "o robô que aprendeu a fazer cócegas","o navio pirata cheio de patos","a escada que levava a qualquer lugar"];
 
+const AMBIENTES = ["uma floresta cheia de vaga-lumes","o fundo do mar","um castelo com mil escadas",
+"o sítio da vovó","uma nave espacial velhinha","uma vila no alto da montanha","um circo itinerante",
+"uma ilha que aparece só na maré baixa","a feira da cidade de madrugada","um farol no meio da tempestade",
+"uma biblioteca gigante","o quintal depois da chuva","um trem que atravessa o país","uma caverna de cristais",
+"um mercado flutuante","a escola durante as férias","um deserto com um oásis escondido","um lago congelado",
+"uma padaria que abre às 4 da manhã","o telhado de um prédio antigo"];
+
+const TONS = ["engraçada","misteriosa","emocionante","cheia de aventura","calminha para dormir",
+"com uma reviravolta","de fazer rir alto","com um pouquinho de suspense"];
+
+const INSPIRACOES = ["Procurando Nemo","O Mágico de Oz","Zootopia","Madagascar","Shrek","Toy Story",
+"Como Treinar o Seu Dragão","Divertidamente","Detona Ralph","A Bela e a Fera","O Pequeno Príncipe",
+"As aventuras de Pinóquio","Sítio do Picapau Amarelo","Peter Pan","Alice no País das Maravilhas",
+"uma fábula de Esopo","um causo de pescador","As Crônicas de Nárnia"];
+
 const PERSONAGENS = ["uma coruja professora","um dragão tímido","a sereia engraçada","um robô desastrado",
 "o urso que faz bolo","duas irmãs aventureiras","um sapo cantor","a girafa astronauta","o elefante invisível",
 "um pinguim explorador","a bruxa boazinha","o cavalo de circo","um peixe falante","a raposa curiosa",
@@ -1723,6 +1761,27 @@ function pintarChips(alvo, lista, inputId){
 }
 const novosTemas = ()=> pintarChips('#chips-tema', sortear(TEMAS,6), '#in-tema');
 const novosPersonagens = ()=> pintarChips('#chips-personagem', sortear(PERSONAGENS,6), '#in-personagens');
+const novosAmbientes = ()=> pintarChips('#chips-ambiente', sortear(AMBIENTES,5), '#in-ambiente');
+const novasInspiracoes = ()=> pintarChips('#chips-inspiracao', sortear(INSPIRACOES,5), '#in-inspiracao');
+
+// o clima é escolha única
+let tomEscolhido = '';
+function pintarTons(){
+  $('#chips-tom').innerHTML = TONS.map(t=>`<button class="chip" type="button">${esc(t)}</button>`).join('');
+  $$('#chips-tom .chip').forEach(b=>b.addEventListener('click',()=>{
+    const jaEra = b.classList.contains('on');
+    $$('#chips-tom .chip').forEach(x=>x.classList.remove('on'));
+    if(!jaEra){ b.classList.add('on'); tomEscolhido = b.textContent; } else tomEscolhido = '';
+  }));
+}
+function pintarInspiracaoAcervo(){
+  const sel = $('#sel-inspiracao-acervo'); if(!sel) return;
+  const antes = sel.value;
+  const lista = historias.slice().sort((a,b)=>a.titulo.localeCompare(b.titulo));
+  sel.innerHTML = '<option value="">— nenhuma —</option>' +
+    lista.map(h=>`<option value="${esc(h.id)}">${esc(h.titulo)}${h.serie?' ('+esc(h.serie)+')':''}</option>`).join('');
+  if(antes) sel.value = antes;
+}
 
 /* ----------------------------- geração com IA ----------------------------- */
 const PERFIS = {
@@ -1771,6 +1830,10 @@ PÚBLICO: ${PERFIS[o.idade].rotulo}. ${PERFIS[o.idade].guia}
 TAMANHO: ${TAMANHOS[o.tam].p}.
 TEMA: ${o.tema || 'escolha um tema encantador e original'}
 PERSONAGENS: ${o.personagens || 'crie personagens cativantes'}
+${o.ambiente ? 'ONDE ACONTECE: '+o.ambiente : ''}
+${o.tom ? 'CLIMA: a história deve ser '+o.tom : ''}
+${o.inspiracao ? 'INSPIRAÇÃO: com o sabor de "'+o.inspiracao+'". Pegue emprestado o espírito, o ritmo e o tipo de aventura — nunca copie enredo, cenas, nomes próprios ou falas, e não use personagens dessa obra. A história tem de ser original.' : ''}
+${o.estiloTexto ? 'IMITE O JEITO DE CONTAR do trecho abaixo (ritmo, tamanho das frases, humor, forma de descrever), mas com história, personagens e enredo completamente novos:\n---\n'+o.estiloTexto+'\n---' : ''}
 ${o.extra ? 'PEDIDO ESPECIAL: '+o.extra : ''}
 
 REGRAS:
@@ -1846,9 +1909,17 @@ async function gerarHistoria(){
     tam: $('#sel-tam .on').dataset.tam,
     tema: $('#in-tema').value.trim(),
     personagens: $('#in-personagens').value.trim(),
+    ambiente: $('#in-ambiente').value.trim(),
+    tom: tomEscolhido,
+    inspiracao: $('#in-inspiracao').value.trim(),
     extra: $('#in-extra').value.trim(),
     serie: $('#sel-continuar').value
   };
+  const refId = $('#sel-inspiracao-acervo').value;
+  if(refId){
+    const ref = historias.find(h=>h.id===refId);
+    if(ref) o.estiloTexto = semMarcadores(ref.texto).slice(0, 2500);
+  }
   let anterior=null;
   if(o.serie){
     const caps = listaSeries().get(o.serie)||[];
@@ -1862,6 +1933,7 @@ async function gerarHistoria(){
     const {titulo,texto} = separarTitulo(saida);
     if(!texto) throw new Error('Veio vazio. Tente de novo.');
     rascunho = { id:uid(), titulo, texto, idade:o.idade, tema:o.tema, personagens:o.personagens,
+                 ambiente:o.ambiente||'', tom:o.tom||'', inspiracao:o.inspiracao||'',
                  serie:o.serie||'', ordem:o.serie?proximaOrdem(o.serie):0,
                  criadaEm:new Date().toISOString(), origem:'ia', leituras:0, favorita:false };
     mostrarAprovacao();
@@ -2134,7 +2206,7 @@ function pintarInicio(){
   const h=new Date().getHours();
   $('#sub-hd').textContent = h<12?'bom dia, meninas':(h<18?'boa tarde, meninas':'boa noite, meninas');
 }
-const pintarTudo = ()=>{ pintarStats(); pintarSeries(); pintarAcervo(); pintarInicio(); };
+const pintarTudo = ()=>{ pintarStats(); pintarSeries(); pintarInspiracaoAcervo(); pintarAcervo(); pintarInicio(); };
 
 /* ----------------------------- leitor: botões ----------------------------- */
 $('#btn-play').addEventListener('click',()=>Leitor.alternar());
@@ -2204,6 +2276,7 @@ segmento('#sel-tam');
 segmento('#man-idade');
 $('#btn-mais-temas').addEventListener('click', novosTemas);
 $('#btn-mais-personagens').addEventListener('click', novosPersonagens);
+$('#btn-mais-ambientes').addEventListener('click', novosAmbientes);
 $('#btn-gerar').addEventListener('click', gerarHistoria);
 $('#sel-continuar').addEventListener('change', ()=>{
   atualizarHintContinuar();
@@ -2511,6 +2584,11 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.7.0','18/09/2026', [
+    'Criação de histórias com mais entradas: onde acontece, clima e "parecida com…"',
+    'Opção de pedir uma história nova no estilo de outra que já está no acervo',
+    'Preparado para o módulo de diretrizes globais (idioma e datas)'
+  ]],
   ['1.6.0','15/09/2026', [
     'Faixa 🔴🟡🟢 mostrando se o áudio da história já está baixado, antes de tocar',
     'Aviso ao dar play sem o áudio pronto, com opção de baixar ou trocar para a voz do celular',
@@ -2662,7 +2740,8 @@ try{
   localStorage.setItem('ch_versao', VERSAO);
 }catch(e){}
 
-novosTemas(); novosPersonagens(); aplicarCfgNaTela(); pintarTudo();
+novosTemas(); novosPersonagens(); novosAmbientes(); novasInspiracoes(); pintarTons();
+aplicarCfgNaTela(); pintarTudo();
 aplicarConfigDaUrl();
 carregarDoGithub();
 

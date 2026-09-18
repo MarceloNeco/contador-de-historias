@@ -90,7 +90,21 @@ Também na aba **Ajustes**:
 - **Claude** — chave em `console.anthropic.com`. Pago por uso, centavos por história.
 - **OpenAI** — usa a mesma chave da voz.
 
-Você escolhe idade, tamanho, tema e personagens (com sugestões sorteadas), a IA escreve, e aí aparece a tela de **aprovar / ouvir antes / editar / pedir outra**. Só o que você aprovar é guardado.
+A aba **Criar** tem estas entradas, todas com sugestões sorteáveis:
+
+| Entrada | O que faz |
+|---|---|
+| **Para quem é** | 2–5, 6–9, 10+ ou "as duas juntas" — muda vocabulário e complexidade |
+| **Tamanho** | Curtinha (~3 min), Média (~6 min) ou Longa (~10 min) |
+| **Tema** | O enredo em uma frase |
+| **Personagens** | Quem aparece na história |
+| **Onde acontece** | O cenário |
+| **Clima** | Engraçada, misteriosa, emocionante, com reviravolta, calminha… |
+| **Parecida com…** | Inspiração: pega o espírito de uma obra conhecida, sem copiar nada dela |
+| **No estilo de uma história que já temos** | A IA lê uma das suas histórias e imita o **jeito de contar** — ritmo, humor, tamanho das frases — com enredo novo |
+| **Pedido especial** | Qualquer instrução livre |
+
+A IA escreve e aparece a tela de **aprovar / ouvir antes / editar / pedir outra**. Só o que você aprovar é guardado.
 
 ---
 
