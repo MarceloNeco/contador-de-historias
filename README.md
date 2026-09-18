@@ -157,7 +157,22 @@ Em **Ajustes → Velocidade da voz** você vê quanto está guardado e pode apag
 
 No **computador**, abra o site pelo **Microsoft Edge** e escolha a voz do celular: o Edge traz vozes brasileiras neurais (**Francisca**, **Thalita**, **Antonio** — aparecem com ⭐ na lista), grátis, sem chave e **sem espera nenhuma**. É a melhor relação qualidade/velocidade para ouvir no PC.
 
-No **Android**: Configurações → Acessibilidade → **Saída de texto para voz** → engine do Google → baixe a voz em português de maior qualidade. Ajuda bastante, mas ainda perde para o Gemini.
+No **Android** o caminho é outro: o navegador só enxerga o **mecanismo padrão** escolhido nas Configurações do celular, e só dá para usar as vozes que ele entrega. Então a melhoria vem de **instalar um mecanismo melhor** e escolhê-lo como padrão:
+
+| Mecanismo | Custo | Offline | Como |
+|---|---|---|---|
+| **SherpaTTS** (modelos Piper) | grátis, código aberto | sim | instalar pela loja F-Droid, baixar um modelo `pt_BR` (ex.: `pt_BR-faber-medium`) e escolher SherpaTTS como *Mecanismo preferido* |
+| Google (Speech Recognition & Synthesis) | grátis | depende da voz | Play Store → atualizar → *Instalar dados de voz* → Português (Brasil) |
+| Samsung | grátis, já vem | sim | *Instalar dados de voz* → Português (Brasil) |
+| Acapela TTS Voices | pago por voz | sim | Play Store, com prévia antes de comprar |
+
+Depois de trocar o mecanismo, **feche o navegador de vez** (Configurações → Aplicativos → Chrome/Edge → *Forçar parada*) — ele guarda a lista de vozes antiga até ser fechado. Aí, no site: **Ajustes → 📱 Voz do celular → 🔄 Recarregar vozes**.
+
+Se a voz nova não aparecer na lista mesmo assim, escolha **🔧 Padrão do aparelho**: o site pede "português do Brasil" sem apontar voz nenhuma, e o Android responde com o mecanismo padrão — que agora é o novo. O botão **❓ Instalei uma voz e ela não aparece** repete esse passo a passo dentro do site.
+
+Para diagnosticar fora do app existe a página **`TESTE-VOZ-contador-de-historias.html`** (abra pelo mesmo endereço do site, trocando `index.html` pelo nome dela): ela lista tudo o que o navegador enxerga, com mecanismo e idioma de cada voz, e fala com a voz escolhida.
+
+Importante: as vozes "Naturais" do Edge de computador **não existem no Android** — a Microsoft não as libera para sites no celular. Mesmo com o melhor mecanismo, a voz do aparelho fica abaixo do Gemini; ela é o plano B para quando não há internet ou cota.
 
 ---
 
@@ -246,7 +261,8 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 | `index.html` | O site inteiro — tudo está aqui dentro. |
 | `historias.json` | As histórias que aparecem para todo mundo que abre o site. |
 | `capa.jpg` | A imagem grande da tela Início (aparece em todos os aparelhos). |
-| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v2`), para os aparelhos buscarem os arquivos novos. |
+| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v3`), para os aparelhos buscarem os arquivos novos. |
+| `TESTE-VOZ-contador-de-historias.html` | Página de teste das vozes do aparelho, independente do app. |
 | `fundo-historia.jpg` | O cenário que preenche as laterais **no computador**. Ignorado no celular. |
 | `README.md` | Este guia. |
 

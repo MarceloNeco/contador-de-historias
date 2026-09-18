@@ -163,3 +163,26 @@ A junção dos nomes segue a regra do idioma: em português, vírgulas e um "e" 
 | `criar.aprovar.serie` | 💾 Aprovar e guardar os {n} capítulos | 💾 Approve and save the {n} chapters |
 | `modelos.listar` | 🔄 Ver os modelos que a minha chave aceita | 🔄 See which models my key accepts |
 | `modelos.aviso` | O Google troca os modelos de tempos em tempos. Se aparecer erro dizendo que o modelo saiu de linha, toque no botão acima e escolha um da lista. | Google retires models from time to time. If an error says the model is gone, tap the button above and pick one from the list. |
+
+
+---
+
+# v1.10.0 — Voz do aparelho (Android)
+
+| Chave sugerida | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| `voz.padrao` | 🔧 Padrão do aparelho (o mecanismo escolhido nas Configurações) | 🔧 Device default (the engine chosen in Settings) |
+| `voz.recarregar` | 🔄 Recarregar vozes | 🔄 Reload voices |
+| `voz.ajuda.botao` | ❓ Instalei uma voz e ela não aparece | ❓ I installed a voice and it does not show |
+| `voz.diag` | O navegador enxerga {n} voz(es), {pt} em português · mecanismos: {motores}. | The browser sees {n} voice(s), {pt} in Portuguese · engines: {engines}. |
+| `voz.diag.vazio` | O navegador ainda não devolveu nenhuma voz. Toque em Recarregar; se continuar vazio, feche o navegador de vez e abra de novo. | The browser has not returned any voice yet. Tap Reload; if still empty, force-stop the browser and open it again. |
+| `voz.legenda` | ⭐ = voz que parece natural. ✅ = em português. A opção Padrão do aparelho usa o mecanismo que estiver escolhido nas Configurações do celular, seja ele qual for. | ⭐ = voice that sounds natural. ✅ = Portuguese. Device default uses whatever engine is chosen in the phone Settings. |
+| `voz.ajuda.titulo` | Voz instalada e o site não vê | Voice installed but the site cannot see it |
+| `voz.ajuda.p0` | O site só consegue usar as vozes que o navegador entrega. No Android, o navegador só enxerga o mecanismo padrão escolhido nas Configurações — e guarda essa lista até ser fechado de vez. | The site can only use the voices the browser exposes. On Android the browser only sees the default engine chosen in Settings — and keeps that list until it is fully closed. |
+| `voz.ajuda.p1` | Configurações → 🔍 "conversão de texto em voz" (na Samsung pode aparecer como Configurações de Leitura de texto Samsung; não é o TalkBack). | Settings → 🔍 "text-to-speech" (on Samsung it may show as Samsung Text-to-speech settings; not TalkBack). |
+| `voz.ajuda.p2` | Em Mecanismo preferido, escolha o motor novo (SherpaTTS, Google, Samsung ou Acapela). Toque em Reproduzir e confira que a amostra sai com a voz nova. | Under Preferred engine, choose the new engine (SherpaTTS, Google, Samsung or Acapela). Tap Play and confirm the sample uses the new voice. |
+| `voz.ajuda.p3` | Feche o navegador de vez: Configurações → Aplicativos → Chrome (ou Edge) → Forçar parada. Só recarregar a página não basta. | Close the browser for real: Settings → Apps → Chrome (or Edge) → Force stop. Reloading the page is not enough. |
+| `voz.ajuda.p4` | Abra o site de novo → Ajustes → toque em 🔄 Recarregar vozes. | Open the site again → Settings → tap 🔄 Reload voices. |
+| `voz.ajuda.p5` | Se a voz nova aparecer na lista, escolha-a. Se não aparecer, deixe em 🔧 Padrão do aparelho: o site pede "português do Brasil" sem escolher voz, e o Android responde com o mecanismo padrão — que agora é o novo. | If the new voice shows in the list, pick it. If not, keep 🔧 Device default: the site asks for "Brazilian Portuguese" without naming a voice, and Android answers with the default engine — now the new one. |
+| `voz.ajuda.p6` | Toque em ▶️ Testar a voz. Se ainda sair a voz antiga, reinicie o celular uma vez. | Tap ▶️ Test the voice. If the old voice still plays, restart the phone once. |
+| `voz.ajuda.edge` | As vozes "Naturais" do Edge de computador não existem no Android — a Microsoft não as libera para sites no celular. O caminho no Android é o mecanismo do sistema. | Desktop Edge "Natural" voices do not exist on Android — Microsoft does not expose them to websites on mobile. On Android the way is the system engine. |

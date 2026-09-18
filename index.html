@@ -503,11 +503,16 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div id="cfg-nativo">
       <label class="f">Voz</label>
       <select id="sel-voz-nativa"></select>
-      <div class="ok oculto" id="aviso-natural" style="margin-top:10px">
-        <b>Dica de voz grátis e instantânea:</b> no <b>computador</b>, abra este site pelo <b>Microsoft Edge</b> — ele traz vozes brasileiras naturais (procure por “Francisca”, “Thalita” ou “Antonio”, marcadas com ⭐) sem chave, sem espera e sem custo.
-        No <b>Android</b>: Configurações → Acessibilidade → Saída de texto para voz → engine do Google → baixe a voz em português de melhor qualidade.
+      <div class="hint" id="diag-vozes" style="margin-top:8px">procurando vozes…</div>
+      <div class="linha" style="margin-top:10px">
+        <button class="btn sm" id="btn-recarregar-vozes">🔄 Recarregar vozes</button>
+        <button class="btn sm ghost" id="btn-ajuda-vozes">❓ Instalei uma voz e ela não aparece</button>
       </div>
-      <div class="hint">As vozes com ⭐ são as mais naturais que este aparelho tem.</div>
+      <div class="ok oculto" id="aviso-natural" style="margin-top:10px">
+        <b>Voz grátis e instantânea:</b> no <b>computador</b>, abra pelo <b>Microsoft Edge</b> — ele traz vozes brasileiras naturais (Francisca, Thalita, Antonio, marcadas com ⭐), sem chave e sem espera.
+        No <b>Android</b>, o caminho é instalar um mecanismo melhor (SherpaTTS, gratuito e offline) e escolhê-lo como padrão nas Configurações — toque em ❓ acima para o passo a passo.
+      </div>
+      <div class="hint">⭐ = voz que parece natural. ✅ = em português. A opção <b>Padrão do aparelho</b> usa o mecanismo que estiver escolhido nas Configurações do celular, seja ele qual for.</div>
       <label class="f">Velocidade: <span id="lbl-vel">1.00</span>×</label>
       <input type="range" id="rng-vel" min="0.5" max="1.5" step="0.05" value="0.95">
       <label class="f">Tom da voz: <span id="lbl-tom">1.00</span></label>
@@ -1229,36 +1234,75 @@ const Som = (function(){
 })();
 
 /* ----------------------------- vozes / leitura ----------------------------- */
+/* ----------------------------- voz do aparelho (Web Speech API) -----------------------------
+   Regras que valem em qualquer aparelho (Android, iPhone, Windows, Mac):
+   - só dá para usar as vozes que o navegador devolve em getVoices(); não dá para forçar outra;
+   - a lista chega atrasada e muda (evento voiceschanged) — por isso recarregamos várias vezes;
+   - no Android o navegador só enxerga o MECANISMO PADRÃO escolhido nas Configurações
+     (Google, Samsung, SherpaTTS, Acapela…) e guarda a lista até ser fechado de vez;
+   - "Padrão do aparelho" = não escolher voz nenhuma e só pedir pt-BR: o Android usa
+     o mecanismo padrão, seja ele qual for. É o caminho mais seguro com SherpaTTS/Acapela.
+   ---------------------------------------------------------------------------------------- */
 let vozesNativas=[];
+const VOZ_PADRAO_APARELHO = '__padrao__';
+
+function langNorm(l){ return String(l||'').replace('_','-').toLowerCase(); }
+function ehPortugues(v){ const l=langNorm(v.lang); return l.startsWith('pt') || l.startsWith('por'); }
+function ehPtBr(v){ const l=langNorm(v.lang); return l==='pt-br' || l==='por-bra' || l==='pt-br-x-multi'; }
+function pareceNatural(v){ return /natural|online|neural|enhanced|premium|wavenet|piper|sherpa|coqui|vits|acapela|kokoro|woheller|ttsengine|-(low|medium|high)\b/i.test(v.name+' '+v.voiceURI); }
+function nomeMotor(v){
+  const s=(v.name+' '+v.voiceURI).toLowerCase();
+  if(/sherpa|piper|coqui|vits|woheller|ttsengine|-(low|medium|high)\b/.test(s)) return 'SherpaTTS';
+  if(/acapela/.test(s)) return 'Acapela';
+  if(/samsung|smt/.test(s)) return 'Samsung';
+  if(/google|gsm|com\.google/.test(s)) return 'Google';
+  if(/microsoft/.test(s)) return 'Microsoft';
+  if(/apple|com\.apple/.test(s)) return 'Apple';
+  return '';
+}
+
 function carregarVozesNativas(){
   if(!('speechSynthesis' in window)) return;
   vozesNativas = speechSynthesis.getVoices()||[];
   const sel=$('#sel-voz-nativa'); if(!sel) return;
-  const natural = v => /natural|online|neural|enhanced|premium|wavenet/i.test(v.name);
-  const nota = v => (/pt/i.test(v.lang)?2:0) + (natural(v)?1:0);
+  const nota = v => (ehPtBr(v)?3:(ehPortugues(v)?2:0)) + (pareceNatural(v)?1:0);
   const lista = vozesNativas.slice().sort((a,b)=> nota(b)-nota(a) || a.name.localeCompare(b.name));
-  sel.innerHTML = lista.length
-    ? lista.map(v=>`<option value="${esc(v.voiceURI)}">${natural(v)?'⭐ ':''}${esc(v.name)} — ${esc(v.lang)}${/pt/i.test(v.lang)?' ✅':''}</option>`).join('')
-    : '<option value="">(nenhuma voz encontrada ainda)</option>';
-  const temNatural = lista.some(v=>natural(v) && /pt/i.test(v.lang));
-  const av = $('#aviso-natural');
-  if(av) av.classList.toggle('oculto', temNatural);
-  if(cfg.vozNativa && lista.some(v=>v.voiceURI===cfg.vozNativa)) sel.value=cfg.vozNativa;
-  else if(lista[0]){ sel.value=lista[0].voiceURI; cfg.vozNativa=lista[0].voiceURI; salvarCfg(); }
+  const pt = lista.filter(ehPortugues);
+  sel.innerHTML =
+    `<option value="${VOZ_PADRAO_APARELHO}">🔧 Padrão do aparelho (o mecanismo escolhido nas Configurações)</option>` +
+    lista.map(v=>`<option value="${esc(v.voiceURI)}">${pareceNatural(v)?'⭐ ':''}${esc(v.name)} — ${esc(v.lang)}${ehPortugues(v)?' ✅':''}</option>`).join('');
+  if(cfg.vozNativa===VOZ_PADRAO_APARELHO || (cfg.vozNativa && lista.some(v=>v.voiceURI===cfg.vozNativa))) sel.value=cfg.vozNativa;
+  else if(pt[0]){ sel.value=pt[0].voiceURI; cfg.vozNativa=pt[0].voiceURI; salvarCfg(); }
+  else { sel.value=VOZ_PADRAO_APARELHO; cfg.vozNativa=VOZ_PADRAO_APARELHO; salvarCfg(); }
+
+  // diagnóstico: o que o navegador está enxergando agora
+  const d=$('#diag-vozes');
+  if(d){
+    const motores = Array.from(new Set(lista.map(nomeMotor).filter(Boolean)));
+    d.innerHTML = lista.length
+      ? `O navegador enxerga <b>${lista.length}</b> voz(es), <b>${pt.length}</b> em português` +
+        (motores.length? ` · mecanismos: <b>${esc(motores.join(', '))}</b>` : '') + '.'
+      : 'O navegador ainda não devolveu nenhuma voz. Toque em <b>Recarregar</b>; se continuar vazio, feche o navegador de vez e abra de novo.';
+  }
+  const av=$('#aviso-natural');
+  if(av) av.classList.toggle('oculto', lista.some(v=>pareceNatural(v) && ehPortugues(v)));
 }
 if('speechSynthesis' in window){
   speechSynthesis.onvoiceschanged = carregarVozesNativas;
-  setTimeout(carregarVozesNativas, 120);
-  setTimeout(carregarVozesNativas, 900);
+  [120, 900, 3000].forEach(ms=>setTimeout(carregarVozesNativas, ms));
+  // voltando das Configurações do Android, a lista pode ter mudado
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(carregarVozesNativas, 400); });
 }
 
 function falarNativo(texto){
   return new Promise((resolve,reject)=>{
     if(!('speechSynthesis' in window)){ reject(new Error('Este navegador não tem voz embutida.')); return; }
     const u = new SpeechSynthesisUtterance(semMarcadores(texto));
-    const v = vozesNativas.find(x=>x.voiceURI===cfg.vozNativa);
-    if(v) u.voice=v;
-    u.lang = (v&&v.lang) || 'pt-BR';
+    const escolhida = cfg.vozNativa && cfg.vozNativa!==VOZ_PADRAO_APARELHO
+      ? vozesNativas.find(x=>x.voiceURI===cfg.vozNativa) : null;
+    if(escolhida) u.voice = escolhida;
+    // pt-BR sempre: com "padrão do aparelho" é isso que faz o Android usar o mecanismo escolhido lá
+    u.lang = (escolhida && !ehPortugues(escolhida)) ? escolhida.lang : 'pt-BR';
     u.rate = cfg.vel; u.pitch = cfg.tom; u.volume = 1;
     let pronto=false, vigia=null, manter=null;
     const terminar = ()=>{ if(pronto) return; pronto=true; clearTimeout(vigia); clearInterval(manter); resolve(); };
@@ -1270,7 +1314,10 @@ function falarNativo(texto){
     vigia = setTimeout(terminar, limite);
     // o Chrome do Android para sozinho depois de ~15s; isso o mantém acordado
     manter = setInterval(()=>{ try{ if(speechSynthesis.speaking) speechSynthesis.resume(); }catch(e){} }, 9000);
-    try{ speechSynthesis.speak(u); }catch(e){ terminar(); }
+    // limpa fila velha antes de falar (fila presa é a causa mais comum de "não fala nada")
+    const falar = ()=>{ try{ speechSynthesis.speak(u); }catch(e){ terminar(); } };
+    if(speechSynthesis.speaking || speechSynthesis.pending){ speechSynthesis.cancel(); setTimeout(falar, 60); }
+    else falar();
   });
 }
 
@@ -2492,6 +2539,7 @@ function irTela(nome){
 $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
   irTela(b.dataset.tela);
   if(b.dataset.tela==='config' && typeof mostrarGuarda==='function') mostrarGuarda();
+  if(b.dataset.tela==='config' && typeof carregarVozesNativas==='function') carregarVozesNativas();
 }));
 $('#btn-config-topo').addEventListener('click',()=>irTela('config'));
 $('#btn-ir-nova').addEventListener('click',()=>irTela('nova'));
@@ -2924,6 +2972,27 @@ chave('#tg-github','carregarGithub');
 chave('#tg-tela','telaAcesa');
 chave('#tg-destaque','destaque');
 
+$('#btn-recarregar-vozes').addEventListener('click',()=>{
+  carregarVozesNativas();
+  setTimeout(carregarVozesNativas, 700);
+  toast('Lista de vozes atualizada');
+});
+$('#btn-ajuda-vozes').addEventListener('click',()=>{
+  modal(`<h3>Voz instalada e o site não vê</h3>
+    <div style="font-size:13.5px;line-height:1.65;color:var(--dim)">
+      <p>O site só consegue usar as vozes que o <b>navegador</b> entrega. No Android, o navegador só enxerga o <b>mecanismo padrão</b> escolhido nas Configurações — e guarda essa lista até ser fechado de vez.</p>
+      <p><b>1.</b> Configurações → 🔍 “conversão de texto em voz” (na Samsung pode aparecer como <i>Configurações de Leitura de texto Samsung</i>; não é o TalkBack).</p>
+      <p><b>2.</b> Em <b>Mecanismo preferido</b>, escolha o motor novo (SherpaTTS, Google, Samsung ou Acapela). Toque em <b>Reproduzir</b> e confira que a amostra sai com a voz nova.</p>
+      <p><b>3.</b> <b>Feche o navegador de vez:</b> Configurações → Aplicativos → Chrome (ou Edge) → <b>Forçar parada</b>. Só recarregar a página não basta.</p>
+      <p><b>4.</b> Abra o site de novo → Ajustes → toque em <b>🔄 Recarregar vozes</b>.</p>
+      <p><b>5.</b> Se a voz nova aparecer na lista, escolha-a. Se <b>não</b> aparecer, deixe em <b>🔧 Padrão do aparelho</b>: o site pede “português do Brasil” sem escolher voz, e o Android responde com o mecanismo padrão — que agora é o novo.</p>
+      <p><b>6.</b> Toque em <b>▶️ Testar a voz</b>. Se ainda sair a voz antiga, reinicie o celular uma vez.</p>
+      <p style="opacity:.8;margin-top:10px">As vozes “Naturais” do Edge de computador não existem no Android — a Microsoft não as libera para sites no celular. O caminho no Android é o mecanismo do sistema.</p>
+    </div>
+    <div style="height:14px"></div><button class="btn sm" id="av-f">Fechar</button>`);
+  $('#av-f').onclick=fecharModal;
+});
+
 $('#btn-ouvir-cumprimento').addEventListener('click', async ()=>{
   const b=$('#btn-ouvir-cumprimento'), rotulo='🔈 Ouvir o cumprimento';
   b.disabled=true; b.innerHTML='<span class="load"></span> preparando a voz…';
@@ -3179,6 +3248,11 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.10.0','18/09/2026', [
+    'Voz do aparelho refeita: opção "Padrão do aparelho" que usa o mecanismo escolhido no Android (SherpaTTS, Acapela, Google, Samsung)',
+    'Botão Recarregar vozes, diagnóstico do que o navegador enxerga e passo a passo para voz instalada que não aparece',
+    'Reconhece vozes Piper/Sherpa/Coqui/Acapela como naturais e aceita idiomas escritos como pt_BR ou por-BRA'
+  ]],
   ['1.9.1','18/09/2026', [
     'Quando o Google está lotado (erro 503), o site espera e tenta de novo sozinho, até 3 vezes, e depois usa um modelo reserva',
     'Gerando vários capítulos, um erro no meio não perde os que já saíram: "Tentar de novo" continua de onde parou',
