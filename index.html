@@ -9,7 +9,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Contador de Histórias</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+<!-- ícone: livro aberto bege/âmbar, desenhado em SVG (nítido em qualquer tamanho) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z' fill='%23E3A04A'/%3E%3Cpath d='M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z' fill='%23F7E8C9' stroke='%239A5F1E' stroke-width='3' stroke-linejoin='round'/%3E%3Cpath d='M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1' stroke='%23C99A5B' stroke-width='2.2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icone-180.png">
+<meta name="theme-color" content="#140f22">
 <style>
 :root{
   --bg:#140f22; --bg2:#1d1633; --card:#241c3d; --card2:#2e2450;
@@ -29,27 +32,32 @@ h1,h2,h3{line-height:1.2;margin:0}
 button,input,select,textarea{font-family:inherit;font-size:16px;color:inherit}
 button{cursor:pointer;border:none;background:none}
 a{color:var(--gold)}
-.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+:root{--coluna:760px}        /* coluna de leitura: 65–75 caracteres por linha */
+.wrap{max-width:var(--coluna);margin:0 auto;padding:0 16px}
 /* ---------- topo ---------- */
 header{
   position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);
   background:rgba(20,15,34,.82);border-bottom:1px solid var(--line);
   padding-top:env(safe-area-inset-top);
 }
-.hd{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:760px;margin:0 auto}
-.hd .logo{font-size:24px}
+.hd{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:var(--coluna);margin:0 auto}
+.hd .logo{width:34px;height:34px;flex:none;display:flex}
+.hd .logo svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(227,160,74,.35))}
 .hd h1{font-size:18px;font-weight:700;letter-spacing:.2px;flex:1}
 .hd h1 small{display:block;font-size:11px;font-weight:500;color:var(--dim2);letter-spacing:.6px;text-transform:uppercase}
 .icobtn{width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:19px}
 .icobtn:active{background:var(--card2)}
+.btn-mic.ouvindo{background:#b8325a!important;border-color:#ff7a92!important;animation:pulso 1s ease-in-out infinite}
+@keyframes pulso{50%{box-shadow:0 0 0 8px rgba(255,122,146,.25)}}
+@media (prefers-reduced-motion:reduce){.btn-mic.ouvindo{animation:none}}
 /* ---------- abas ---------- */
 nav.tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:50;
   background:rgba(29,22,51,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom);
 }
-nav.tabs .inner{display:flex;max-width:760px;margin:0 auto}
+nav.tabs .inner{display:flex;max-width:var(--coluna);margin:0 auto}
 nav.tabs button{flex:1;padding:10px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:3px;
   color:var(--dim2);font-size:11px;font-weight:600}
 nav.tabs button .i{font-size:21px;line-height:1}
@@ -121,7 +129,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .hist:active{background:var(--card2)}
 .hist .cap{width:48px;height:48px;border-radius:13px;flex:none;display:flex;align-items:center;
   justify-content:center;font-size:23px;background:linear-gradient(140deg,#4a3a78,#2e2450)}
-.hist .info{flex:1;min-width:0}
+.hist .info{flex:1;min-width:0;background:none;border:0;padding:0;border-radius:0;color:inherit;font-size:inherit}
 .hist .info b{display:block;font-size:16px;margin-bottom:2px}
 .hist .meta{font-size:12px;color:var(--dim2);display:flex;flex-wrap:wrap;gap:8px}
 .tag{background:var(--bg2);border:1px solid var(--line);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
@@ -166,6 +174,19 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .selo{display:inline-flex;align-items:center;gap:3px;background:rgba(95,214,164,.16);
   border:1px solid rgba(95,214,164,.4);color:var(--verde);padding:2px 7px;border-radius:999px;
   font-size:11px;font-weight:700}
+.selo.meio{background:rgba(255,200,121,.12);border-color:rgba(255,200,121,.45);color:var(--gold)}
+.linkzinho{display:block;margin:6px auto 0;background:none;border:0;color:var(--dim2);font-size:.8rem;
+  text-decoration:underline;padding:6px 10px;min-height:32px;cursor:pointer}
+.linkzinho:hover{color:var(--txt)}
+.lista-guarda{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.lista-guarda .lg{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--line);
+  border-radius:12px;padding:8px 10px}
+.lista-guarda .lg .t{flex:1;min-width:0}
+.lista-guarda .lg .t b{display:block;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lista-guarda .lg .t span{font-size:.75rem;color:var(--dim2)}
+.lista-guarda .lg .mb{font-weight:800;font-size:.85rem;color:var(--gold);white-space:nowrap}
+.lista-guarda .lg button{width:40px;height:40px;border-radius:10px;background:transparent;border:1px solid var(--line);
+  color:var(--txt);font-size:16px;flex:none;cursor:pointer}
 .baixar{width:40px;height:40px;border-radius:12px;background:var(--card2);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;align-self:center}
 .prep{height:5px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:8px}
@@ -221,7 +242,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .lados{display:none}
 @media (min-width:1080px){
   .lados{display:block;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-  .lado{position:absolute;top:0;bottom:0;width:calc(50% - 380px);
+  .lado{position:absolute;top:0;bottom:0;width:calc(50% - var(--coluna)/2);transition:width .2s ease-out;
     background-image:url('fundo-historia.jpg');
     background-repeat:no-repeat;
     /* o rosto do menino fica em 51% x 45% da foto: é esse ponto que centralizamos */
@@ -239,7 +260,19 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   nav.tabs{background:rgba(29,22,51,.97)}
   .leitor{z-index:100}
 }
-@media (min-width:1600px){ .lado{width:calc(50% - 380px)} }
+/* Listas e grades escapam da coluna de leitura: no acervo, em tela larga, a largura cresce
+   e os cartões viram 2 ou 3 colunas. O texto da história (leitor) continua na coluna estreita. */
+@media (min-width:1080px){
+  body.larga{--coluna:min(1240px, calc(100vw - 96px))}
+  body.larga #lista-acervo{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;align-items:start}
+  body.larga #lista-acervo .hist{margin-bottom:0}
+  body.larga #lista-acervo .vazio{grid-column:1/-1}
+  body.larga #tela-acervo #busca{max-width:760px}
+  #lista-recentes,#lista-continuar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #lista-recentes .hist,#lista-continuar .hist{margin-bottom:0}
+  #lista-recentes .vazio,#lista-continuar .vazio{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){ .lado{transition:none} }
 
 /* capa */
 .capa{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);
@@ -268,8 +301,9 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 
 <header>
   <div class="hd">
-    <div class="logo">📖</div>
+    <div class="logo" aria-hidden="true"><svg width="34" height="34" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z" fill="#E3A04A"/><path d="M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z" fill="#F7E8C9" stroke="#9A5F1E" stroke-width="3" stroke-linejoin="round"/><path d="M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1" stroke="#C99A5B" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg></div>
     <h1>Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
+    <button class="icobtn btn-mic oculto" id="btn-mic-topo" aria-label="Comando de voz">🎤</button>
     <button class="icobtn" id="btn-config-topo" aria-label="Configurações">⚙️</button>
   </div>
 </header>
@@ -483,6 +517,13 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <div class="txt"><b>Falar o cumprimento antes da história</b><span>Antes de começar a leitura, a voz diz o cumprimento abaixo.</span></div>
       <div class="toggle on" id="tg-saudar-antes"></div>
     </div>
+    <div class="sw">
+      <div class="txt"><b>🛡️ Não mandar os nomes para a IA</b><span>Antes de pedir uma história, os nomes viram códigos ([NOME1], [NOME2]…) e voltam ao normal aqui no aparelho. A IA nunca recebe os nomes das crianças.</span></div>
+      <div class="toggle on" id="tg-proteger-nomes"></div>
+    </div>
+    <label class="f">Outros nomes para proteger <span style="color:var(--dim2);font-weight:500">(opcional — irmãos, pets, escola)</span></label>
+    <input type="text" id="in-nomes-protegidos" placeholder="separe por vírgula" autocomplete="off">
+    <div class="hint">A voz de internet (Gemini, ElevenLabs, OpenAI) precisa receber o texto para ler — inclusive os nomes. Para nada sair do aparelho, use a voz do celular.</div>
     <div style="height:10px"></div>
     <div class="info">No topo da tela: <b id="previa-saudacao">—</b><br>
       <span style="opacity:.85">Em voz alta: “<span id="previa-fala">—</span>”</span></div>
@@ -679,17 +720,38 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     </div>
   </div>
 
-  <div class="tit">⚡ Velocidade da voz (áudio guardado)</div>
+  <div class="tit">⚡ Voz guardada no aparelho</div>
   <div class="card">
     <div class="ok">Cada trecho de voz gerado fica <b>guardado neste aparelho</b>. Repetir uma história, voltar um trecho ou ouvir de novo amanhã <b>não gasta a cota outra vez</b> — o site usa o áudio guardado. E funciona sem internet.</div>
     <div class="sw">
       <div class="txt"><b>Preparar a história inteira ao abrir</b><span>Enquanto vocês escolhem, o site já vai gerando os próximos trechos.</span></div>
       <div class="toggle on" id="tg-adiantar"></div>
     </div>
+    <div class="sw">
+      <div class="txt"><b>Com a voz do celular, usar a voz guardada</b><span>Se a história já tem voz de internet inteira no aparelho, toca com ela — sem gastar cota e sem internet. Trocar para a voz do celular não apaga nada.</span></div>
+      <div class="toggle on" id="tg-usar-guardada"></div>
+    </div>
     <div style="height:12px"></div>
-    <div class="hint" id="txt-guarda">calculando…</div>
+    <div class="hint" id="txt-guarda" aria-live="polite">calculando…</div>
+    <div class="lista-guarda" id="lista-guarda"></div>
     <div style="height:10px"></div>
-    <button class="btn sm ghost" id="btn-limpar-audio">🗑️ Apagar os áudios guardados</button>
+    <button class="btn sm ghost" id="btn-limpar-orfaos" style="display:none">🧹 Apagar a voz de histórias que não existem mais</button>
+    <div style="height:8px"></div>
+    <button class="btn sm ghost" id="btn-limpar-audio">🗑️ Apagar toda a voz guardada</button>
+  </div>
+
+  <div class="tit">🎤 Comandos de voz <span style="font-weight:500;color:var(--dim2)">(experimental)</span></div>
+  <div class="card">
+    <div class="sw">
+      <div class="txt"><b>Mostrar o botão 🎤</b><span>Toque no 🎤 e fale um comando. O microfone só abre com o toque. No Chrome, o que é falado vai ao Google para virar texto.</span></div>
+      <div class="toggle" id="tg-comandos-voz"></div>
+    </div>
+    <div class="hint" id="txt-mic-suporte"></div>
+    <div class="hint" style="margin-top:6px"><b>O que dá para falar:</b> <span id="txt-mic-ajuda"></span></div>
+    <div class="sw">
+      <div class="txt"><b>Entender frases livres com a IA</b><span>Quando nenhum comando fixo servir, a IA que escreve as histórias tenta entender o pedido (ex.: "quero aquela do dragão"). Gasta um pouquinho da cota.</span></div>
+      <div class="toggle" id="tg-comandos-ia"></div>
+    </div>
   </div>
 
   <div class="tit">📖 Leitura</div>
@@ -747,12 +809,14 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   </div>
   <div class="pe">
     <button class="faixa" id="btn-baixar-voz"></button>
+    <button class="linkzinho oculto" id="btn-apagar-voz-hist"></button>
     <div class="barra"><i id="pg-barra"></i></div>
     <div class="ctrl">
       <button class="rd cp oculto" id="btn-cap-ant" title="capítulo anterior">⏪</button>
       <button class="rd" id="btn-voltar-fr" title="trecho anterior">⏮</button>
       <button class="play" id="btn-play">▶</button>
       <button class="rd" id="btn-avancar-fr" title="próximo trecho">⏭</button>
+      <button class="rd btn-mic oculto" id="btn-mic-leitor" title="comando de voz" aria-label="Comando de voz">🎤</button>
       <button class="rd cp oculto" id="btn-cap-prox" title="próximo capítulo">⏩</button>
     </div>
     <div class="st" id="leitor-status">toque no play para começar</div>
@@ -827,7 +891,8 @@ const configPadrao = {
   anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
   efeitos:true, volEfeitos:35, durEfeitos:'medio', adiantar:true,
   carregarGithub:true, ghRepo:'', ghToken:'',
-  fonte:19, telaAcesa:true, destaque:true
+  fonte:19, telaAcesa:true, destaque:true, usarVozGuardada:true,
+  protegerNomes:true, nomesProtegidos:'', comandosVoz:false, comandosIA:false
 };
 const statsPadrao = { leituras:0, segundos:0, ultimaNoite:'', sequencia:0 };
 
@@ -1353,9 +1418,11 @@ const Guarda = (function(){
            : cfg.motorVoz==='elevenlabs' ? ('eleven|'+cfg.elevenVoice+'|'+cfg.elevenModel)
            : cfg.motorVoz==='openai' ? ('openai|'+cfg.openaiVoice+'|'+cfg.openaiModel) : 'nativo';
     },
-    chave(idHistoria, i, txt){
+    // chave = id | índice | motor | voz | modelo | hash do texto.
+    // "marca" opcional: permite ler a voz guardada de outro motor (ex.: Gemini guardado, celular escolhido).
+    chave(idHistoria, i, txt, marca){
       let h=0; for(let k=0;k<txt.length;k++){ h=((h<<5)-h+txt.charCodeAt(k))|0; }
-      return idHistoria+'|'+i+'|'+this.marca()+'|'+h;
+      return idHistoria+'|'+i+'|'+(marca||this.marca())+'|'+h;
     },
     pegar(k){ return op('readonly', s=>s.get(k)); },
     existe(k){ return op('readonly', s=>s.getKey(k)).then(r=>!!r); },
@@ -1372,9 +1439,69 @@ const Guarda = (function(){
         t.onerror = ()=>res({n:0,bytes:0});
       });
     },
-    limpar(){ return op('readwrite', s=>{ s.clear(); return null; }); }
+    limpar(){ return op('readwrite', s=>{ s.clear(); return null; }); },
+    // apaga só a voz de uma história (todas as vozes/motores dela)
+    limparHistoria(id){
+      if(!id || !window.IDBKeyRange) return Promise.resolve(null);
+      return op('readwrite', s=>s.delete(IDBKeyRange.bound(id+'|', id+'|\uffff')));
+    },
+    // resumo por história: quantos trechos, quantos bytes e de quais vozes
+    async resumo(){
+      const vazio = {porHistoria:new Map(), total:{n:0,bytes:0}};
+      const d = await abrir(); if(!d) return vazio;
+      return new Promise(res=>{
+        const m = new Map(), total={n:0,bytes:0};
+        let cur;
+        try{ cur = d.transaction('audio','readonly').objectStore('audio').openCursor(); }catch(e){ return res(vazio); }
+        cur.onsuccess = e=>{
+          const c = e.target.result;
+          if(!c) return res({porHistoria:m, total});
+          const k = String(c.key), b = (c.value && c.value.size) || 0;
+          total.n++; total.bytes += b;
+          const p = k.split('|');
+          let id, marca;
+          if(p[0]==='saudacao'){ id='__saudacao__'; marca=p.slice(1,4).join('|'); }
+          else { id=p[0]; marca=p.slice(2,-1).join('|'); }
+          if(!m.has(id)) m.set(id, {n:0, bytes:0, marcas:{}});
+          const r = m.get(id); r.n++; r.bytes += b; r.marcas[marca] = (r.marcas[marca]||0)+1;
+          c.continue();
+        };
+        cur.onerror = ()=>res(vazio);
+      });
+    }
   };
 })();
+
+// nome legível de uma "marca" de voz guardada
+function nomeMarca(m){
+  const p = String(m||'').split('|');
+  if(p[0]==='gemini') return 'Gemini · '+(p[1]||'');
+  if(p[0]==='eleven') return 'ElevenLabs';
+  if(p[0]==='openai') return 'OpenAI · '+(p[1]||'');
+  return 'voz do celular';
+}
+function fmtBytes(b){
+  b = b||0;
+  if(b < 1024*1024) return Math.max(b?1:0, Math.round(b/1024))+' KB';
+  return (b/1048576).toFixed(1).replace('.',',')+' MB';
+}
+// Mapa id → {n, bytes, marcas}. Atualizado em segundo plano; os cartões leem daqui.
+let VOZ_GUARDADA = new Map();
+let vozGuardadaTotal = {n:0, bytes:0};
+function atualizarVozGuardada(repintar){
+  return Guarda.resumo().then(r=>{
+    VOZ_GUARDADA = r.porHistoria; vozGuardadaTotal = r.total;
+    if(repintar){ try{ pintarAcervo(); pintarInicio(); }catch(e){} }
+    return r;
+  });
+}
+// marcas (vozes) em que esta história está inteira no aparelho — vale qualquer que seja a voz escolhida agora
+function vozesCompletas(h){
+  const r = VOZ_GUARDADA.get(h.id); if(!r) return [];
+  const comp = Object.assign({}, h.audioCompleto||{});
+  if(h.audioPronto && h.audioMarca && h.audioMarca!=='nativo' && !comp[h.audioMarca]) comp[h.audioMarca] = 1; // versões antigas
+  return Object.keys(comp).filter(m=>(r.marcas[m]||0) >= Number(comp[m]||1));
+}
 
 /* ---------------------------- motores de voz (devolvem Blob) ---------------------------- */
 async function audioElevenlabs(texto){
@@ -1520,14 +1647,21 @@ const Leitor = (function(){
   let audio=null, urlAtual=null, memoria=new Map(), wake=null;
   let inicioLeitura=0, contou=false, execucaoId=0;
   let emVoo=0, proximoBaixar=0, esteiraLigada=false;
+  // Quando a voz escolhida é a do celular mas a história já tem voz de internet guardada,
+  // "marcaUso" aponta para essa voz: toca o que está no aparelho e nunca gera nada novo.
+  let marcaUso=null;
+  const MOTOR_DA_MARCA = {gemini:'gemini', eleven:'elevenlabs', openai:'openai'};
+  const motor = ()=> marcaUso ? (MOTOR_DA_MARCA[marcaUso.split('|')[0]]||'nativo') : cfg.motorVoz;
+  const marcaAt = ()=> marcaUso || Guarda.marca();
 
   const MAX_PARALELO = 2;
 
   // Pedaços pequenos no começo (a voz sai rápido) e maiores depois (menos pedidos).
   function tetoDoPedaco(n){
-    if(cfg.motorVoz==='gemini')     return [180, 400, 800, 1400][n] || 1900;
-    if(cfg.motorVoz==='elevenlabs') return [200, 450, 700][n] || 900;
-    if(cfg.motorVoz==='openai')     return [200, 450, 700][n] || 900;
+    const m = motor();
+    if(m==='gemini')     return [180, 400, 800, 1400][n] || 1900;
+    if(m==='elevenlabs') return [200, 450, 700][n] || 900;
+    if(m==='openai')     return [200, 450, 700][n] || 900;
     return 0;
   }
 
@@ -1537,7 +1671,7 @@ const Leitor = (function(){
       const f = fraseCumprimento();
       if(f) fila.push({tipo:'fala', texto:f, ids:[], saudacao:true});
     }
-    const porApi = cfg.motorVoz!=='nativo';
+    const porApi = motor()!=='nativo';
     let buffer=[], ids=[], nFalas=0;
     const descarregar = ()=>{
       if(!buffer.length) return;
@@ -1595,9 +1729,13 @@ const Leitor = (function(){
   async function pegarAudio(i, aviso){
     if(memoria.has(i)) return memoria.get(i);
     const txt = fila[i].texto;
-    const ch = fila[i].saudacao ? ('saudacao|'+Guarda.marca()+'|'+txt) : Guarda.chave(hist.id, i, txt);
+    const ch = fila[i].saudacao ? ('saudacao|'+marcaAt()+'|'+txt) : Guarda.chave(hist.id, i, txt, marcaAt());
     const salvo = await Guarda.pegar(ch);
     if(salvo){ memoria.set(i, salvo); return salvo; }          // já pago uma vez, nunca mais
+    if(marcaUso){                                                // voz guardada: nunca gera de novo
+      if(fila[i].saudacao) return null;                          // cumprimento cai para a voz do celular
+      const e = new Error('Este trecho não está entre a voz guardada ('+nomeMarca(marcaUso)+').'); e.faltando = true; throw e;
+    }
     const esperas = [8000, 20000, 45000];
     let ultimo=null;
     for(let t=0; t<=esperas.length; t++){
@@ -1627,7 +1765,7 @@ const Leitor = (function(){
   }
   // vai baixando os próximos pedaços em segundo plano enquanto a história toca
   function esteira(){
-    if(cfg.motorVoz==='nativo') return;
+    if(motor()==='nativo') return;
     while(emVoo < paralelo){
       const k = proximaFalaFaltando(Math.max(proximoBaixar, pos));
       if(k<0) return;
@@ -1646,11 +1784,21 @@ const Leitor = (function(){
   function marcarAudio(){
     if(!hist) return;
     const {total,prontos} = contarProntos();
-    hist.audioMarca = Guarda.marca();
+    hist.audioMarca = marcaAt();
     hist.audioPronto = (total>0 && prontos>=total);
     hist.audioParcial = prontos;
     hist.audioTotal = total;
+    registrarCompleto(hist.audioPronto);
     salvarHistorias();
+    atualizarVozGuardada();
+  }
+  // guarda, por voz, quantos trechos da história (sem o cumprimento) formam o áudio completo
+  function registrarCompleto(completo){
+    if(!hist) return;
+    const n = fila.filter(f=>f.tipo==='fala' && !f.saudacao).length;
+    hist.audioCompleto = hist.audioCompleto || {};
+    if(completo && n) hist.audioCompleto[marcaAt()] = n;
+    else delete hist.audioCompleto[marcaAt()];
   }
   function atualizarPreparo(){
     const el = $('#prep-barra'); if(!el) return;
@@ -1663,7 +1811,7 @@ const Leitor = (function(){
 
   // Botão "baixar o áudio": vai um por vez, com aviso de verdade e sem gastar de novo o que já existe.
   async function prepararTudo(){
-    if(cfg.motorVoz==='nativo'){
+    if(motor()==='nativo'){
       modal(`<h3>Não precisa preparar</h3><p class="hint">A voz do celular é gerada no próprio aparelho, na hora. O preparo só faz sentido nas vozes de internet (Gemini, ElevenLabs, OpenAI).</p>
         <div style="height:14px"></div><button class="btn" id="pp-f">Entendi</button>`);
       $('#pp-f').onclick=fecharModal; return;
@@ -1744,16 +1892,16 @@ const Leitor = (function(){
       if(step.tipo==='som'){ Som.tocar(step.som); pos++; continue; }
       destacar(step);
       try{
-        if(cfg.motorVoz==='nativo'){
+        if(motor()==='nativo'){
           status('lendo…');
           await falarNativo(step.texto);
         }else{
-          if(!memoria.has(pos)) status('preparando a voz…');
+          if(!memoria.has(pos)) status(marcaUso ? 'abrindo a voz guardada…' : 'preparando a voz…');
           const blob = await pegarAudio(pos);
           if(!tocando || meu!==execucaoId) return;
-          status('lendo…');
+          status(marcaUso ? 'lendo (voz guardada)…' : 'lendo…');
           esteira();
-          await tocarBlob(blob);
+          if(blob) await tocarBlob(blob); else await falarNativo(step.texto);
         }
       }catch(e){
         if(meu!==execucaoId) return;
@@ -1767,6 +1915,7 @@ const Leitor = (function(){
           <button class="btn sm ghost" id="err-fechar">Fechar e voltar depois</button>`);
         $('#err-nativo').onclick=()=>{
           const frase = fraseDoPasso(pos);
+          marcaUso = null;
           cfg.motorVoz='nativo'; salvarCfg(); aplicarCfgNaTela();
           fecharModal(); memoria=new Map(); montarFila();
           pos = passoDaFrase(frase); barra(); atualizarBotaoBaixar(); play();
@@ -1861,7 +2010,7 @@ const Leitor = (function(){
   }
   // antes de dar play, avisa se o áudio ainda não está todo baixado
   async function playConferindo(){
-    if(cfg.motorVoz==='nativo'){ play(); return; }
+    if(motor()==='nativo' || marcaUso){ play(); return; }
     const {total, prontos} = await contarNoDisco();
     atualizarBotaoBaixar();
     if(total>0 && prontos>=total){ play(); return; }
@@ -1878,6 +2027,7 @@ const Leitor = (function(){
     $('#pl-baixar').onclick=()=>{ fecharModal(); prepararTudo(); };
     $('#pl-assim').onclick=()=>{ fecharModal(); play(); };
     $('#pl-nativo').onclick=()=>{
+      marcaUso = null;
       cfg.motorVoz='nativo'; salvarCfg(); aplicarCfgNaTela();
       fecharModal(); memoria=new Map(); montarFila(); barra(); atualizarBotaoBaixar(); play();
     };
@@ -1902,14 +2052,15 @@ const Leitor = (function(){
     for(let i=0;i<fila.length;i++){
       if(fila[i].tipo!=='fala') continue;
       total++;
-      const k = fila[i].saudacao ? ('saudacao|'+Guarda.marca()+'|'+fila[i].texto)
-                                  : Guarda.chave(hist.id,i,fila[i].texto);
+      const k = fila[i].saudacao ? ('saudacao|'+marcaAt()+'|'+fila[i].texto)
+                                  : Guarda.chave(hist.id,i,fila[i].texto,marcaAt());
       if(memoria.has(i) || await Guarda.existe(k)) prontos++;
     }
     prontosCache = {total, prontos};
-    if(hist){
+    if(hist && !marcaUso){
       hist.audioPronto = (total>0 && prontos>=total);
       hist.audioParcial = prontos; hist.audioTotal = total; hist.audioMarca = Guarda.marca();
+      registrarCompleto(hist.audioPronto);
       salvarHistorias();
     }
     return prontosCache;
@@ -1917,9 +2068,21 @@ const Leitor = (function(){
   async function atualizarBotaoBaixar(){
     const b = $('#btn-baixar-voz');
     if(!b || !hist) return;
+    pintarApagarVoz();
+    if(marcaUso){
+      b.className = 'faixa verde';
+      b.textContent = '🟢 Voz guardada ('+nomeMarca(marcaUso)+') — não gasta cota · toque para usar a voz do celular';
+      return;
+    }
     if(cfg.motorVoz==='nativo'){
-      b.className = 'faixa neutra';
-      b.textContent = '📱 Voz do celular — não precisa baixar nada';
+      const tem = vozesCompletas(hist);
+      if(tem.length){
+        b.className = 'faixa amarela';
+        b.textContent = '🎙️ Esta história tem voz guardada ('+nomeMarca(tem[0])+') — toque para ouvir com ela';
+      }else{
+        b.className = 'faixa neutra';
+        b.textContent = '📱 Voz do celular — não precisa baixar nada';
+      }
       return;
     }
     b.className = 'faixa'; b.textContent = 'conferindo o áudio já guardado…';
@@ -1935,6 +2098,41 @@ const Leitor = (function(){
       b.textContent = `🔴 Áudio ainda não baixado (${total} trechos) — toque aqui para baixar antes`;
     }
   }
+  // troca entre a voz guardada e a voz do celular sem perder o lugar na história
+  function trocarMarca(nova){
+    const frase = fraseDoPasso(pos), rodando = tocando;
+    if(rodando) pausar();
+    marcaUso = nova; memoria = new Map(); emVoo = 0;
+    montarFila(); pos = frase>0 ? passoDaFrase(frase) : 0; proximoBaixar = pos;
+    barra(); destacar(fila[pos]); atualizarBotaoBaixar();
+    if(rodando) setTimeout(play, 140);
+  }
+  function cliqueFaixa(){
+    if(marcaUso){ trocarMarca(null); toast('Agora com a voz do celular. A voz guardada continua no aparelho.'); return; }
+    if(cfg.motorVoz==='nativo'){
+      const tem = vozesCompletas(hist);
+      if(tem.length){ trocarMarca(tem[0]); toast('Tocando com a voz guardada — sem gastar cota'); return; }
+    }
+    prepararTudo();
+  }
+  function pintarApagarVoz(){
+    const el = $('#btn-apagar-voz-hist'); if(!el || !hist) return;
+    const r = VOZ_GUARDADA.get(hist.id);
+    el.classList.toggle('oculto', !(r && r.n));
+    if(r && r.n) el.textContent = '🗑️ apagar a voz guardada desta história ('+fmtBytes(r.bytes)+')';
+  }
+  async function apagarVozDaHistoria(){
+    if(!hist) return;
+    const r = VOZ_GUARDADA.get(hist.id);
+    if(!confirm('Apagar a voz guardada de "'+hist.titulo+'"'+(r? ' ('+fmtBytes(r.bytes)+')':'')+'? O texto fica; só a voz vai precisar ser gerada de novo.')) return;
+    if(tocando) pausar();
+    await Guarda.limparHistoria(hist.id);
+    hist.audioCompleto = {}; hist.audioPronto = false; hist.audioParcial = 0;
+    salvarHistorias();
+    marcaUso = null; memoria = new Map(); montarFila();
+    await atualizarVozGuardada();
+    atualizarBotaoBaixar(); toast('Voz desta história apagada');
+  }
   function marcarCheck(){
     const b=$('#chk-lida');
     if(b && hist) b.classList.toggle('on', !!hist.lida);
@@ -1944,6 +2142,11 @@ const Leitor = (function(){
     abrir(h){
       hist=h; contou=false;
       memoria=new Map(); partes = analisar(h.texto);
+      // voz do celular escolhida + voz de internet guardada → usa a guardada (se o ajuste permitir)
+      marcaUso = null;
+      if(cfg.motorVoz==='nativo' && cfg.usarVozGuardada!==false){
+        const tem = vozesCompletas(h); if(tem.length) marcaUso = tem[0];
+      }
       montarFila(); render();
       const caps = h.serie ? (listaSeries().get(h.serie)||[]) : [];
       const iCap = caps.findIndex(c=>c.id===h.id);
@@ -1979,19 +2182,20 @@ const Leitor = (function(){
         status('toque no play para começar');
       }
       // já vai adiantando os primeiros pedaços
-      if(cfg.motorVoz!=='nativo' && cfg.adiantar){ esteiraLigada=true; proximoBaixar=pos; esteira(); }
+      if((cfg.motorVoz!=='nativo' || marcaUso) && cfg.adiantar){ esteiraLigada=true; proximoBaixar=pos; esteira(); }
     },
     fechar(){
       pausar(); Som.parar(true); esteiraLigada=false;
       if(urlAtual){ URL.revokeObjectURL(urlAtual); urlAtual=null; }
-      memoria=new Map();
+      memoria=new Map(); marcaUso=null;
       $('#leitor').classList.remove('on');
       document.body.style.overflow='';
       pintarAcervo(); pintarInicio();
     },
     alternar(){ tocando ? pausar() : playConferindo(); },
     doInicio(){ irPara(0); $('#barra-retomar').classList.add('oculto'); },
-    passo, prepararTudo, atualizarBotaoBaixar,
+    passo, prepararTudo, atualizarBotaoBaixar, cliqueFaixa, apagarVozDaHistoria,
+    estaTocando(){ return tocando; },
     capitulo(dir){
       if(!hist || !hist.serie) return;
       const caps = listaSeries().get(hist.serie)||[];
@@ -2212,7 +2416,40 @@ function modeloReserva(m){
 }
 
 // aviso(texto) atualiza a tela enquanto a IA pensa
-async function chamarIA(prompt, aviso){
+/* ---------- proteção dos nomes das crianças (LGPD, art. 14: dado de criança pede cuidado extra) ----------
+   Os nomes configurados viram códigos antes de sair do aparelho e voltam depois.
+   A IA escreve "[NOME1]" e o site troca pelo nome certo aqui dentro. */
+function nomesParaProteger(){
+  const extra = (cfg.nomesProtegidos||'').split(/\s*,\s*/).map(x=>x.trim()).filter(Boolean);
+  const todos = nomesDoPublico().concat(extra).filter(n=>n.length>=2);
+  return [...new Set(todos)].sort((a,b)=>b.length-a.length);   // o mais longo primeiro ("Ana Clara" antes de "Ana")
+}
+function escRe(t){ return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function mascararNomes(texto){
+  const mapa = [];
+  if(!cfg.protegerNomes) return {texto, mapa};
+  nomesParaProteger().forEach((n,i)=>{
+    const cod = '[NOME'+(i+1)+']';
+    const re = new RegExp('(^|[^\\p{L}])('+escRe(n)+')(?![\\p{L}])','giu');
+    if(re.test(texto)){ texto = texto.replace(re, (m0,a)=>a+cod); mapa.push([cod,n]); }
+  });
+  if(mapa.length) texto += '\n\nIMPORTANTE: os códigos entre colchetes ('+mapa.map(x=>x[0]).join(', ')+') são nomes próprios de pessoas. Escreva-os exatamente assim, com os colchetes, sempre que o nome aparecer. Não invente outro nome no lugar.';
+  return {texto, mapa};
+}
+function desmascararNomes(texto, mapa){
+  if(!texto || !mapa || !mapa.length) return texto;
+  mapa.forEach(([cod,n])=>{
+    const num = cod.slice(5,-1);
+    texto = texto.replace(new RegExp('\\[\\s*NOME\\s*'+num+'\\s*\\]','gi'), n);
+  });
+  return texto;
+}
+async function chamarIA(promptOriginal, aviso){
+  const {texto, mapa} = mascararNomes(promptOriginal);
+  const r = await chamarIASemFiltro(texto, aviso);
+  return typeof r==='string' ? desmascararNomes(r, mapa) : r;
+}
+async function chamarIASemFiltro(prompt, aviso){
   const m = cfg.motorTexto;
   aviso = aviso || function(){};
   if(m==='gemini'){
@@ -2534,6 +2771,7 @@ function irTela(nome){
   if(typeof pararSonsDeTeste==='function') pararSonsDeTeste();
   $$('section.tela').forEach(s=>s.classList.toggle('on', s.id==='tela-'+nome));
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tela===nome));
+  document.body.classList.toggle('larga', nome==='acervo');   // lista usa a tela toda; texto não
   window.scrollTo({top:0,behavior:'instant'});
 }
 $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
@@ -2578,7 +2816,9 @@ function pctDe(h){
   if(!h.posFrase || !h.frasesTotal) return 0;
   return Math.max(1, Math.min(99, Math.round(h.posFrase/h.frasesTotal*100)));
 }
-function temAudio(h){ return h.audioPronto && h.audioMarca===Guarda.marca(); }
+// selo do cartão: vale para qualquer voz guardada, mesmo que agora a escolhida seja a do celular
+function temAudio(h){ return vozesCompletas(h).length>0; }
+function temAudioParcial(h){ const r=VOZ_GUARDADA.get(h.id); return !!(r && r.n) && !temAudio(h); }
 function cartaoHistoria(h, opc){
   opc = opc||{};
   const pct = pctDe(h);
@@ -2588,7 +2828,8 @@ function cartaoHistoria(h, opc){
   tags.push(`<span>${minutosDe(h.texto)} min</span>`);
   if(pct) tags.push(`<span>⏸ parou em ${pct}%</span>`);
   else if(h.leituras) tags.push(`<span>${h.leituras}× ouvida</span>`);
-  if(temAudio(h)) tags.push(`<span class="selo">⚡ áudio pronto</span>`);
+  if(temAudio(h)) tags.push(`<span class="selo" title="${esc(vozesCompletas(h).map(nomeMarca).join(', '))}">⚡ voz guardada</span>`);
+  else if(temAudioParcial(h)) tags.push(`<span class="selo meio" title="parte da voz já está no aparelho">◐ voz em parte</span>`);
   return `<div class="hist" data-id="${esc(h.id)}">
     <div class="cap">${h.favorita?'⭐':iconeDe(h)}</div>
     <div class="info"><b>${esc(h.titulo)}</b><div class="meta">${tags.join('')}</div>
@@ -2761,7 +3002,8 @@ $('#btn-voltar-fr').addEventListener('click',()=>Leitor.passo(-1));
 $('#btn-cap-prox').addEventListener('click',()=>Leitor.capitulo(1));
 $('#btn-cap-ant').addEventListener('click',()=>Leitor.capitulo(-1));
 $('#btn-do-inicio').addEventListener('click',()=>Leitor.doInicio());
-$('#btn-baixar-voz').addEventListener('click',()=>Leitor.prepararTudo());
+$('#btn-baixar-voz').addEventListener('click',()=>Leitor.cliqueFaixa());
+$('#btn-apagar-voz-hist').addEventListener('click',()=>Leitor.apagarVozDaHistoria());
 $('#chk-lida').addEventListener('click',()=>{
   const h=Leitor.atual(); if(!h) return;
   h.lida = !h.lida;
@@ -2783,10 +3025,12 @@ $('#btn-menu-hist').addEventListener('click',()=>{
     <div class="hint">${rotuloIdade(h.idade)} · ${contarPalavras(h.texto)} palavras · criada em ${new Date(h.criadaEm).toLocaleDateString('pt-BR')}</div>
     <div style="height:16px"></div>
     <button class="btn sm ok" id="mh-preparar">⬇️ Baixar a voz desta história</button><div style="height:10px"></div>
+    ${(VOZ_GUARDADA.get(h.id)||{}).n ? `<button class="btn sm ghost" id="mh-apagar-voz">🗑️ Apagar só a voz guardada (${fmtBytes(VOZ_GUARDADA.get(h.id).bytes)})</button><div style="height:10px"></div>` : ''}
     <button class="btn sm" id="mh-editar">✏️ Editar o texto</button><div style="height:10px"></div>
     <button class="btn sm" id="mh-copiar">📋 Copiar a história</button><div style="height:10px"></div>
     <button class="btn sm ghost" id="mh-apagar" style="color:var(--vermelho)">🗑️ Apagar do acervo</button>`);
   $('#mh-preparar').onclick=()=>{ Leitor.prepararTudo(); };
+  if($('#mh-apagar-voz')) $('#mh-apagar-voz').onclick=()=>{ fecharModal(); Leitor.apagarVozDaHistoria(); };
   $('#mh-editar').onclick=()=>{
     fecharModal(); Leitor.fechar(); irTela('nova');
     $$('#modo-nova button').forEach(b=>b.classList.toggle('on', b.dataset.modo==='manual'));
@@ -2800,6 +3044,7 @@ $('#btn-menu-hist').addEventListener('click',()=>{
   $('#mh-apagar').onclick=()=>{
     if(!confirm('Apagar "'+h.titulo+'" deste celular?')) return;
     historias = historias.filter(x=>x.id!==h.id); salvarHistorias();
+    Guarda.limparHistoria(h.id).then(()=>atualizarVozGuardada(true));   // a voz dela vai junto
     fecharModal(); Leitor.fechar(); pintarTudo(); toast('Apagada');
   };
 });
@@ -2953,20 +3198,64 @@ function chave(sel, campoCfg, depois){
 }
 chave('#tg-efeitos','efeitos', ()=>{ if(!cfg.efeitos) Som.parar(true); });
 chave('#tg-adiantar','adiantar');
+chave('#tg-usar-guardada','usarVozGuardada');
 chave('#tg-publico-historia','publicoNaHistoria');
 chave('#tg-saudar-antes','saudarAntes');
+chave('#tg-proteger-nomes','protegerNomes');
+$('#in-nomes-protegidos').value = cfg.nomesProtegidos||'';
+$('#in-nomes-protegidos').addEventListener('input',()=>{ cfg.nomesProtegidos=$('#in-nomes-protegidos').value; salvarCfg(); });
 
+// Ajustes → Voz guardada: total em MB e a lista por história, cada uma com a sua lixeira
 function mostrarGuarda(){
-  Guarda.quanto().then(q=>{
-    const mb = (q.bytes/1048576);
+  atualizarVozGuardada().then(async r=>{
+    const q = r.total;
+    let cota = '';
+    try{
+      if(navigator.storage && navigator.storage.estimate){
+        const e = await navigator.storage.estimate();
+        if(e && e.quota) cota = ` O navegador libera até cerca de ${fmtBytes(e.quota)} para este site.`;
+      }
+    }catch(e){}
     $('#txt-guarda').innerHTML = q.n
-      ? `<b>${q.n}</b> trechos de voz guardados neste aparelho (${mb<1? Math.round(q.bytes/1024)+' KB' : mb.toFixed(1)+' MB'}). Essas partes tocam na hora, sem espera.`
-      : 'Nenhum áudio guardado ainda. Assim que você ouvir uma história, ela fica pronta para a próxima vez.';
+      ? `Voz guardada ocupando <b>${fmtBytes(q.bytes)}</b> neste aparelho (${q.n} trechos).${cota}`
+      : 'Nenhuma voz guardada ainda. Assim que uma história for ouvida (ou baixada) com uma voz de internet, ela fica pronta para a próxima vez.';
+    const linhas = [], orfaos = [];
+    [...r.porHistoria.entries()].sort((a,b)=>b[1].bytes-a[1].bytes).forEach(([id,info])=>{
+      const vozes = Object.keys(info.marcas).map(nomeMarca).join(', ');
+      if(id==='__saudacao__'){
+        linhas.push(`<div class="lg"><div class="t"><b>👋 Cumprimento</b><span>${esc(vozes)}</span></div><div class="mb">${fmtBytes(info.bytes)}</div></div>`);
+        return;
+      }
+      const h = historias.find(x=>x.id===id);
+      if(!h){ orfaos.push(id); return; }
+      const inteira = vozesCompletas(h).length ? '✅ inteira' : '◐ em parte';
+      linhas.push(`<div class="lg"><div class="t"><b>${esc(h.titulo)}</b><span>${inteira} · ${esc(vozes)}</span></div>
+        <div class="mb">${fmtBytes(info.bytes)}</div>
+        <button data-apagar-voz="${esc(id)}" aria-label="Apagar a voz guardada de ${esc(h.titulo)}" title="apagar a voz desta história">🗑️</button></div>`);
+    });
+    $('#lista-guarda').innerHTML = linhas.join('');
+    $$('#lista-guarda [data-apagar-voz]').forEach(b=>b.addEventListener('click',()=>{
+      const h = historias.find(x=>x.id===b.dataset.apagarVoz);
+      if(!confirm('Apagar a voz guardada de "'+(h?h.titulo:'esta história')+'"?')) return;
+      Guarda.limparHistoria(b.dataset.apagarVoz).then(()=>{
+        if(h){ h.audioCompleto={}; h.audioPronto=false; h.audioParcial=0; salvarHistorias(); }
+        toast('Voz apagada'); mostrarGuarda(); pintarAcervo(); pintarInicio();
+      });
+    }));
+    const bo = $('#btn-limpar-orfaos');
+    bo.style.display = orfaos.length ? '' : 'none';
+    bo.onclick = async ()=>{
+      for(const id of orfaos) await Guarda.limparHistoria(id);
+      toast('Limpeza feita'); mostrarGuarda();
+    };
   });
 }
 $('#btn-limpar-audio').addEventListener('click',()=>{
-  if(!confirm('Apagar os áudios guardados? As histórias continuam aqui; só a voz vai precisar ser gerada de novo.')) return;
-  Guarda.limpar().then(()=>{ toast('Áudios apagados'); mostrarGuarda(); });
+  if(!confirm('Apagar TODA a voz guardada? As histórias continuam aqui; só a voz vai precisar ser gerada de novo.')) return;
+  Guarda.limpar().then(()=>{
+    historias.forEach(h=>{ h.audioCompleto={}; h.audioPronto=false; h.audioParcial=0; });
+    salvarHistorias(); toast('Voz guardada apagada'); mostrarGuarda(); pintarAcervo(); pintarInicio();
+  });
 });
 chave('#tg-github','carregarGithub');
 chave('#tg-tela','telaAcesa');
@@ -3248,6 +3537,15 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.11.0','24/09/2026', [
+    'Voz guardada por história: selo ⚡ voz guardada (ou ◐ em parte) vale para qualquer voz, mesmo com a voz do celular escolhida',
+    'Com a voz do celular, a história que já tem voz de internet guardada toca com ela, sem gastar cota; trocar de voz não apaga nada',
+    'Ajustes mostra quantos MB a voz guardada ocupa, história por história, com lixeira em cada uma, limpeza de sobras e botão para apagar tudo',
+    'Proteção dos nomes das crianças: antes de ir para a IA, os nomes viram códigos e voltam ao normal no aparelho',
+    'Comandos de voz (experimental, desligado de fábrica): 🎤 para tocar, pausar, voltar, pular, abrir história pelo nome e mais',
+    'No computador, o acervo usa a tela toda em 2 ou 3 colunas; o texto da história continua na coluna de leitura',
+    'Ícone novo, desenhado em alta resolução, em bege e âmbar'
+  ]],
   ['1.10.0','18/09/2026', [
     'Voz do aparelho refeita: opção "Padrão do aparelho" que usa o mecanismo escolhido no Android (SherpaTTS, Acapela, Google, Samsung)',
     'Botão Recarregar vozes, diagnóstico do que o navegador enxerga e passo a passo para voz instalada que não aparece',
@@ -3355,6 +3653,20 @@ function telaAviso(){
       econômicos, incide a hipótese de não aplicação prevista no <b>art. 4º, inciso I, da Lei nº 13.709/2018
       (Lei Geral de Proteção de Dados Pessoais)</b>.</p>
 
+      <p><b style="color:var(--txt)">Crianças.</b> O conteúdo destina-se a ser ouvido por crianças,
+      sempre por iniciativa e sob supervisão de adulto responsável. Nenhuma funcionalidade solicita dado de
+      criança. Nomes eventualmente informados nas configurações, para personalizar cumprimentos, ficam apenas
+      no dispositivo e, por padrão, são substituídos por códigos antes de qualquer envio a serviço de
+      inteligência artificial, sendo restaurados localmente. Os serviços de voz pela internet, quando
+      escolhidos, recebem o texto a ser lido, o que pode incluir nomes; a voz do próprio aparelho não envia
+      texto algum. Recomenda-se não inserir sobrenome, escola, endereço, imagem ou qualquer outro elemento que
+      identifique criança, nem publicar no repositório histórias que contenham nomes reais. Adotam-se como
+      referência o melhor interesse da criança e o cuidado previsto no <b>art. 14 da Lei nº 13.709/2018</b>.</p>
+
+      <p><b style="color:var(--txt)">Comandos de voz.</b> O recurso de comandos falados vem desligado. Quando
+      ligado, o reconhecimento de fala do navegador pode enviar o áudio captado ao fornecedor do navegador
+      para transcrição; o microfone só é aberto por toque no botão correspondente.</p>
+
       <p><b style="color:var(--txt)">Chaves de serviços de terceiros.</b> Eventuais chaves de acesso a
       interfaces de programação informadas nas configurações ficam gravadas apenas no armazenamento local do
       navegador em que foram inseridas. Não integram o código-fonte publicado, não são enviadas a este site e
@@ -3436,7 +3748,160 @@ try{
 }catch(e){}
 
 novosTemas(); novosPersonagens(); novosAmbientes(); novasInspiracoes(); pintarTons(); atualizarCriar();
+/* ============================ comandos de voz (STS) ============================
+   Fala → texto (reconhecimento do navegador) → comando fixo. Se nenhum comando fixo servir
+   e a opção estiver ligada, pergunta à IA qual comando a frase quer dizer (mesma chave de
+   texto; nomes protegidos pelo chamarIA). Tudo começa só com toque no 🎤 — o microfone
+   nunca abre sozinho. No Chrome, o áudio vai ao Google para virar texto: por isso vem desligado.
+   Para trocar o reconhecimento por outro (Whisper, Gemini Live…), basta mudar ouvirUmaVez(). */
+const Comandos = (function(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let ouvindo = false, rec = null;
+  const suportado = ()=> !!SR;
+
+  const tirarAcento = t => t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+
+  // lista fixa: [padrão, ação, descrição (aparece na ajuda)]
+  const FIXOS = [
+    [/\b(pausa|pausar|pare|parar|espera|silencio)\b/, 'pausar', '"pausar" / "parar"'],
+    [/\b(proximo capitulo|capitulo seguinte)\b/, 'capProx', '"próximo capítulo"'],
+    [/\b(capitulo anterior)\b/, 'capAnt', '"capítulo anterior"'],
+    [/\b(do inicio|comecar de novo|desde o comeco|recomecar)\b/, 'inicio', '"do início"'],
+    [/\b(volta|voltar|repete|repetir|de novo)\b/, 'voltar', '"voltar" / "repetir"'],
+    [/\b(pula|pular|avanca|avancar|proximo trecho|adiante)\b/, 'avancar', '"avançar" / "pular"'],
+    [/\b(mais rapido|acelera)\b/, 'rapido', '"mais rápido"'],
+    [/\b(mais devagar|devagar|mais lento)\b/, 'devagar', '"mais devagar"'],
+    [/\b(favorita|favoritar)\b/, 'favorita', '"favorita"'],
+    [/\b(ja lida|ja li|marcar como lida)\b/, 'lida', '"já lida"'],
+    [/\b(fechar|sair|fecha)\b/, 'fechar', '"fechar"'],
+    [/\b(criar|inventar|nova historia)\b(?:\s+(?:uma\s+)?(?:historia\s+)?(?:sobre|de|com)\s+(.+))?/, 'criar', '"criar história sobre …"'],
+    [/\b(historia da noite|sugestao|qualquer historia|uma historia)\b/, 'sugestao', '"história da noite"'],
+    [/\b(acervo|todas as historias|lista)\b/, 'acervo', '"acervo"'],
+    [/\b(?:ler|abrir|abre|conta|contar|toca|tocar)\s+(?:a\s+)?(?:historia\s+)?(?:do|da|de|dos|das|o|a)?\s*(.{3,})$/, 'abrirTitulo', '"ler <título>"'],
+    [/\b(toca|tocar|play|continua|continuar|comeca|comecar|ler|le|pode ler|conta|contar)\b/, 'tocar', '"tocar" / "continuar"'],
+  ];
+
+  function acharHistoria(pedaco){
+    const q = tirarAcento(pedaco).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>2);
+    if(!q.length) return null;
+    let melhor=null, nota=0;
+    historias.forEach(h=>{
+      const alvo = tirarAcento(h.titulo+' '+(h.serie||''));
+      const n = q.filter(w=>alvo.includes(w)).length / q.length;
+      if(n>nota){ nota=n; melhor=h; }
+    });
+    return nota>=0.5 ? melhor : null;
+  }
+
+  function interpretar(frase){
+    const t = tirarAcento(frase).replace(/[.,!?]/g,'').trim();
+    for(const [re, acao] of FIXOS){
+      const m = t.match(re);
+      if(!m) continue;
+      if(acao==='abrirTitulo'){ const h = acharHistoria(m[1]||''); if(h) return {acao, h}; continue; }
+      if(acao==='criar') return {acao, tema: (frase.match(/(?:sobre|de|com)\s+(.+)$/i)||[])[1] || ''};
+      return {acao};
+    }
+    return null;
+  }
+
+  // Preparado para o futuro: a IA traduz uma frase livre num dos comandos da lista.
+  async function interpretarComIA(frase){
+    if(!cfg.comandosIA || cfg.motorTexto==='manual') return null;
+    const acoes = ['tocar','pausar','voltar','avancar','capProx','capAnt','inicio','rapido','devagar','favorita','lida','fechar','sugestao','acervo','criar','abrirTitulo','nenhum'];
+    const prompt = 'Você traduz pedidos falados por uma família num app de histórias infantis em UM comando.\n' +
+      'Comandos possíveis: '+acoes.join(', ')+'.\n' +
+      'Títulos disponíveis: '+historias.slice(0,80).map(h=>h.titulo).join(' | ')+'\n' +
+      'Pedido: "'+frase+'"\n' +
+      'Responda só com JSON, sem comentários: {"acao":"...","titulo":"(se abrirTitulo)","tema":"(se criar)"}';
+    try{
+      const r = await chamarIA(prompt);
+      const j = JSON.parse(String(r).replace(/^[^{]*/,'').replace(/[^}]*$/,''));
+      if(!j || !acoes.includes(j.acao) || j.acao==='nenhum') return null;
+      if(j.acao==='abrirTitulo'){ const h = acharHistoria(j.titulo||''); return h ? {acao:j.acao, h} : null; }
+      return {acao:j.acao, tema:j.tema||''};
+    }catch(e){ return null; }
+  }
+
+  function executar(c){
+    const L = Leitor, aberto = !!L.atual() && $('#leitor').classList.contains('on');
+    switch(c.acao){
+      case 'tocar':    if(aberto){ if(!L.estaTocando()) L.alternar(); } else if(L.atual()) L.abrir(L.atual()); else irTela('inicio'); break;
+      case 'pausar':   if(aberto && L.estaTocando()) L.alternar(); break;
+      case 'voltar':   if(aberto) L.passo(-1); break;
+      case 'avancar':  if(aberto) L.passo(1); break;
+      case 'capProx':  if(aberto) L.capitulo(1); break;
+      case 'capAnt':   if(aberto) L.capitulo(-1); break;
+      case 'inicio':   if(aberto) L.doInicio(); break;
+      case 'rapido':   cfg.vel = Math.min(1.4, +(cfg.vel+0.1).toFixed(2)); salvarCfg(); toast('Velocidade '+cfg.vel); break;
+      case 'devagar':  cfg.vel = Math.max(0.7, +(cfg.vel-0.1).toFixed(2)); salvarCfg(); toast('Velocidade '+cfg.vel); break;
+      case 'favorita': if(aberto) $('#btn-fav').click(); break;
+      case 'lida':     if(aberto) $('#chk-lida').click(); break;
+      case 'fechar':   if(aberto) L.fechar(); break;
+      case 'sugestao': if(aberto) L.fechar(); irTela('inicio'); { const b=$('#btn-ler-sug'); if(b) b.click(); } break;
+      case 'acervo':   if(aberto) L.fechar(); irTela('acervo'); break;
+      case 'criar':    if(aberto) L.fechar(); irTela('nova'); if(c.tema){ const i=$('#in-tema'); if(i) i.value=c.tema; } toast('Confira o tema e toque em Gerar'); break;
+      case 'abrirTitulo': L.abrir(c.h); setTimeout(()=>L.alternar(), 300); break;
+    }
+  }
+
+  function ouvirUmaVez(){
+    return new Promise((res, rej)=>{
+      rec = new SR();
+      rec.lang = 'pt-BR'; rec.interimResults = false; rec.maxAlternatives = 3; rec.continuous = false;
+      let achou = false;
+      rec.onresult = e=>{ achou = true; res([...e.results[0]].map(a=>a.transcript)); };
+      rec.onerror = e=>rej(new Error(e.error==='not-allowed' ? 'O microfone foi bloqueado. Libere nas permissões do site.'
+                                   : e.error==='no-speech' ? 'Não ouvi nada. Tente de novo, mais perto do celular.'
+                                   : e.error==='network' ? 'O reconhecimento de fala precisa de internet.' : 'Não entendi ('+e.error+').'));
+      rec.onend = ()=>{ if(!achou) rej(new Error('Não ouvi nada.')); };
+      rec.start();
+    });
+  }
+
+  async function ouvir(){
+    if(!suportado()){ toast('Este navegador não reconhece fala. No Android, use o Chrome.'); return; }
+    if(ouvindo){ try{ rec && rec.stop(); }catch(e){} return; }
+    // pausa a leitura para o microfone não ouvir a própria história
+    const estavaTocando = Leitor.estaTocando && Leitor.estaTocando();
+    if(estavaTocando) Leitor.alternar();
+    ouvindo = true; $$('.btn-mic').forEach(b=>b.classList.add('ouvindo'));
+    toast('🎤 Pode falar…');
+    try{
+      const alternativas = await ouvirUmaVez();
+      let c = null;
+      for(const a of alternativas){ c = interpretar(a); if(c) break; }
+      if(!c) c = await interpretarComIA(alternativas[0]);
+      if(!c){ toast('Ouvi: "'+alternativas[0]+'" — não sei fazer isso ainda'); if(estavaTocando) Leitor.alternar(); return; }
+      toast('🎤 '+alternativas[0]);
+      // se era para continuar tocando (ex.: "mais devagar"), volta a tocar
+      const mexeNaLeitura = ['pausar','fechar','sugestao','acervo','criar','abrirTitulo','tocar','capProx','capAnt'].includes(c.acao);
+      executar(c);
+      if(estavaTocando && !mexeNaLeitura && !Leitor.estaTocando()) setTimeout(()=>Leitor.alternar(), 200);
+    }catch(e){
+      toast(e.message||'Não entendi'); if(estavaTocando) Leitor.alternar();
+    }finally{
+      ouvindo = false; $$('.btn-mic').forEach(b=>b.classList.remove('ouvindo'));
+    }
+  }
+
+  function mostrarBotoes(){
+    const ver = !!cfg.comandosVoz && suportado();
+    $$('.btn-mic').forEach(b=>b.classList.toggle('oculto', !ver));
+    const av = $('#txt-mic-suporte');
+    if(av) av.textContent = suportado() ? 'Este navegador reconhece fala ✅' : 'Este navegador não reconhece fala ❌ (no Android, use o Chrome; no iPhone, o Safari)';
+  }
+  const ajuda = ()=> FIXOS.map(x=>x[2]).join(' · ');
+  return { ouvir, mostrarBotoes, suportado, ajuda, interpretar };
+})();
+$$('.btn-mic').forEach(b=>b.addEventListener('click', Comandos.ouvir));
+chave('#tg-comandos-voz','comandosVoz', Comandos.mostrarBotoes);
+chave('#tg-comandos-ia','comandosIA');
+$('#txt-mic-ajuda').textContent = Comandos.ajuda();
+Comandos.mostrarBotoes();
+
 aplicarCfgNaTela(); pintarTudo();
+atualizarVozGuardada(true);   // selos "voz guardada" dos cartões
 aplicarConfigDaUrl();
 carregarDoGithub();
 

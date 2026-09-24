@@ -1,4 +1,4 @@
-# Textos novos — Contador de Histórias v1.7.0 e v1.8.0
+# Textos novos — Contador de Histórias (v1.7.0 em diante)
 ### Versões revisadas em português e inglês, para entrar no `diretrizes-config.js`
 
 Todos os textos abaixo foram adicionados na aba **Criar**, na seção de geração com IA.
@@ -186,3 +186,42 @@ A junção dos nomes segue a regra do idioma: em português, vírgulas e um "e" 
 | `voz.ajuda.p5` | Se a voz nova aparecer na lista, escolha-a. Se não aparecer, deixe em 🔧 Padrão do aparelho: o site pede "português do Brasil" sem escolher voz, e o Android responde com o mecanismo padrão — que agora é o novo. | If the new voice shows in the list, pick it. If not, keep 🔧 Device default: the site asks for "Brazilian Portuguese" without naming a voice, and Android answers with the default engine — now the new one. |
 | `voz.ajuda.p6` | Toque em ▶️ Testar a voz. Se ainda sair a voz antiga, reinicie o celular uma vez. | Tap ▶️ Test the voice. If the old voice still plays, restart the phone once. |
 | `voz.ajuda.edge` | As vozes "Naturais" do Edge de computador não existem no Android — a Microsoft não as libera para sites no celular. O caminho no Android é o mecanismo do sistema. | Desktop Edge "Natural" voices do not exist on Android — Microsoft does not expose them to websites on mobile. On Android the way is the system engine. |
+
+---
+
+# Textos novos — v1.11.0
+
+| Chave sugerida | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| `voz.guardada.titulo` | ⚡ Voz guardada no aparelho | ⚡ Voice saved on this device |
+| `voz.guardada.usar` | Com a voz do celular, usar a voz guardada | With the phone voice, use the saved voice |
+| `voz.guardada.usar.ajuda` | Se a história já tem voz de internet inteira no aparelho, toca com ela — sem gastar cota e sem internet. Trocar para a voz do celular não apaga nada. | If the story already has a full online voice on this device, it plays with it — no quota used and no internet needed. Switching to the phone voice deletes nothing. |
+| `voz.guardada.total` | Voz guardada ocupando {mb} neste aparelho ({n} trechos). | Saved voice taking up {mb} on this device ({n} parts). |
+| `voz.guardada.cota` | O navegador libera até cerca de {mb} para este site. | The browser allows up to about {mb} for this site. |
+| `voz.guardada.vazio` | Nenhuma voz guardada ainda. | No saved voice yet. |
+| `voz.guardada.inteira` | ✅ inteira | ✅ complete |
+| `voz.guardada.parte` | ◐ em parte | ◐ partial |
+| `voz.guardada.selo` | ⚡ voz guardada | ⚡ voice saved |
+| `voz.guardada.selo.parte` | ◐ voz em parte | ◐ voice partly saved |
+| `voz.guardada.faixa.usando` | 🟢 Voz guardada ({voz}) — não gasta cota · toque para usar a voz do celular | 🟢 Saved voice ({voz}) — no quota used · tap to use the phone voice |
+| `voz.guardada.faixa.oferta` | 🎙️ Esta história tem voz guardada ({voz}) — toque para ouvir com ela | 🎙️ This story has a saved voice ({voz}) — tap to listen with it |
+| `voz.guardada.apagar.uma` | 🗑️ apagar a voz guardada desta história ({mb}) | 🗑️ delete this story's saved voice ({mb}) |
+| `voz.guardada.apagar.sobras` | 🧹 Apagar a voz de histórias que não existem mais | 🧹 Delete voice of stories that no longer exist |
+| `voz.guardada.apagar.tudo` | 🗑️ Apagar toda a voz guardada | 🗑️ Delete all saved voice |
+| `publico.proteger` | 🛡️ Não mandar os nomes para a IA | 🛡️ Don't send the names to the AI |
+| `publico.proteger.ajuda` | Antes de pedir uma história, os nomes viram códigos ([NOME1], [NOME2]…) e voltam ao normal aqui no aparelho. A IA nunca recebe os nomes das crianças. | Before a story is requested, names become codes ([NAME1], [NAME2]…) and are restored here on the device. The AI never receives the children's names. |
+| `publico.outros` | Outros nomes para proteger (opcional — irmãos, pets, escola) | Other names to protect (optional — siblings, pets, school) |
+| `publico.voz.aviso` | A voz de internet precisa receber o texto para ler — inclusive os nomes. Para nada sair do aparelho, use a voz do celular. | The online voice has to receive the text to read it — names included. To keep everything on the device, use the phone voice. |
+| `mic.titulo` | 🎤 Comandos de voz (experimental) | 🎤 Voice commands (experimental) |
+| `mic.mostrar` | Mostrar o botão 🎤 | Show the 🎤 button |
+| `mic.mostrar.ajuda` | Toque no 🎤 e fale um comando. O microfone só abre com o toque. No Chrome, o que é falado vai ao Google para virar texto. | Tap 🎤 and say a command. The microphone only opens on tap. In Chrome, what is said goes to Google to be transcribed. |
+| `mic.ia` | Entender frases livres com a IA | Understand free-form requests with AI |
+| `mic.ia.ajuda` | Quando nenhum comando fixo servir, a IA que escreve as histórias tenta entender o pedido. Gasta um pouquinho da cota. | When no fixed command fits, the story-writing AI tries to understand the request. Uses a little quota. |
+| `mic.falar` | 🎤 Pode falar… | 🎤 Go ahead… |
+| `mic.naoentendi` | Ouvi: "{frase}" — não sei fazer isso ainda | I heard: "{frase}" — I can't do that yet |
+| `mic.semsuporte` | Este navegador não reconhece fala. No Android, use o Chrome. | This browser doesn't recognise speech. On Android, use Chrome. |
+| `aviso.criancas` | (parágrafo "Crianças" do Aviso de uso — texto jurídico, ver `index.html`) | Children. Content is meant to be heard by children, always on an adult's initiative and supervision. No feature requests children's data. Names entered in settings stay on the device and, by default, are replaced by codes before any AI request, being restored locally. Online voice services, when chosen, receive the text to be read, which may include names; the device voice sends nothing. Surnames, school, address, images or any identifying detail of a child should not be entered, nor stories containing real names published in the repository. Reference: the child's best interest and art. 14 of Brazil's LGPD. |
+| `aviso.comandos` | (parágrafo "Comandos de voz" do Aviso de uso) | Voice commands. Off by default. When on, the browser's speech recognition may send captured audio to the browser vendor for transcription; the microphone opens only by tapping its button. |
+
+Comandos falados (PT → EN): tocar/continuar → play/continue · pausar → pause · voltar/repetir → back/repeat · avançar/pular → skip · próximo capítulo → next chapter · capítulo anterior → previous chapter · do início → from the start · mais rápido → faster · mais devagar → slower · favorita → favourite · já lida → already read · fechar → close · história da noite → tonight's story · acervo → library · criar uma história sobre … → create a story about … · ler a história do … → read the story of …
+(O reconhecimento em inglês ainda não está ligado — os padrões são em português.)

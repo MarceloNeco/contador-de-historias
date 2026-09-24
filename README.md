@@ -54,6 +54,8 @@ Pronto: vira um app com ícone, em tela cheia.
 - **`capa.jpg`** — a capa larga no topo da tela Início, em qualquer aparelho.
 - **`fundo-historia.jpg`** — o cenário nas laterais, só em tela de **1080px ou mais** (computador). No celular e no tablet ele nem carrega, para não gastar dados.
 
+No computador, a aba **Acervo** usa a tela toda, em 2 ou 3 colunas de cartões; o texto da história continua numa coluna estreita (cerca de 70 letras por linha), que é o tamanho que menos cansa a leitura.
+
 Para trocar qualquer uma: suba outra imagem com o mesmo nome por cima. Se o arquivo não existir, o site simplesmente não mostra nada ali — nada quebra.
 
 ---
@@ -66,6 +68,12 @@ Com isso:
 
 - a saudação do topo passa a ser **"boa noite, Lara e Julia"** (ou "boa noite, meninos", "boa noite, crianças"…);
 - a IA escreve fazendo a concordância certa e, se o botão estiver ligado, **abre a história com uma saudação** a quem vai ouvir.
+
+### 🛡️ Nomes das crianças não vão para a IA
+
+Com **Ajustes → 🛡️ Não mandar os nomes para a IA** ligado (vem ligado), antes de pedir uma história o site troca cada nome por um código (`[NOME1]`, `[NOME2]`…). A IA escreve com os códigos e o próprio celular coloca os nomes de volta. Dá para acrescentar outros nomes em **Outros nomes para proteger** (irmãos, pets, escola).
+
+Atenção: a **voz de internet** precisa receber o texto para ler — inclusive os nomes. Para nada sair do aparelho, use a voz do celular.
 
 Deixando tudo em branco, o topo mostra apenas **"BOA NOITE! QUE TAL UMA HISTÓRIA?"** e nada de nome aparece em lugar nenhum. Essa informação fica só no aparelho — não vai para o repositório.
 
@@ -99,6 +107,19 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 > As chaves ficam salvas **só no navegador do seu celular**. Elas **não** vão para o GitHub e ninguém mais as vê. Como o repositório é público, nunca escreva uma chave dentro dos arquivos.
 
 **Dica:** com a voz do celular, se a tela apagar o Android às vezes interrompe a leitura. Com ElevenLabs ou OpenAI é áudio de verdade, então continua tocando normalmente.
+
+---
+
+## 🎤 Comandos de voz (experimental)
+
+Vem **desligado**. Em **Ajustes → 🎤 Comandos de voz**, ligue *Mostrar o botão 🎤*. Aparece um 🎤 no topo e outro nos controles do leitor. Toque e fale:
+
+*tocar / continuar · pausar · voltar / repetir · avançar / pular · próximo capítulo · capítulo anterior · do início · mais rápido · mais devagar · favorita · já lida · fechar · história da noite · acervo · criar uma história sobre … · ler a história do …*
+
+- O microfone só abre com o toque — nunca sozinho. Enquanto escuta, a leitura pausa (para não ouvir a própria história).
+- No Chrome, o que é falado vai ao Google para virar texto; por isso vem desligado.
+- *Entender frases livres com a IA* (também desligado): quando nenhum comando fixo servir, a IA de texto traduz o pedido (ex.: "quero aquela do dragão"). Gasta um pouco da cota.
+- Funciona no Chrome/Edge (Android e computador) e no Safari do iPhone. Firefox não tem reconhecimento de fala.
 
 ---
 
@@ -147,9 +168,14 @@ Vozes de IA geram o áudio **antes** de tocar — quanto maior o trecho, mais de
 
 O botão mostra o estado: *"Baixar a voz (9 trechos)"*, *"Continuar baixando (5 de 9 prontos)"* ou *"✅ Áudio guardado"*. Se parar no meio (cota, internet), o que já baixou fica salvo e o botão continua de onde parou.
 
-No acervo, as histórias com áudio guardado aparecem com o selo **⚡ áudio pronto**.
+### 🎙️ Voz guardada por história
 
-Em **Ajustes → Velocidade da voz** você vê quanto está guardado e pode apagar.
+- No acervo, cada história mostra **⚡ voz guardada** (inteira no aparelho) ou **◐ voz em parte**. O selo vale para **qualquer** voz de internet já baixada — mesmo que agora a voz escolhida seja a do celular.
+- **Trocar para a voz do celular não apaga nada.** Se a história já tem voz do Gemini (ou outra) inteira guardada, ela toca com essa voz, sem gastar cota e sem internet. A faixa acima dos controles avisa: *"🟢 Voz guardada (Gemini · Sulafat) — toque para usar a voz do celular"*. Toque de novo para voltar.
+- Para desligar esse comportamento: **Ajustes → Voz guardada no aparelho → Com a voz do celular, usar a voz guardada**.
+- **Apagar a voz de uma história só:** no leitor, o link *🗑️ apagar a voz guardada desta história* logo abaixo da faixa (ou no menu ⋯ da história).
+- **Ver quanto ocupa:** **Ajustes → Voz guardada no aparelho** mostra o total em MB, a lista história por história (com o tamanho e a voz de cada uma), uma lixeira em cada linha, a limpeza de sobras de histórias apagadas e o botão **Apagar toda a voz guardada**.
+- Apagar uma história do acervo apaga a voz dela junto.
 
 ---
 
@@ -261,7 +287,9 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 | `index.html` | O site inteiro — tudo está aqui dentro. |
 | `historias.json` | As histórias que aparecem para todo mundo que abre o site. |
 | `capa.jpg` | A imagem grande da tela Início (aparece em todos os aparelhos). |
-| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v3`), para os aparelhos buscarem os arquivos novos. |
+| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v4`), para os aparelhos buscarem os arquivos novos. |
+| `icone-180.png` | O ícone que aparece quando o site é adicionado à tela inicial do iPhone. (O ícone da aba já vai dentro do `index.html`.) |
+| `ARQUITETURA.md` | O mapa do código: o que cada parte faz, o que não se toca, onde mudar o quê. É o que qualquer IA deve ler antes de mexer. |
 | `TESTE-VOZ-contador-de-historias.html` | Página de teste das vozes do aparelho, independente do app. |
 | `fundo-historia.jpg` | O cenário que preenche as laterais **no computador**. Ignorado no celular. |
 | `README.md` | Este guia. |
