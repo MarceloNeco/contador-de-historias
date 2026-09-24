@@ -41,7 +41,13 @@ header{
   padding-top:env(safe-area-inset-top);
 }
 .hd{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:var(--coluna);margin:0 auto}
-.hd .logo{width:34px;height:34px;flex:none;display:flex}
+.hd .logo{width:34px;height:34px;flex:none;display:flex;cursor:pointer}
+#hd-marca{cursor:pointer}
+/* seletor PT|EN do módulo de diretrizes: vai para dentro do topo (não flutua por cima de nada) */
+.hd .dgo-idioma{position:static!important;inset:auto!important;flex:none;box-shadow:none}
+body.com-leitor .dgo-idioma, body.com-modal .dgo-idioma{display:none!important}
+/* celular estreito: o ⚙️ do topo some — Ajustes continua na barra de baixo */
+@media (max-width:420px){ #btn-config-topo{display:none} .hd h1{font-size:16px} }
 .hd .logo svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(227,160,74,.35))}
 .hd h1{font-size:18px;font-weight:700;letter-spacing:.2px;flex:1}
 .hd h1 small{display:block;font-size:11px;font-weight:500;color:var(--dim2);letter-spacing:.6px;text-transform:uppercase}
@@ -302,7 +308,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 <header>
   <div class="hd">
     <div class="logo" aria-hidden="true"><svg width="34" height="34" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z" fill="#E3A04A"/><path d="M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z" fill="#F7E8C9" stroke="#9A5F1E" stroke-width="3" stroke-linejoin="round"/><path d="M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1" stroke="#C99A5B" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg></div>
-    <h1>Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
+    <h1 id="hd-marca" role="button" tabindex="0" aria-label="Contador de Histórias — ir para o Início">Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
     <button class="icobtn btn-mic oculto" id="btn-mic-topo" aria-label="Comando de voz">🎤</button>
     <button class="icobtn" id="btn-config-topo" aria-label="Configurações">⚙️</button>
   </div>
@@ -793,7 +799,8 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 <!-- ====================== LEITOR ====================== -->
 <div class="leitor" id="leitor">
   <div class="top">
-    <button class="icobtn" id="btn-fechar-leitor">✕</button>
+    <button class="icobtn" id="btn-fechar-leitor" aria-label="Fechar a história">✕</button>
+    <button class="icobtn" id="btn-inicio-leitor" aria-label="Ir para o Início" title="Início">🏠</button>
     <b id="leitor-titulo"></b>
     <button class="icobtn" id="btn-fav">☆</button>
     <button class="icobtn" id="btn-menu-hist">⋯</button>
@@ -872,8 +879,56 @@ function toast(msg){
   const t=$('#toast'); t.textContent=msg; t.classList.add('on');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),2600);
 }
-function modal(html){ $('#modal-conteudo').innerHTML=html; $('#modal').classList.add('on'); }
-function fecharModal(){ $('#modal').classList.remove('on'); }
+/* ---------- botão Voltar do celular: navega dentro do app ----------
+   Cada camada aberta (outra aba, o leitor, uma janela) ganha uma entrada no histórico do
+   navegador. O Voltar fecha a camada de cima; só sai do app quando já está no Início sem
+   nada aberto. As idas e voltas no histórico são assíncronas, por isso a fila. */
+const Nav = (function(){
+  const pilha = [];                 // o que empurramos, em ordem: 'tela' | 'leitor' | 'modal'
+  let ignorar = 0, fila = [], pend = 0, agendado = false;
+  const ocupado = ()=> ignorar>0 || agendado;
+  function rodarFila(){ const f = fila; fila = []; f.forEach(x=>x()); }
+  function livre(fn){ if(ocupado()) fila.push(fn); else fn(); }
+  function empurrar(tipo){
+    livre(()=>{ pilha.push(tipo); try{ history.pushState({ch:tipo, n:pilha.length}, ''); }catch(e){} });
+  }
+  // tira do histórico a camada "tipo" e tudo o que estiver em cima dela (sem mexer na tela)
+  function tirar(tipo){
+    const i = pilha.lastIndexOf(tipo); if(i<0) return;
+    pend += pilha.length - i; pilha.length = i;
+    if(agendado) return;
+    agendado = true;
+    setTimeout(()=>{
+      const executar = ()=>{
+        agendado = false; const n = pend; pend = 0;
+        if(!n){ rodarFila(); return; }
+        ignorar++;
+        try{ history.go(-n); }catch(e){ ignorar--; rodarFila(); }
+      };
+      if(ignorar>0) fila.unshift(executar); else executar();
+    }, 0);
+  }
+  window.addEventListener('popstate', ()=>{
+    if(ignorar>0){ ignorar--; if(!ocupado()) rodarFila(); return; }
+    const tipo = pilha.pop();       // o usuário apertou Voltar
+    if(tipo==='modal') fecharModal(true);
+    else if(tipo==='leitor'){ if(typeof Leitor!=='undefined') Leitor.fechar(true); }
+    else if(tipo==='tela') irTela('inicio', true);
+  });
+  try{ history.replaceState({ch:'base'}, ''); }catch(e){}
+  return { empurrar, tirar, tem: t=>pilha.includes(t) };
+})();
+function modal(html){
+  const jaAberto = $('#modal').classList.contains('on');
+  $('#modal-conteudo').innerHTML=html; $('#modal').classList.add('on');
+  document.body.classList.add('com-modal');
+  if(!jaAberto) Nav.empurrar('modal');
+}
+function fecharModal(semHistorico){
+  const estava = $('#modal').classList.contains('on');
+  $('#modal').classList.remove('on'); document.body.classList.remove('com-modal');
+  if(estava && semHistorico!==true) Nav.tirar('modal');
+}
 $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') fecharModal(); });
 
 /* ----------------------------- estado ----------------------------- */
@@ -1870,7 +1925,21 @@ const Leitor = (function(){
     pintarAcervo();
   }
 
+  // tela de bloqueio / notificação do celular: mostra o nome da história e os botões
+  function midia(estado){
+    if(!('mediaSession' in navigator) || !hist) return;
+    try{
+      if(estado){ navigator.mediaSession.playbackState = estado; return; }
+      navigator.mediaSession.metadata = new MediaMetadata({ title: hist.titulo, artist: 'Contador de Histórias',
+        album: hist.serie||'', artwork:[{src:'icone-180.png', sizes:'180x180', type:'image/png'}] });
+      navigator.mediaSession.setActionHandler('play', ()=>{ if(!tocando) playConferindo(); });
+      navigator.mediaSession.setActionHandler('pause', ()=>{ if(tocando) pausar(); });
+      navigator.mediaSession.setActionHandler('previoustrack', ()=>passo(-1));
+      navigator.mediaSession.setActionHandler('nexttrack', ()=>passo(1));
+    }catch(e){}
+  }
   function tocarBlob(blob){
+    midia();
     return new Promise((resolve,reject)=>{
       if(urlAtual) URL.revokeObjectURL(urlAtual);
       urlAtual = URL.createObjectURL(blob);
@@ -1999,7 +2068,7 @@ const Leitor = (function(){
     if('speechSynthesis' in window) speechSynthesis.cancel();
     if(audio){ try{ audio.pause(); }catch(e){} }
     Som.parar(true);
-    iconePlay(false); status('pausado'); manterTela(false); somarTempo(); salvarPosicao();
+    iconePlay(false); status('pausado'); manterTela(false); somarTempo(); salvarPosicao(); midia('paused');
   }
   function play(){
     if(!fila.length) return;
@@ -2140,6 +2209,8 @@ const Leitor = (function(){
 
   return {
     abrir(h){
+      if(!$('#leitor').classList.contains('on')) Nav.empurrar('leitor');
+      document.body.classList.add('com-leitor');
       hist=h; contou=false;
       memoria=new Map(); partes = analisar(h.texto);
       // voz do celular escolhida + voz de internet guardada → usa a guardada (se o ajuste permitir)
@@ -2184,7 +2255,10 @@ const Leitor = (function(){
       // já vai adiantando os primeiros pedaços
       if((cfg.motorVoz!=='nativo' || marcaUso) && cfg.adiantar){ esteiraLigada=true; proximoBaixar=pos; esteira(); }
     },
-    fechar(){
+    fechar(semHistorico){
+      const estava = $('#leitor').classList.contains('on');
+      document.body.classList.remove('com-leitor');
+      if(estava && semHistorico!==true) Nav.tirar('leitor');
       pausar(); Som.parar(true); esteiraLigada=false;
       if(urlAtual){ URL.revokeObjectURL(urlAtual); urlAtual=null; }
       memoria=new Map(); marcaUso=null;
@@ -2767,8 +2841,15 @@ const ICONES = ['🦉','🐉','🌊','🚀','🐻','🦊','🌟','🐢','🎈','
 const iconeDe = h => ICONES[ (String(h.id).split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % ICONES.length ];
 const rotuloIdade = i => ({'2-5':'2 a 5 anos','6-9':'6 a 9 anos','10+':'10 anos +','mista':'para as duas'}[i] || 'todas as idades');
 
-function irTela(nome){
+let telaAtual = 'inicio';
+function irTela(nome, semHistorico){
   if(typeof pararSonsDeTeste==='function') pararSonsDeTeste();
+  // abas: Início é a base; qualquer outra aba fica UMA camada acima dele (Voltar → Início)
+  if(semHistorico!==true){
+    if(nome!=='inicio' && !Nav.tem('tela')) Nav.empurrar('tela');
+    if(nome==='inicio' && Nav.tem('tela')) Nav.tirar('tela');
+  }
+  telaAtual = nome;
   $$('section.tela').forEach(s=>s.classList.toggle('on', s.id==='tela-'+nome));
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tela===nome));
   document.body.classList.toggle('larga', nome==='acervo');   // lista usa a tela toda; texto não
@@ -2780,6 +2861,18 @@ $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
   if(b.dataset.tela==='config' && typeof carregarVozesNativas==='function') carregarVozesNativas();
 }));
 $('#btn-config-topo').addEventListener('click',()=>irTela('config'));
+// tocar no ícone ou no nome do app leva ao Início, de qualquer aba
+['.hd .logo','#hd-marca'].forEach(sel=>{
+  const el=$(sel); if(!el) return;
+  el.addEventListener('click',()=>irTela('inicio'));
+  el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); irTela('inicio'); } });
+});
+// o módulo de diretrizes cria o PT|EN solto na tela; aqui ele entra no topo, ao lado do ⚙️
+(function moverIdioma(t){
+  const el = document.querySelector('.dgo-idioma'), alvo = $('#btn-config-topo');
+  if(el && alvo){ if(el.parentNode!==alvo.parentNode) alvo.parentNode.insertBefore(el, alvo); return; }
+  if(t<40) setTimeout(()=>moverIdioma(t+1), 150);
+})(0);
 $('#btn-ir-nova').addEventListener('click',()=>irTela('nova'));
 $('#btn-ir-acervo').addEventListener('click',()=>irTela('acervo'));
 
@@ -3013,6 +3106,7 @@ $('#chk-lida').addEventListener('click',()=>{
   toast(h.lida ? 'Marcada como já lida ✓' : 'Marcada como não lida');
 });
 $('#btn-fechar-leitor').addEventListener('click',()=>Leitor.fechar());
+$('#btn-inicio-leitor').addEventListener('click',()=>{ Leitor.fechar(); irTela('inicio'); });
 $('#btn-fav').addEventListener('click',()=>{
   const h=Leitor.atual(); if(!h) return;
   h.favorita=!h.favorita; salvarHistorias();
@@ -3537,6 +3631,12 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.11.1','24/09/2026', [
+    'O botão Voltar do celular agora navega dentro do app: fecha a janela aberta, depois a história, depois volta ao Início — só sai do app a partir do Início',
+    'Botão 🏠 Início no leitor; tocar no ícone ou no nome do app, no topo, também leva ao Início',
+    'O seletor PT | EN foi para dentro do topo e não cobre mais o leitor nem as janelas',
+    'Com voz de internet, a tela de bloqueio e a notificação do celular mostram o nome da história, com play, pausa e trecho anterior/próximo'
+  ]],
   ['1.11.0','24/09/2026', [
     'Voz guardada por história: selo ⚡ voz guardada (ou ◐ em parte) vale para qualquer voz, mesmo com a voz do celular escolhida',
     'Com a voz do celular, a história que já tem voz de internet guardada toca com ela, sem gastar cota; trocar de voz não apaga nada',

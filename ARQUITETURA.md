@@ -29,6 +29,7 @@ Site estático no GitHub Pages, sem servidor, sem framework e sem passo de build
 7. **IA de texto** — `chamarIA` (ponto único): aplica `mascararNomes` antes de enviar e `desmascararNomes` na volta. Os adaptadores Gemini/Anthropic/OpenAI ficam em `chamarIASemFiltro`. Trocar de provedor = trocar a chave, não o código.
 8. **Criar** — prompts (`montarPrompt`, `montarPromptSerie`), geração em capítulos com `parcial`.
 9. **Telas** — `irTela`, `pintarInicio`, `pintarAcervo`, `cartaoHistoria`, Ajustes.
+   **Nav** (logo depois de `modal`): cada camada aberta (aba ≠ Início, leitor, janela) vira uma entrada no histórico do navegador; o Voltar do celular fecha a de cima. Quem abre camada usa `modal()`, `Leitor.abrir()` ou `irTela()` — nunca `history.pushState` direto. Fechar pelo código: `fecharModal()`, `Leitor.fechar()`; ao fechar por causa do Voltar, passa `true` (sem mexer no histórico).
 10. **Comandos de voz** — módulo `Comandos`: reconhecimento do navegador → lista `FIXOS` → (opcional) IA. Para trocar o reconhecimento (Whisper, Gemini Live), mudar só `ouvirUmaVez()`.
 11. **Versão** — `HISTORICO` (a primeira linha é a versão atual), `telaNovidades`, `telaAviso`.
 
@@ -39,4 +40,6 @@ Site estático no GitHub Pages, sem servidor, sem framework e sem passo de build
 - **Nada pesado baixa sozinho.** Voz de internet só baixa ao tocar ou no botão de baixar.
 - **Largura:** texto corrido na coluna de leitura (`--coluna: 760px`); listas e grades escapam para a largura toda no computador (`body.larga`).
 - **Cada versão publicada:** nova linha no topo do `HISTORICO`, `VERSAO` do `sw.js` +1, textos novos em PT e EN no `TEXTOS-NOVOS-contador-de-historias.md`.
+- **Voltar e Início:** o Voltar do celular nunca pode sair do app com algo aberto; toda tela tem caminho de volta ao Início (barra de baixo, 🏠 no leitor, ícone/nome no topo).
+- O seletor PT | EN do módulo é movido para dentro do topo (`moverIdioma`) e escondido com leitor ou janela aberta.
 - Não reescrever o arquivo inteiro: editar trechos. O que já funciona (cache, retomar, séries) é fácil de perder numa reescrita.

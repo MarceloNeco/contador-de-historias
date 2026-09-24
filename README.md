@@ -110,6 +110,14 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 
 ---
 
+## ↩️ Botão Voltar e Início
+
+- O **Voltar** do celular funciona dentro do site: fecha a janela aberta, depois a história, depois volta ao Início. Só sai do site quando já está no Início sem nada aberto.
+- Para ir direto ao Início: a aba 🏠 **Início** na barra de baixo, o botão 🏠 no leitor, ou um toque no ícone/nome do app no topo.
+- Com voz de internet, a **tela de bloqueio** e a notificação do celular mostram o nome da história, com play, pausa e trecho anterior/próximo.
+
+---
+
 ## 🎤 Comandos de voz (experimental)
 
 Vem **desligado**. Em **Ajustes → 🎤 Comandos de voz**, ligue *Mostrar o botão 🎤*. Aparece um 🎤 no topo e outro nos controles do leitor. Toque e fale:
@@ -287,7 +295,7 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 | `index.html` | O site inteiro — tudo está aqui dentro. |
 | `historias.json` | As histórias que aparecem para todo mundo que abre o site. |
 | `capa.jpg` | A imagem grande da tela Início (aparece em todos os aparelhos). |
-| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v4`), para os aparelhos buscarem os arquivos novos. |
+| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v5`), para os aparelhos buscarem os arquivos novos. |
 | `icone-180.png` | O ícone que aparece quando o site é adicionado à tela inicial do iPhone. (O ícone da aba já vai dentro do `index.html`.) |
 | `ARQUITETURA.md` | O mapa do código: o que cada parte faz, o que não se toca, onde mudar o quê. É o que qualquer IA deve ler antes de mexer. |
 | `TESTE-VOZ-contador-de-historias.html` | Página de teste das vozes do aparelho, independente do app. |

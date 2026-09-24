@@ -225,3 +225,14 @@ A junção dos nomes segue a regra do idioma: em português, vírgulas e um "e" 
 
 Comandos falados (PT → EN): tocar/continuar → play/continue · pausar → pause · voltar/repetir → back/repeat · avançar/pular → skip · próximo capítulo → next chapter · capítulo anterior → previous chapter · do início → from the start · mais rápido → faster · mais devagar → slower · favorita → favourite · já lida → already read · fechar → close · história da noite → tonight's story · acervo → library · criar uma história sobre … → create a story about … · ler a história do … → read the story of …
 (O reconhecimento em inglês ainda não está ligado — os padrões são em português.)
+
+---
+
+# Textos novos — v1.11.1
+
+| Chave sugerida | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| `leitor.fechar` | Fechar a história | Close the story |
+| `leitor.inicio` | Ir para o Início | Go to Home |
+| `topo.marca` | Contador de Histórias — ir para o Início | Storyteller — go to Home |
+| `midia.artista` | Contador de Histórias | Storyteller |
