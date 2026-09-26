@@ -299,6 +299,31 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   font-size:12px;font-weight:600;color:var(--dim);display:flex;flex-direction:column;gap:4px;align-items:center}
 .sons button .e{font-size:20px}
 .sons button.on{border-color:var(--gold);color:var(--gold)}
+/* ---------- faixa de anúncios do topo: [ANÚNCIO] · [carrossel] · [×] ---------- */
+.ad-faixa{position:relative;z-index:41;background:var(--bg2);border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top)}
+.ad-faixa[hidden]{display:none}
+.ad-faixa .ad-in{display:flex;align-items:center;gap:8px;max-width:var(--coluna);margin:0 auto;padding:3px 8px 3px 10px;min-height:42px}
+.ad-faixa .ad-tag{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-weight:800;letter-spacing:.14em;
+  color:var(--dim2);flex:none;line-height:1}
+.ad-janela{flex:1;min-width:0;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.ad-trilho{display:flex;gap:26px;width:max-content;animation:ad-anda var(--ad-seg,40s) linear infinite}
+.ad-janela:hover .ad-trilho,.ad-janela.parado .ad-trilho,
+body.com-leitor .ad-trilho,body.com-modal .ad-trilho{animation-play-state:paused}
+@keyframes ad-anda{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ad-item{display:flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none;color:var(--txt);
+  font-size:13px;padding:3px 6px;border-radius:12px}
+.ad-item:hover,.ad-item:focus-visible{background:var(--card)}
+.ad-item .ad-ico{width:28px;height:28px;border-radius:9px;flex:none;display:inline-flex;align-items:center;
+  justify-content:center;font-size:16px;background:var(--card2);object-fit:cover}
+.ad-item b{font-weight:800}
+.ad-item span.ad-frase{color:var(--dim)}
+.ad-fechar{width:32px;height:32px;border-radius:50%;flex:none;background:var(--card);border:1px solid var(--line);
+  color:var(--dim);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center}
+@media (prefers-reduced-motion:reduce){.ad-trilho{animation:none}.ad-janela{overflow-x:auto}}
+@media print{.ad-faixa{display:none!important}}
 /* ---------- cofre: quais IAs já têm chave, de relance ---------- */
 .cofre{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .cofre .it{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;
@@ -359,6 +384,15 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <div class="lados" aria-hidden="true">
   <div class="lado esq"></div>
   <div class="lado dir"></div>
+</div>
+
+<!-- faixa do topo: só anúncio. O × fecha a faixa inteira até o fim da sessão (volta ao entrar de novo). -->
+<div class="ad-faixa" id="ad-faixa" role="complementary" aria-label="Anúncios" hidden>
+  <div class="ad-in">
+    <span class="ad-tag" id="ad-tag">ANÚNCIO</span>
+    <div class="ad-janela" id="ad-janela"><div class="ad-trilho" id="ad-trilho"></div></div>
+    <button class="ad-fechar" id="ad-fechar" type="button" aria-label="Fechar anúncios" title="Fechar anúncios">×</button>
+  </div>
 </div>
 
 <header>
@@ -3810,6 +3844,10 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.13.0','26/09/2026', [
+    'Anúncios no topo em carrossel, iguais aos dos outros apps: andam para a esquerda sem parar, param ao tocar, e o × fecha a faixa até o próximo login',
+    'A lista de anúncios vem do arquivo central (solverone-dados); sem internet, usa uma lista guardada no próprio app'
+  ]],
   ['1.12.0','26/09/2026', [
     'Troca de IA sozinho: se a IA escolhida está sem cota, sem crédito ou com a chave recusada, o pedido vai para a próxima que tem chave, com aviso na tela',
     'Cofre de chaves: no topo da seção de IA, a lista mostra quem já tem chave (✓ chave salva / sem chave), com as que têm chave primeiro',
@@ -4187,6 +4225,107 @@ chave('#tg-comandos-voz','comandosVoz', Comandos.mostrarBotoes);
 chave('#tg-comandos-ia','comandosIA');
 $('#txt-mic-ajuda').textContent = Comandos.ajuda();
 Comandos.mostrarBotoes();
+
+/* ---------- anúncios: faixa em carrossel no topo, igual aos outros apps ----------
+   A lista vem de um arquivo, na ordem: anuncios.json deste repositório (se um dia existir, para
+   uma lista só deste app) → lista central do RootifyONE (/solverone-dados/anuncios.json) →
+   anuncios.json do portal → a lista de reserva abaixo (sem internet e sem nada guardado).
+   O app nunca anuncia a si mesmo. Assinante e anunciante não veem anúncio. */
+const Anuncios = (function(){
+  const SITE_BASE = location.origin + '/';
+  const FONTES = ['anuncios.json', '/solverone-dados/anuncios.json', '/anuncios.json'];
+  const CH_FECHADO = 'ch_anuncio_fechado', CH_CONTA = 'ch_anuncios_contagem';
+  const RESERVA = [
+    { id:'moneytrio', nome:'MoneyTRIO', cor:'#d6a076', glifo:'💰', link:SITE_BASE+'investify-me/',
+      frase:{pt:'Você sabe quanto gastou este mês? A resposta costuma surpreender.', en:'Do you know what you spent this month? The answer usually surprises.'} },
+    { id:'rise-one', nome:'RiseONE', cor:'#beb0ec', glifo:'🏃', link:SITE_BASE+'rise-one/',
+      frase:{pt:'O treino que você não registra é o treino que você esquece.', en:"The workout you don't log is the workout you forget."} },
+    { id:'omnilife-one', nome:'OmniLifeONE', cor:'#e4a460', glifo:'🧩', link:SITE_BASE+'omnilife-one/',
+      frase:{pt:'A casa, a agenda e os documentos da família num lugar só.', en:'Home, calendar and family papers in one place.'} },
+    { id:'planos-candidatos-2026', nome:{pt:'Eleições 2026', en:'Elections 2026'}, cor:'#a4c4a6', glifo:'🗳️', link:SITE_BASE+'planos-candidatos-2026/',
+      frase:{pt:'Antes de decidir o seu voto, leia o que eles escreveram.', en:'Before deciding your vote, read what they actually wrote.'} },
+    { id:'cifras-violao', nome:{pt:'Cifras e Acordes', en:'Chords'}, cor:'#eaa4b8', glifo:'🎸', link:SITE_BASE+'cifras-violao/',
+      frase:{pt:'Aquela música que você sempre quis tocar está a um tom de distância.', en:'That song you always wanted to play is one key away.'} }
+  ];
+  const DOMINIOS = ['marceloneco.github.io','solverone.com.br','www.solverone.com.br'];
+  let lista = null, cfgAd = { velocidade:40 }, chave = '', contouExibicao = false;
+
+  // texto em PT/EN: aceita "texto" ou {pt, en}
+  const txt = v => v && typeof v==='object' ? (idiomaEN() ? (v.en||v.pt) : (v.pt||v.en)) || '' : (v||'');
+  // link de outro app da família: fica no endereço atual (solverone.com.br ou github.io), sem trocar de origem
+  function linkDe(a){
+    try{
+      const u = new URL(a.link || SITE_BASE, location.href);
+      if(DOMINIOS.includes(u.hostname) && DOMINIOS.includes(location.hostname)) return location.origin + u.pathname + u.search + u.hash;
+      return u.href;
+    }catch(e){ return SITE_BASE; }
+  }
+  function ehEsteApp(a){ return String(a.id||'').toLowerCase()==='contador-de-historias' || /\/contador-de-historias\/?(\?|#|$)/.test(a.link||''); }
+  function daFaixa(){
+    return (lista || RESERVA).filter(a=>a && a.ativo!==false && !ehEsteApp(a) && (!a.onde || a.onde.includes('faixa')));
+  }
+  function fechado(){ try{ return sessionStorage.getItem(CH_FECHADO)==='1'; }catch(e){ return false; } }
+  function semAnuncio(){ try{ return !!(window.DGO && DGO.sessao && DGO.sessao().semAnuncios); }catch(e){ return false; } }
+  function contar(id, k){
+    try{
+      const s = JSON.parse(localStorage.getItem(CH_CONTA)||'{}') || {};
+      s[id] = s[id] || {v:0, c:0}; s[id][k]++;
+      localStorage.setItem(CH_CONTA, JSON.stringify(s));
+    }catch(e){}
+  }
+  function icone(a){
+    const g = esc(a.glifo || a.emoji || '✨'), cor = /^#[0-9a-f]{3,8}$/i.test(a.cor||'') ? a.cor : '';
+    if(a.imagem) return `<img class="ad-ico" src="${esc(a.imagem)}" alt="" loading="lazy">`;
+    return `<span class="ad-ico" aria-hidden="true"${cor ? ` style="background:${cor}"` : ''}>${g}</span>`;
+  }
+  function pintar(){
+    const faixa = $('#ad-faixa'); if(!faixa) return;
+    const ads = daFaixa();
+    const mostrar = ads.length && !fechado() && !semAnuncio();
+    faixa.hidden = !mostrar;
+    $('#ad-tag').textContent = T('ANÚNCIO','AD');
+    $('#ad-fechar').setAttribute('aria-label', T('Fechar anúncios','Close ads'));
+    $('#ad-fechar').title = T('Fechar anúncios','Close ads');
+    faixa.setAttribute('aria-label', T('Anúncios','Ads'));
+    if(!mostrar) return;
+    const k = (idiomaEN()?'en':'pt') + ads.map(a=>a.id).join();
+    if(k===chave) return; chave = k;
+    const um = ads.map(a=>`<a class="ad-item" href="${esc(linkDe(a))}" target="_blank" rel="noopener" data-ad="${esc(a.id||'')}">${icone(a)}<b>${esc(txt(a.nome||a.titulo))}</b><span class="ad-frase">${esc(txt(a.frase||a.texto))}</span></a>`).join('');
+    // a lista vai duas vezes: quando a primeira sai pela esquerda, a cópia já está no lugar (laço sem costura)
+    const tr = $('#ad-trilho');
+    tr.innerHTML = um + um.replace(/class="ad-item"/g, 'class="ad-item" aria-hidden="true" tabindex="-1"');
+    tr.style.setProperty('--ad-seg', Math.max(15, ads.length * (400/(cfgAd.velocidade||40)) * 2) + 's');
+    if(!contouExibicao){ contouExibicao = true; ads.forEach(a=>contar(a.id,'v')); }
+  }
+  async function carregar(){
+    for(const u of FONTES){
+      try{
+        const r = await fetch(u, {cache:'no-cache'});
+        if(!r.ok) continue;
+        const j = await r.json();
+        if(j && Array.isArray(j.anuncios) && j.anuncios.length){ lista = j.anuncios; Object.assign(cfgAd, j.config||{}); break; }
+      }catch(e){}
+    }
+    chave = ''; pintar();
+  }
+  function iniciar(){
+    $('#ad-fechar').addEventListener('click', ()=>{ try{ sessionStorage.setItem(CH_FECHADO,'1'); }catch(e){} pintar(); });
+    $('#ad-trilho').addEventListener('click', e=>{ const a = e.target.closest('[data-ad]'); if(a) contar(a.dataset.ad,'c'); });
+    // no celular, um toque fora dos links pausa o carrossel e outro solta
+    $('#ad-janela').addEventListener('touchstart', e=>{ if(!e.target.closest('a')) $('#ad-janela').classList.toggle('parado'); }, {passive:true});
+    // imagem de anúncio que não carrega vira o glifo
+    $('#ad-trilho').addEventListener('error', e=>{ const i=e.target; if(i.tagName==='IMG'){ const s=document.createElement('span'); s.className='ad-ico'; s.textContent='✨'; i.replaceWith(s); } }, true);
+    document.addEventListener('dgo:idioma', ()=>{ chave=''; pintar(); });
+    document.addEventListener('dgo:pronto', pintar);
+    document.addEventListener('dgo:saiu', ()=>{ chave=''; pintar(); });
+    // a faixa fechada volta no próximo login
+    document.addEventListener('dgo:entrou', ()=>{ try{ sessionStorage.removeItem(CH_FECHADO); }catch(e){} chave=''; pintar(); });
+    pintar();
+    carregar();
+  }
+  return { iniciar, pintar };
+})();
+Anuncios.iniciar();
 
 /* ---------- menos texto nos Ajustes ----------
    Explicações longas ficam recolhidas num "Saiba mais". Nada some: só espera o toque. */

@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'Contador de Histórias', en: 'Story Teller' },
-  versaoApp: '1.12.0',
+  versaoApp: '1.13.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -28,7 +28,9 @@ DGO.iniciar({
 
   /* ---------- anuncio do topo ---------- */
   anuncios: {
-    ativo: true,
+    ativo: false,       /* DESLIGADO de proposito: o banner deste modulo (1.0.0) e uma imagem fixa.
+                           A faixa em carrossel, igual a dos outros apps, fica no index.html
+                           (bloco "anuncios" no script) e le /solverone-dados/anuncios.json. */
     link: 'https://marceloneco.github.io/',
     imagem: '',         /* vazio = placeholder <ANUNCIE AQUI>.
                            Depois troque por 'banner.jpg' */
@@ -135,7 +137,9 @@ DGO.iniciar({
     'AssistONE ativado': 'AssistONE on',
     'O ajudante do canto: ajuda da tela, tour rápido e busca.': 'The corner helper: screen help, quick tour and search.',
     'Abrir o AssistONE': 'Open AssistONE',
-    'Recomeçar dicas': 'Restart tips'
+    'Recomeçar dicas': 'Restart tips',
+    'Fechar anúncios': 'Close ads',
+    'Anúncios': 'Ads'
   }
 
 });
