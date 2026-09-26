@@ -2,7 +2,7 @@
    como app no celular e no computador.
    Ao publicar uma versao nova do seu site, troque o numero de VERSAO
    abaixo (ex.: 'v1' -> 'v2') para o aparelho pegar os arquivos novos. */
-var VERSAO = 'v5';
+var VERSAO = 'v6';
 var CACHE = 'dgo-' + VERSAO;
 
 self.addEventListener('install', function (e) {

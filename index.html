@@ -16,9 +16,9 @@
 <style>
 :root{
   --bg:#140f22; --bg2:#1d1633; --card:#241c3d; --card2:#2e2450;
-  --line:#3a2f5e; --txt:#f2ecff; --dim:#b6a8d8; --dim2:#8c7cb4;
+  --line:#33295a; --txt:#f2ecff; --dim:#b6a8d8; --dim2:#8c7cb4;
   --gold:#ffc879; --gold2:#ff9d5c; --roxo:#9b7bff; --verde:#5fd6a4; --vermelho:#ff7a92;
-  --r:18px; --sh:0 10px 30px rgba(0,0,0,.35);
+  --r:22px; --sh:0 8px 26px rgba(0,0,0,.26);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -51,7 +51,7 @@ body.com-leitor .dgo-idioma, body.com-modal .dgo-idioma{display:none!important}
 .hd .logo svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(227,160,74,.35))}
 .hd h1{font-size:18px;font-weight:700;letter-spacing:.2px;flex:1}
 .hd h1 small{display:block;font-size:11px;font-weight:500;color:var(--dim2);letter-spacing:.6px;text-transform:uppercase}
-.icobtn{width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--line);
+.icobtn{width:42px;height:42px;border-radius:14px;background:var(--card);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:19px}
 .icobtn:active{background:var(--card2)}
 .btn-mic.ouvindo{background:#b8325a!important;border-color:#ff7a92!important;animation:pulso 1s ease-in-out infinite}
@@ -66,9 +66,9 @@ nav.tabs{
 nav.tabs .inner{display:flex;max-width:var(--coluna);margin:0 auto}
 nav.tabs button{flex:1;padding:10px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:3px;
   color:var(--dim2);font-size:11px;font-weight:600}
-nav.tabs button .i{font-size:21px;line-height:1}
+nav.tabs button .i{font-size:21px;line-height:1;padding:4px 14px;border-radius:999px;transition:background .2s}
 nav.tabs button.on{color:var(--gold)}
-nav.tabs button.on .i{transform:translateY(-1px)}
+nav.tabs button.on .i{background:rgba(255,200,121,.16)}
 /* ---------- blocos ---------- */
 section.tela{display:none;padding:18px 0 30px;animation:fade .25s ease}
 section.tela.on{display:block}
@@ -87,14 +87,14 @@ section.tela.on{display:block}
 .destaque .n{color:var(--verde)}
 /* ---------- botões ---------- */
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
-  padding:15px 16px;border-radius:14px;font-weight:700;font-size:16px;
+  padding:15px 16px;border-radius:16px;font-weight:700;font-size:16px;
   background:var(--card2);border:1px solid var(--line);color:var(--txt);transition:transform .08s}
 .btn:active{transform:scale(.985)}
 .btn.pri{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#2a1705;border:none;box-shadow:0 8px 22px rgba(255,157,92,.28)}
 .btn.rox{background:linear-gradient(135deg,#8b6bff,#6f4fe0);color:#fff;border:none}
 .btn.ok{background:linear-gradient(135deg,#5fd6a4,#3fae83);color:#06301f;border:none}
 .btn.ghost{background:transparent}
-.btn.sm{padding:11px 12px;font-size:14px;border-radius:12px}
+.btn.sm{padding:11px 12px;font-size:14px;border-radius:14px}
 .btn[disabled]{opacity:.45;pointer-events:none}
 .linha{display:flex;gap:10px}
 .linha > *{flex:1}
@@ -103,7 +103,7 @@ label.f{display:block;margin:14px 0 6px;font-size:13px;font-weight:700;color:var
 label.f:first-child{margin-top:0}
 .hint{font-size:12px;color:var(--dim2);margin-top:6px;line-height:1.45}
 input[type=text],input[type=password],input[type=number],select,textarea{
-  width:100%;padding:13px 14px;border-radius:13px;background:var(--bg2);
+  width:100%;padding:13px 14px;border-radius:15px;background:var(--bg2);
   border:1px solid var(--line);color:var(--txt);outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--roxo)}
 textarea{min-height:120px;resize:vertical;line-height:1.6}
@@ -116,8 +116,8 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   font-size:14px;color:var(--dim);font-weight:600}
 .chip.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#2a1705;border-color:transparent}
 .chip.add{border-style:dashed;color:var(--dim2)}
-.seg{display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px}
-.seg button{flex:1;padding:10px 6px;border-radius:10px;font-size:13px;font-weight:700;color:var(--dim2)}
+.seg{display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:4px;gap:4px}
+.seg button{flex:1;padding:10px 6px;border-radius:12px;font-size:13px;font-weight:700;color:var(--dim2)}
 .seg button.on{background:var(--card2);color:var(--txt);box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .sw{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0}
 .sw + .sw{border-top:1px solid var(--line)}
@@ -133,7 +133,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .hist{display:flex;gap:12px;align-items:flex-start;padding:14px;background:var(--card);
   border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px}
 .hist:active{background:var(--card2)}
-.hist .cap{width:48px;height:48px;border-radius:13px;flex:none;display:flex;align-items:center;
+.hist .cap{width:48px;height:48px;border-radius:15px;flex:none;display:flex;align-items:center;
   justify-content:center;font-size:23px;background:linear-gradient(140deg,#4a3a78,#2e2450)}
 .hist .info{flex:1;min-width:0;background:none;border:0;padding:0;border-radius:0;color:inherit;font-size:inherit}
 .hist .info b{display:block;font-size:16px;margin-bottom:2px}
@@ -225,9 +225,12 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .modal{position:fixed;inset:0;z-index:200;background:rgba(8,5,16,.72);backdrop-filter:blur(4px);
   display:none;align-items:flex-end;justify-content:center}
 .modal.on{display:flex}
-.modal .box{background:var(--bg2);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;
+.modal .box{background:var(--bg2);border:1px solid var(--line);border-radius:26px 26px 0 0;width:100%;
   max-width:760px;max-height:88vh;overflow-y:auto;padding:20px 18px calc(22px + env(safe-area-inset-bottom))}
-@media(min-width:640px){.modal{align-items:center}.modal .box{border-radius:22px;max-height:82vh}}
+@media(min-width:640px){.modal{align-items:center}.modal .box{border-radius:26px;max-height:82vh}}
+.modal.on .box{animation:sobe .22s ease-out}
+@keyframes sobe{from{transform:translateY(22px);opacity:.5}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.modal.on .box{animation:none}}
 .modal h3{font-size:19px;margin-bottom:4px}
 .modal .puxa{width:44px;height:5px;border-radius:999px;background:var(--line);margin:0 auto 14px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom));
@@ -235,11 +238,11 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   font-size:14px;font-weight:600;z-index:300;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
 .aviso{background:rgba(255,122,146,.12);border:1px solid rgba(255,122,146,.35);color:#ffc2ce;
-  padding:12px 14px;border-radius:13px;font-size:13px;line-height:1.5}
+  padding:12px 14px;border-radius:15px;font-size:13px;line-height:1.5}
 .info{background:rgba(155,123,255,.12);border:1px solid rgba(155,123,255,.32);color:#d6c8ff;
-  padding:12px 14px;border-radius:13px;font-size:13px;line-height:1.5}
+  padding:12px 14px;border-radius:15px;font-size:13px;line-height:1.5}
 .ok{background:rgba(95,214,164,.12);border:1px solid rgba(95,214,164,.32);color:#b6f0d8;
-  padding:12px 14px;border-radius:13px;font-size:13px;line-height:1.5}
+  padding:12px 14px;border-radius:15px;font-size:13px;line-height:1.5}
 .load{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.28);
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -296,6 +299,59 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   font-size:12px;font-weight:600;color:var(--dim);display:flex;flex-direction:column;gap:4px;align-items:center}
 .sons button .e{font-size:20px}
 .sons button.on{border-color:var(--gold);color:var(--gold)}
+/* ---------- cofre: quais IAs já têm chave, de relance ---------- */
+.cofre{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.cofre .it{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;
+  border-radius:14px;background:var(--bg2);border:1px solid var(--line);font-size:14px;font-weight:600}
+.cofre .it.sem{color:var(--dim2);font-weight:500}
+/* ---------- explicações longas recolhidas ("Saiba mais") ---------- */
+details.saiba{margin:8px 0}
+details.saiba summary{cursor:pointer;list-style:none;font-size:12px;font-weight:700;color:var(--dim2);
+  padding:6px 0;min-height:32px;display:flex;align-items:center;gap:6px}
+details.saiba summary::-webkit-details-marker{display:none}
+details.saiba summary::before{content:"▸";transition:transform .15s}
+details.saiba[open] summary::before{transform:rotate(90deg)}
+details.saiba > :not(summary){margin-top:4px}
+/* ---------- AssistONE: ajudante no canto, no mesmo lugar em todas as telas ---------- */
+.assist{position:fixed;right:14px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:150;width:58px;height:58px;
+  border-radius:50%;padding:0;box-shadow:0 10px 26px rgba(224,138,46,.45);transition:transform .25s ease;
+  animation:flutua 3.2s ease-in-out infinite}
+.assist svg{width:100%;height:100%;display:block}
+.assist.grande{transform:scale(1.5);animation:none}
+.assist[aria-expanded="true"]{transform:scale(1.5);animation:none}
+@keyframes flutua{50%{transform:translateY(-5px)}}
+@media (prefers-reduced-motion:reduce){.assist{animation:none;transition:none}.assist[aria-expanded="true"]{transform:none}}
+body.com-modal .assist, body.com-leitor .assist, body.sem-assist .assist,
+body.com-modal .assist-balao, body.com-leitor .assist-balao, body.sem-assist .assist-balao,
+body.com-modal .assist-dica, body.com-leitor .assist-dica, body.sem-assist .assist-dica{display:none!important}
+body:not(.sem-assist){padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
+.assist-balao{position:fixed;right:14px;left:14px;bottom:calc(168px + env(safe-area-inset-bottom));z-index:310;
+  max-width:400px;margin-left:auto;background:var(--bg2);border:1px solid var(--line);border-radius:22px;
+  padding:16px;box-shadow:var(--sh);max-height:calc(100vh - 210px);overflow-y:auto;animation:sobe .2s ease-out}
+.assist-balao[hidden]{display:none}
+.assist-balao h4{margin:0 0 4px;font-size:16px}
+.assist-balao .onde{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0}
+.assist-balao .onde b{display:block;font-size:14px;margin-bottom:2px}
+.assist-balao .onde p{margin:0 0 6px;font-size:13px;color:var(--dim)}
+.assist-balao .opc{display:flex;flex-direction:column;gap:6px}
+.assist-balao .opc button{text-align:left;padding:11px 12px;border-radius:14px;background:var(--card);
+  border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--txt);min-height:44px;width:100%}
+.assist-balao .onde button{padding:8px 11px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);
+  font-size:13px;font-weight:600;color:var(--txt);min-height:40px;margin:4px 4px 0 0}
+.assist-balao input[type=text]{margin-top:8px}
+.assist-balao .res{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.assist-balao .res .nada{font-size:13px;color:var(--dim2)}
+.assist-balao .rodape{display:flex;justify-content:space-between;gap:10px;margin-top:10px}
+.assist-balao .rodape button{font-size:12px;color:var(--dim2);text-decoration:underline;padding:6px 0;min-height:32px}
+.assist-dica{position:fixed;right:80px;bottom:calc(100px + env(safe-area-inset-bottom));z-index:149;
+  max-width:min(300px,calc(100vw - 100px));background:var(--bg2);border:1px solid var(--line);
+  border-radius:16px 16px 4px 16px;padding:10px 12px;font-size:13px;box-shadow:var(--sh);animation:sobe .2s ease-out}
+.assist-dica[hidden]{display:none}
+.assist-dica button{color:var(--gold);font-weight:700;font-size:13px;padding:8px 10px 0 0;min-height:32px}
+.tour-alvo{outline:3px solid var(--gold)!important;outline-offset:3px;border-radius:14px;
+  box-shadow:0 0 0 6px rgba(255,200,121,.25)!important}
+@media (prefers-reduced-motion:reduce){.assist-balao,.assist-dica{animation:none}}
 </style>
 </head>
 <body>
@@ -571,7 +627,10 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <div class="info">A ElevenLabs tem a voz mais natural que existe hoje, com entonação de verdade. Crie uma conta em <b>elevenlabs.io</b>, vá em <b>Profile → API Key</b> e cole a chave aqui. Ela fica salva <b>só neste celular</b>, nunca vai para o GitHub.</div>
       <label class="f">Chave da API (xi-api-key)</label>
       <input type="password" id="in-eleven-key" placeholder="sk_...">
-      <button class="btn sm" id="btn-carregar-vozes" style="margin-top:10px">🔄 Carregar minhas vozes</button>
+      <div class="linha" style="margin-top:10px">
+        <button class="btn sm ghost" id="btn-testar-eleven">🔑 Testar a chave</button>
+        <button class="btn sm" id="btn-carregar-vozes">🔄 Carregar minhas vozes</button>
+      </div>
       <label class="f">Voz</label>
       <select id="sel-voz-eleven"><option value="">— carregue as vozes —</option></select>
       <label class="f">Modelo</label>
@@ -653,6 +712,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 
   <div class="tit">✨ IA que escreve as histórias</div>
   <div class="card">
+    <div class="cofre" id="cofre-lista" aria-label="Chaves salvas"></div>
     <div class="seg" id="sel-motor-texto" style="flex-wrap:wrap">
       <button data-motor="manual">✍️ Só eu escrevo</button>
       <button data-motor="gemini" class="on">Gemini<br><span style="font-weight:500;font-size:11px">tem plano grátis</span></button>
@@ -663,6 +723,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <div class="info">O Google dá uma cota <b>gratuita</b> por dia. Entre em <b>aistudio.google.com/apikey</b>, faça login com sua conta Google e clique em <b>Create API key</b>.</div>
       <label class="f">Chave do Gemini</label>
       <input type="password" id="in-gemini-key" placeholder="AIza...">
+      <button class="btn sm ghost" id="btn-testar-gemini" style="margin-top:10px">🔑 Testar a chave</button>
       <label class="f">Modelo</label>
       <select id="sel-modelo-gemini">
         <option value="gemini-3.6-flash">gemini-3.6-flash (equilibrado)</option>
@@ -676,6 +737,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <div class="info">Crie a chave em <b>console.anthropic.com</b> → API Keys. É pago por uso (cada história custa centavos).</div>
       <label class="f">Chave da Anthropic</label>
       <input type="password" id="in-anthropic-key" placeholder="sk-ant-...">
+      <button class="btn sm ghost" id="btn-testar-anthropic" style="margin-top:10px">🔑 Testar a chave</button>
       <label class="f">Modelo</label>
       <select id="sel-modelo-anthropic">
         <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
@@ -687,6 +749,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
       <div class="info">Usa a mesma chave da OpenAI da seção de voz.</div>
       <label class="f">Chave da OpenAI</label>
       <input type="password" id="in-openai-key2" placeholder="sk-...">
+      <button class="btn sm ghost" id="btn-testar-openai" style="margin-top:10px">🔑 Testar a chave</button>
       <label class="f">Modelo</label>
       <select id="sel-modelo-openai-txt">
         <option value="gpt-4o-mini">gpt-4o-mini (barato)</option>
@@ -757,6 +820,19 @@ input[type=range]{width:100%;accent-color:var(--gold)}
     <div class="sw">
       <div class="txt"><b>Entender frases livres com a IA</b><span>Quando nenhum comando fixo servir, a IA que escreve as histórias tenta entender o pedido (ex.: "quero aquela do dragão"). Gasta um pouquinho da cota.</span></div>
       <div class="toggle" id="tg-comandos-ia"></div>
+    </div>
+  </div>
+
+  <div class="tit">💛 AssistONE</div>
+  <div class="card">
+    <div class="sw">
+      <div class="txt"><b>AssistONE ativado</b><span>O ajudante do canto: ajuda da tela, tour rápido e busca.</span></div>
+      <div class="toggle on" id="tg-assist"></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="linha">
+      <button class="btn sm" id="btn-assist-abrir">💬 Abrir o AssistONE</button>
+      <button class="btn sm ghost" id="btn-assist-reset">↺ Recomeçar dicas</button>
     </div>
   </div>
 
@@ -844,6 +920,13 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- AssistONE: o ajudante, sempre no mesmo canto -->
+<button class="assist" id="assist-btn" aria-label="AssistONE — ajuda" aria-expanded="false">
+  <svg viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="assist-g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffe3a6"/><stop offset="1" stop-color="#e08a2e"/></radialGradient></defs><circle cx="32" cy="32" r="30" fill="url(#assist-g)"/><text x="32" y="45" text-anchor="middle" font-size="38" font-weight="800" fill="#3a2205" font-family="Arial,Helvetica,sans-serif">?</text></svg>
+</button>
+<div class="assist-balao" id="assist-balao" role="dialog" aria-label="AssistONE" hidden></div>
+<div class="assist-dica" id="assist-dica" hidden></div>
+
 <nav class="tabs">
   <div class="inner">
     <button class="on" data-tela="inicio"><span class="i">🏠</span>Início</button>
@@ -875,10 +958,13 @@ const uid  = ()=> 'h' + Date.now().toString(36) + Math.random().toString(36).sli
 const esc  = t => String(t==null?'':t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep= ms => new Promise(r=>setTimeout(r,ms));
 let toastTimer=null;
-function toast(msg){
+function toast(msg, ms){
   const t=$('#toast'); t.textContent=msg; t.classList.add('on');
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),2600);
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'), ms||2600);
 }
+// texto curto nos dois idiomas, seguindo o PT | EN do módulo de diretrizes (para textos montados na hora)
+function idiomaEN(){ try{ return !!(window.DGO && DGO.idioma && DGO.idioma()==='en'); }catch(e){ return false; } }
+function T(pt, en){ return idiomaEN() ? en : pt; }
 /* ---------- botão Voltar do celular: navega dentro do app ----------
    Cada camada aberta (outra aba, o leitor, uma janela) ganha uma entrada no histórico do
    navegador. O Voltar fecha a camada de cima; só sai do app quando já está no Início sem
@@ -942,6 +1028,7 @@ const configPadrao = {
   openaiInstr:'Leia como um pai contando história de dormir: voz calma, carinhosa, pausas naturais e emoção nas falas dos personagens.',
   geminiVoice:'Sulafat', geminiModelTts:'gemini-3.1-flash-tts-preview',
   geminiInstr:'Leia esta história de dormir em português do Brasil como um pai contando para as filhas: voz calma e carinhosa, ritmo tranquilo, pausas naturais, e emoção diferente na fala de cada personagem. Não comente nada, apenas leia o texto.',
+  assistOne:true,
   motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-3.6-flash',
   anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
   efeitos:true, volEfeitos:35, durEfeitos:'medio', adiantar:true,
@@ -2475,6 +2562,7 @@ async function geminiTexto(prompt, modelo){
     }
     if(r.status===503 || /high demand|overloaded|UNAVAILABLE/i.test(corpo)) e.sobrecarga = true;
     if(r.status===429) e.cota = true;
+    if(r.status===401 || r.status===403 || (r.status===400 && /API key|API_KEY/i.test(corpo))) e.chave = true;
     throw e;
   }
   const j = await r.json();
@@ -2523,11 +2611,57 @@ async function chamarIA(promptOriginal, aviso){
   const r = await chamarIASemFiltro(texto, aviso);
   return typeof r==='string' ? desmascararNomes(r, mapa) : r;
 }
+/* ---------- troca de IA sozinho ----------
+   Se a IA escolhida falha por cota, crédito ou chave, o pedido vai para a próxima que tem chave,
+   na ordem da lista de Ajustes, com aviso na tela. Vale só para este pedido: a escolha não muda. */
+const ORDEM_IA = ['gemini','anthropic','openai'];
+const NOME_IA  = {gemini:'Gemini', anthropic:'Claude', openai:'OpenAI'};
+const CHAVE_IA = {gemini:'geminiKey', anthropic:'anthropicKey', openai:'openaiKey'};
+function semChave(msg){ const e = new Error(msg); e.semChave = true; return e; }
+// erro de um provedor com marcas do que aconteceu: cota (429), crédito (402 ou saldo zerado) ou chave recusada (401/403)
+function erroDoProvedor(nome, status, corpo){
+  const e = new Error(nome+': '+status+' — '+corpo.slice(0,200));
+  e.status = status;
+  if(status===429 && /insufficient_quota|billing|credit/i.test(corpo)) e.credito = true;
+  else if(status===429) e.cota = true;
+  if(status===402 || /credit balance|insufficient credits/i.test(corpo)) e.credito = true;
+  if(status===401 || status===403) e.chave = true;
+  return e;
+}
+function motivoTroca(e){
+  if(e.semChave) return 'semchave';
+  if(e.cota) return 'cota';
+  if(e.credito) return 'credito';
+  if(e.chave) return 'chave';
+  return null;
+}
+function avisoTroca(de, para, motivo){
+  const pt = {cota:' está sem cota agora', credito:' está sem crédito agora', chave:' recusou a chave', semchave:' está sem chave'};
+  const en = {cota:' is out of quota right now', credito:' is out of credit right now', chave:' refused the key', semchave:' has no key'};
+  return '🔁 '+NOME_IA[de]+T(pt[motivo], en[motivo])+' — '+T('usando ','using ')+NOME_IA[para];
+}
 async function chamarIASemFiltro(prompt, aviso){
-  const m = cfg.motorTexto;
   aviso = aviso || function(){};
+  const m = cfg.motorTexto;
+  if(!NOME_IA[m]) throw new Error('Escolha uma IA em Ajustes, ou use o modo "Eu escrevo".');
+  // a escolhida primeiro; depois as outras que têm chave, na ordem da lista
+  const fila = [m].concat(ORDEM_IA.filter(x=>x!==m && cfg[CHAVE_IA[x]]));
+  for(let i=0; i<fila.length; i++){
+    const proxima = fila[i+1];
+    try{ return await chamarMotor(fila[i], prompt, aviso, !!proxima); }
+    catch(e){
+      const motivo = motivoTroca(e);
+      if(!motivo || !proxima) throw e;
+      const msg = avisoTroca(fila[i], proxima, motivo);
+      toast(msg, 4000); aviso(msg);
+      await sleep(3000);
+    }
+  }
+}
+// um pedido a um motor só; temReserva = existe outra IA pronta para assumir se esta ficar sem cota
+async function chamarMotor(m, prompt, aviso, temReserva){
   if(m==='gemini'){
-    if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Ajustes → IA que escreve.');
+    if(!cfg.geminiKey) throw semChave('Cole sua chave do Gemini em Ajustes → IA que escreve.');
     const esperas = [6000, 15000, 30000];
     let ultimo = null;
     for(let t=0; t<=esperas.length; t++){
@@ -2539,7 +2673,8 @@ async function chamarIASemFiltro(prompt, aviso){
       }catch(e){
         ultimo = e;
         if(e.modeloVelho) throw e;
-        const passageiro = e.sobrecarga || e.cota || /failed to fetch|networkerror/i.test(e.message||'');
+        // sem cota e com outra IA à espera, não vale esperar: a troca é mais rápida
+        const passageiro = e.sobrecarga || (e.cota && !temReserva) || /failed to fetch|networkerror/i.test(e.message||'');
         if(!passageiro || t===esperas.length){
           if(e.sobrecarga) e.message = 'O Google está lotado neste momento (não é nada seu, nem da chave, nem da cota). Espere um minutinho e toque em gerar de novo.';
           if(e.cota) e.message = 'A cota gratuita bateu no limite por agora. Espere alguns minutos e tente de novo.';
@@ -2553,7 +2688,7 @@ async function chamarIASemFiltro(prompt, aviso){
     throw ultimo;
   }
   if(m==='anthropic'){
-    if(!cfg.anthropicKey) throw new Error('Cole sua chave da Anthropic em Ajustes → IA que escreve.');
+    if(!cfg.anthropicKey) throw semChave('Cole sua chave da Anthropic em Ajustes → IA que escreve.');
     const r = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':cfg.anthropicKey,
@@ -2561,19 +2696,19 @@ async function chamarIASemFiltro(prompt, aviso){
       body: JSON.stringify({ model:cfg.anthropicModel, max_tokens:4096, temperature:1,
                              messages:[{role:'user', content:prompt}] })
     });
-    if(!r.ok) throw new Error('Claude: '+r.status+' — '+(await r.text()).slice(0,200));
+    if(!r.ok) throw erroDoProvedor('Claude', r.status, (await r.text()).slice(0,300));
     const j = await r.json();
     return (j.content||[]).map(b=>b.text||'').join('').trim();
   }
   if(m==='openai'){
-    if(!cfg.openaiKey) throw new Error('Cole sua chave da OpenAI em Ajustes.');
+    if(!cfg.openaiKey) throw semChave('Cole sua chave da OpenAI em Ajustes.');
     const r = await fetch('https://api.openai.com/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.openaiKey},
       body: JSON.stringify({ model:cfg.openaiModelTxt, temperature:1,
                              messages:[{role:'user', content:prompt}] })
     });
-    if(!r.ok) throw new Error('OpenAI: '+r.status+' — '+(await r.text()).slice(0,200));
+    if(!r.ok) throw erroDoProvedor('OpenAI', r.status, (await r.text()).slice(0,300));
     const j = await r.json();
     return (((j.choices||[])[0]||{}).message||{}).content || '';
   }
@@ -2854,6 +2989,7 @@ function irTela(nome, semHistorico){
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tela===nome));
   document.body.classList.toggle('larga', nome==='acervo');   // lista usa a tela toda; texto não
   window.scrollTo({top:0,behavior:'instant'});
+  if(Assist) Assist.aoTrocarTela(nome);
 }
 $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
   irTela(b.dataset.tela);
@@ -3231,6 +3367,16 @@ function mostrarBlocosTexto(){
   $('#hint-motor-texto').textContent = 'Agora: '+nomes[cfg.motorTexto];
   $('#btn-gerar').disabled = cfg.motorTexto==='manual';
 }
+// o cofre: quem já tem chave aparece primeiro, com o selo
+const COFRE = [['gemini','Gemini','geminiKey'],['anthropic','Claude (Anthropic)','anthropicKey'],['openai','OpenAI','openaiKey'],['elevenlabs','ElevenLabs','elevenKey']];
+function pintarCofre(){
+  const el = $('#cofre-lista'); if(!el) return;
+  const itens = COFRE.map(([id,nome,campo])=>({nome, tem:!!cfg[campo]}));
+  itens.sort((a,b)=>(b.tem?1:0)-(a.tem?1:0));     // sort é estável: dentro de cada grupo, a ordem da lista
+  el.innerHTML = itens.map(i=>`<div class="it${i.tem?'':' sem'}"><span>${i.tem?'🔑':'◦'} ${esc(i.nome)}</span>${
+    i.tem ? '<span class="selo">✓ '+T('chave salva','key saved')+'</span>' : '<span class="tag">'+T('sem chave','no key')+'</span>'}</div>`).join('');
+}
+document.addEventListener('dgo:idioma', pintarCofre);
 segmento('#sel-motor-voz', b=>{ cfg.motorVoz=b.dataset.motor; salvarCfg(); mostrarBlocosVoz(); });
 segmento('#sel-dur-som', b=>{ cfg.durEfeitos=b.dataset.dur; salvarCfg(); });
 segmento('#sel-motor-texto', b=>{ cfg.motorTexto=b.dataset.motor; salvarCfg(); mostrarBlocosTexto(); });
@@ -3242,6 +3388,7 @@ function campo(sel, chave, tipo){
   el.addEventListener('input',()=>{
     cfg[chave] = tipo==='num' ? Number(el.value) : el.value.trim();
     salvarCfg();
+    if(/Key$/.test(chave)) pintarCofre();
     if(chave==='volEfeitos'){ $('#lbl-vol').textContent=cfg.volEfeitos; Som.volume(cfg.volEfeitos/100); }
     if(chave==='vel') $('#lbl-vel').textContent=Number(cfg.vel).toFixed(2);
     if(chave==='tom') $('#lbl-tom').textContent=Number(cfg.tom).toFixed(2);
@@ -3263,7 +3410,7 @@ campo('#rng-vel','vel','num'); campo('#rng-tom','tom','num'); campo('#rng-vol','
 campo('#rng-estab','elevenEstab','num'); campo('#rng-fonte','fonte','num');
 
 // a chave da OpenAI aparece em dois lugares; mantém os dois iguais
-$('#in-openai-key2').addEventListener('input',()=>{ cfg.openaiKey=$('#in-openai-key2').value.trim(); salvarCfg(); $('#in-openai-key').value=cfg.openaiKey; });
+$('#in-openai-key2').addEventListener('input',()=>{ cfg.openaiKey=$('#in-openai-key2').value.trim(); salvarCfg(); $('#in-openai-key').value=cfg.openaiKey; pintarCofre(); });
 $('#in-openai-key').addEventListener('input',()=>{ $('#in-openai-key2').value=cfg.openaiKey; });
 
 function selecao(sel, chave){
@@ -3280,7 +3427,7 @@ selecao('#sel-voz-gemini','geminiVoice'); selecao('#sel-modelo-gemini-tts','gemi
 
 // a chave do Gemini aparece em dois lugares; mantém as duas iguais
 function espelharGemini(){ $('#in-gemini-key').value=cfg.geminiKey||''; $('#in-gemini-key-voz').value=cfg.geminiKey||''; }
-$('#in-gemini-key-voz').addEventListener('input',()=>{ cfg.geminiKey=$('#in-gemini-key-voz').value.trim(); salvarCfg(); $('#in-gemini-key').value=cfg.geminiKey; });
+$('#in-gemini-key-voz').addEventListener('input',()=>{ cfg.geminiKey=$('#in-gemini-key-voz').value.trim(); salvarCfg(); $('#in-gemini-key').value=cfg.geminiKey; pintarCofre(); });
 $('#in-gemini-key').addEventListener('input',()=>{ $('#in-gemini-key-voz').value=cfg.geminiKey; });
 
 function chave(sel, campoCfg, depois){
@@ -3440,11 +3587,43 @@ $('#btn-modelos-gemini').addEventListener('click', async ()=>{
   }finally{ b.disabled=false; b.innerHTML=rot; }
 });
 
+/* ---------- testar a chave ----------
+   Um pedido barato ao provedor. "Falta permissão" (ElevenLabs com chave restrita, por exemplo)
+   quer dizer que a chave é válida: só não pode listar. Serve para gerar, então é aceita. */
+const TESTE_CHAVE = {
+  gemini:     ()=>fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1',{headers:{'x-goog-api-key':cfg.geminiKey}}),
+  anthropic:  ()=>fetch('https://api.anthropic.com/v1/models?limit=1',{headers:{'x-api-key':cfg.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}}),
+  openai:     ()=>fetch('https://api.openai.com/v1/models',{headers:{'Authorization':'Bearer '+cfg.openaiKey}}),
+  elevenlabs: ()=>fetch('https://api.elevenlabs.io/v1/user',{headers:{'xi-api-key':cfg.elevenKey}})
+};
+function faltaPermissao(status, corpo){ return (status===401 || status===403) && /missing_permissions|permission/i.test(corpo||''); }
+async function testarChave(id, btn){
+  const campo = {gemini:'geminiKey',anthropic:'anthropicKey',openai:'openaiKey',elevenlabs:'elevenKey'}[id];
+  if(!cfg[campo]){ toast(T('Cole a chave primeiro','Paste the key first')); return; }
+  const rot = btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="load"></span> '+T('testando…','testing…');
+  try{
+    const r = await TESTE_CHAVE[id]();
+    const corpo = r.ok ? '' : (await r.text()).slice(0,300);
+    if(r.ok) toast(T('✓ Chave válida','✓ Key is valid'));
+    else if(faltaPermissao(r.status, corpo)) toast(T('✓ Chave válida — sem permissão para este teste, mas serve para gerar','✓ Key is valid — no permission for this test, but it works for generating'), 5000);
+    else if(r.status===401 || r.status===403 || r.status===400) toast(T('Chave recusada — copie inteira ou crie outra','Key refused — copy it whole or create a new one'), 4000);
+    else toast(T('O provedor respondeu ','The provider answered ')+r.status);
+  }catch(e){ toast(T('Sem resposta (rede ou bloqueio do navegador). A chave ficou salva — tente usar.','No answer (network or browser block). The key is saved — try using it.'), 5000); }
+  finally{ btn.disabled=false; btn.innerHTML=rot; }
+}
+[['gemini','#btn-testar-gemini'],['anthropic','#btn-testar-anthropic'],['openai','#btn-testar-openai'],['elevenlabs','#btn-testar-eleven']]
+  .forEach(([id,sel])=>{ const b=$(sel); if(b) b.addEventListener('click',()=>testarChave(id,b)); });
+
 $('#btn-carregar-vozes').addEventListener('click', async ()=>{
   const b=$('#btn-carregar-vozes'); b.disabled=true; b.innerHTML='<span class="load"></span> buscando…';
   try{
     const r = await fetch('https://api.elevenlabs.io/v1/voices',{headers:{'xi-api-key':cfg.elevenKey}});
-    if(!r.ok) throw new Error('ElevenLabs: '+r.status);
+    if(!r.ok){
+      const corpo = (await r.text()).slice(0,300);
+      throw new Error(faltaPermissao(r.status, corpo)
+        ? T('A chave é válida, mas não tem a permissão voices_read para listar as vozes. Crie a chave com essa permissão.','The key is valid but lacks the voices_read permission to list voices. Create the key with that permission.')
+        : 'ElevenLabs: '+r.status);
+    }
     const j = await r.json();
     const vs = j.voices||[];
     $('#sel-voz-eleven').innerHTML = vs.map(v=>`<option value="${esc(v.voice_id)}">${esc(v.name)}${v.labels&&v.labels.description?' — '+esc(v.labels.description):''}</option>`).join('');
@@ -3631,6 +3810,14 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.12.0','26/09/2026', [
+    'Troca de IA sozinho: se a IA escolhida está sem cota, sem crédito ou com a chave recusada, o pedido vai para a próxima que tem chave, com aviso na tela',
+    'Cofre de chaves: no topo da seção de IA, a lista mostra quem já tem chave (✓ chave salva / sem chave), com as que têm chave primeiro',
+    'Botão "Testar a chave" em cada IA; resposta de "falta permissão" (como na ElevenLabs) conta como chave válida',
+    'AssistONE: o ajudante do canto, com a ajuda da tela atual, tour rápido, busca e uma dica por tela (liga e desliga em Ajustes)',
+    'Visual mais limpo no celular: cantos mais suaves, aba ativa em pílula, janelas que sobem com movimento curto',
+    'Menos texto nos Ajustes: as explicações longas ficam recolhidas em "Saiba mais"'
+  ]],
   ['1.11.1','24/09/2026', [
     'O botão Voltar do celular agora navega dentro do app: fecha a janela aberta, depois a história, depois volta ao Início — só sai do app a partir do Início',
     'Botão 🏠 Início no leitor; tocar no ícone ou no nome do app, no topo, também leva ao Início',
@@ -3826,6 +4013,7 @@ function aplicarCfgNaTela(){
   $('#sel-publico-tipo').value=cfg.publicoTipo||'';
   atualizarSaudacao();
   espelharGemini();
+  pintarCofre();
   $('#hint-idade').textContent=PERFIS['6-9'].guia;
 }
 
@@ -4000,10 +4188,196 @@ chave('#tg-comandos-ia','comandosIA');
 $('#txt-mic-ajuda').textContent = Comandos.ajuda();
 Comandos.mostrarBotoes();
 
+/* ---------- menos texto nos Ajustes ----------
+   Explicações longas ficam recolhidas num "Saiba mais". Nada some: só espera o toque. */
+(function(){
+  $$('#tela-config .info, #tela-config .ok, #tela-config .hint').forEach(el=>{
+    if(el.id || el.closest('.lista-guarda') || (el.textContent||'').trim().length < 90) return;
+    const d = document.createElement('details'); d.className='saiba';
+    d.innerHTML = '<summary>Saiba mais</summary>';
+    el.parentNode.insertBefore(d, el); d.appendChild(el);
+  });
+})();
+
+/* ---------- AssistONE: ajuda no mesmo lugar em todas as telas ----------
+   Personagem no canto, balão com a ajuda da tela atual, tour rápido, busca e uma dica por tela.
+   O balão não entra no histórico: o Voltar do celular continua fechando as telas. */
+var Assist = (function(){
+  const CH = 'ch_assist';
+  let mem = {}; try{ mem = JSON.parse(localStorage.getItem(CH)||'{}')||{}; }catch(e){ mem = {}; }
+  mem.dicas = mem.dicas || {};
+  const gravar = ()=>{ try{ localStorage.setItem(CH, JSON.stringify(mem)); }catch(e){} };
+  const btn = $('#assist-btn'), balao = $('#assist-balao'), dica = $('#assist-dica');
+  let tour = -1, dicaTimer = null;
+
+  // o que dá para fazer em cada tela: título, frase, atalhos que já executam e a ajuda completa
+  const TELAS = {
+    inicio: { t:['Início','Home'], s:'home principal',
+      f:['A história da noite, o que estava ouvindo e os atalhos.','Tonight\'s story, what you were listening to and the shortcuts.'],
+      a:[ ['✨ Criar história','✨ Create a story', ()=>irTela('nova')], ['📚 Acervo','📚 Library', ()=>irTela('acervo')] ],
+      d:['Toque numa história para ouvir. "Continuar ouvindo" retoma de onde parou. O 🎲 sorteia outra sugestão.',
+         'Tap a story to listen. "Keep listening" resumes where you stopped. The 🎲 picks another suggestion.'] },
+    acervo: { t:['Acervo','Library'], s:'histórias biblioteca buscar favoritas lidas',
+      f:['Todas as histórias, com busca e filtros por idade e estado.','Every story, with search and filters by age and state.'],
+      a:[ ['🔎 Buscar','🔎 Search', ()=>{ const b=$('#busca'); if(b){ b.focus(); } }], ['★ Favoritas','★ Favourites', ()=>{ const b=$('#filtro-estado [data-estado=fav]'); if(b) b.click(); }] ],
+      d:['Os filtros de cima combinam entre si. O selo ⚡ mostra quem já tem voz guardada; a ↓ baixa a voz para ouvir sem internet.',
+         'The top filters combine. The ⚡ badge shows stories with saved voice; ↓ downloads the voice to listen offline.'] },
+    nova: { t:['Criar','Create'], s:'nova história ia escrever gerar',
+      f:['A IA escreve a partir dos seus pedidos, ou você mesmo escreve.','The AI writes from your requests, or you write it yourself.'],
+      a:[ ['🎲 Sortear tema','🎲 Shuffle topic', ()=>{ const b=$('#btn-mais-temas'); if(b) b.click(); }], ['✍️ Eu escrevo','✍️ I write', ()=>{ const b=$('#modo-nova [data-modo=manual]'); if(b) b.click(); }] ],
+      d:['Só o tema é obrigatório: o resto pode ficar em branco. Para gerar, é preciso uma chave de IA em Ajustes.',
+         'Only the topic is required: the rest can stay blank. Generating needs an AI key in Settings.'] },
+    config: { t:['Ajustes','Settings'], s:'configurações chave voz ia backup',
+      f:['Voz, IA, chaves, backup e o que mais o app precisa.','Voice, AI, keys, backup and whatever else the app needs.'],
+      a:[ ['🔑 Chaves de IA','🔑 AI keys', ()=>rolarAte('#cofre-lista')], ['🔊 Motor de voz','🔊 Voice engine', ()=>rolarAte('#sel-motor-voz')], ['🆕 Novidades','🆕 What\'s new', ()=>{ const b=$('#btn-novidades'); if(b) b.click(); }] ],
+      d:['Cada seção tem um "Saiba mais" com a explicação completa. As chaves ficam só neste aparelho.',
+         'Each section has a "Learn more" with the full explanation. Keys stay on this device only.'] }
+  };
+  const TOUR = [
+    ['#hd-marca', 'Toque no nome do app para voltar ao Início, de qualquer lugar.', 'Tap the app name to go back Home from anywhere.'],
+    ['nav.tabs', 'A barra de baixo leva ao Início, ao Acervo, a Criar e aos Ajustes.', 'The bottom bar takes you Home, to the Library, Create and Settings.'],
+    ['#btn-config-topo', 'A engrenagem abre os Ajustes: voz, IA e chaves.', 'The gear opens Settings: voice, AI and keys.'],
+    ['#assist-btn', 'Eu fico sempre aqui. Toque quando precisar de ajuda.', 'I\'m always here. Tap whenever you need help.']
+  ];
+  const i = k => T(k[0], k[1]);
+  function rolarAte(sel){
+    const el = $(sel); if(!el) return;
+    el.scrollIntoView({block:'center', behavior:'smooth'});
+    el.classList.add('tour-alvo'); setTimeout(()=>el.classList.remove('tour-alvo'), 1800);
+  }
+  const norm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  function distancia(a, b){
+    const m=a.length, n=b.length; if(!m) return n; if(!n) return m;
+    let ant = Array.from({length:n+1}, (_,j)=>j);
+    for(let x=1; x<=m; x++){
+      const cur=[x];
+      for(let y=1; y<=n; y++) cur[y] = Math.min(ant[y]+1, cur[y-1]+1, ant[y-1] + (a[x-1]===b[y-1] ? 0 : 1));
+      ant = cur;
+    }
+    return ant[n];
+  }
+  // índice da busca: as telas e os títulos das seções dos Ajustes
+  function indice(){
+    const it = [];
+    Object.keys(TELAS).forEach(k=>it.push({r:i(TELAS[k].t), s:TELAS[k].s, ir:()=>irTela(k)}));
+    $$('#tela-config .tit').forEach(el=>{
+      const r = el.textContent.trim();
+      it.push({r, s:'ajustes settings', ir:()=>{ irTela('config'); setTimeout(()=>rolarAte('#'+(el.id || (el.id='tit-'+it.length))), 250); }});
+    });
+    return it;
+  }
+  function buscar(q){
+    q = norm(q).trim(); const todos = indice();
+    if(!q) return {lista:[], parecidos:[]};
+    const lista = todos.filter(x=>norm(x.r+' '+x.s).includes(q));
+    if(lista.length) return {lista, parecidos:[]};
+    const parecidos = todos.map(x=>({x, d:Math.min(...norm(x.r+' '+x.s).split(/\s+/).map(w=>distancia(q, w)))}))
+      .sort((a,b)=>a.d-b.d).slice(0,3).filter(p=>p.d <= Math.max(2, Math.floor(q.length/2))).map(p=>p.x);
+    return {lista:[], parecidos};
+  }
+
+  function aberto(){ return !balao.hidden; }
+  function abrir(modo){
+    if(!cfg.assistOne) return;
+    esconderDica();
+    const tela = TELAS[telaAtual] || TELAS.inicio;
+    const boasVindas = modo==='boasvindas';
+    balao.innerHTML = `
+      <h4>${boasVindas ? T('Olá! Eu sou o AssistONE 👋','Hi! I\'m AssistONE 👋') : 'AssistONE'}</h4>
+      <div class="onde"><b>📍 ${T('Você está em','You are in')} ${i(tela.t)}</b><p>${i(tela.f)}</p>
+        ${tela.a.map((a,k)=>`<button data-atalho="${k}">${T(a[0],a[1])}</button>`).join('')}</div>
+      <div class="opc">
+        <button data-op="tour">🧭 ${T('Tour rápido','Quick tour')}</button>
+        <button data-op="busca">🔍 ${T('Procurar algo','Find something')}</button>
+        <button data-op="ajuda">❓ ${T('Ajuda desta tela','Help for this screen')}</button>
+      </div>
+      <div id="assist-busca" hidden><input type="text" placeholder="${T('O que você procura?','What are you looking for?')}" aria-label="${T('Procurar','Search')}"><div class="res"></div></div>
+      <div class="rodape"><button data-op="fechar">${T('Agora não','Not now')}</button><button data-op="desligar">${T('Desligar o AssistONE','Turn AssistONE off')}</button></div>`;
+    balao.hidden = false; btn.setAttribute('aria-expanded','true');
+    $$('#assist-balao [data-atalho]').forEach(b=>b.addEventListener('click',()=>{ fechar(); tela.a[Number(b.dataset.atalho)][2](); }));
+    $$('#assist-balao [data-op]').forEach(b=>b.addEventListener('click',()=>{
+      const op = b.dataset.op;
+      if(op==='fechar') fechar();
+      if(op==='desligar'){ fechar(); cfg.assistOne=false; salvarCfg(); aplicar(); const tg=$('#tg-assist'); if(tg) tg.classList.remove('on'); toast(T('AssistONE desligado. Religue em Ajustes → AssistONE.','AssistONE off. Turn it back on in Settings → AssistONE.'), 4000); }
+      if(op==='tour'){ fechar(); iniciarTour(); }
+      if(op==='ajuda'){ fechar(); modal(`<h3>${i(tela.t)}</h3><p class="hint" style="font-size:14px">${i(tela.d)}</p><div style="height:14px"></div><button class="btn sm ghost" id="mfechar">${T('Fechar','Close')}</button>`); $('#mfechar').onclick=fecharModal; }
+      if(op==='busca'){ const bx=$('#assist-busca'); bx.hidden=false; bx.querySelector('input').focus(); }
+    }));
+    const inp = $('#assist-busca input'), res = $('#assist-busca .res');
+    function pintarBusca(){
+      const {lista, parecidos} = buscar(inp.value);
+      const mostrar = lista.length ? lista : parecidos;
+      res.innerHTML = (lista.length ? '' : (inp.value.trim() ? `<div class="nada">${T('Não achei.','Nothing found.')}${parecidos.length ? ' '+T('Você quis dizer…','Did you mean…') : ''}</div>` : ''))
+        + mostrar.map((x,k)=>`<button class="btn sm ghost" data-res="${k}">${esc(x.r)}</button>`).join('');
+      $$('#assist-busca [data-res]').forEach(b=>b.addEventListener('click',()=>{ fechar(); mostrar[Number(b.dataset.res)].ir(); }));
+    }
+    inp.addEventListener('input', pintarBusca);
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const b=$('#assist-busca [data-res]'); if(b) b.click(); } });
+  }
+  function fechar(){
+    if(!aberto()) return;
+    balao.hidden = true; btn.setAttribute('aria-expanded','false');
+    if(!mem.visto){ mem.visto = 1; gravar(); }
+  }
+
+  // tour: destaca um elemento por vez, com o texto no balão
+  function iniciarTour(){ tour = -1; passoTour(); }
+  function passoTour(){
+    $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo'));
+    tour++;
+    while(tour < TOUR.length){ const el=$(TOUR[tour][0]); if(el && el.offsetParent!==null) break; tour++; }
+    if(tour >= TOUR.length){ tour=-1; balao.hidden=true; btn.setAttribute('aria-expanded','false'); toast(T('Fim do tour ✨','Tour done ✨')); return; }
+    const p = TOUR[tour], el = $(p[0]);
+    el.classList.add('tour-alvo'); el.scrollIntoView({block:'center', behavior:'smooth'});
+    balao.innerHTML = `<h4>🧭 ${T('Tour rápido','Quick tour')} · ${tour+1}/${TOUR.length}</h4><p style="margin:6px 0 10px;font-size:14px">${T(p[1],p[2])}</p>
+      <div class="rodape"><button data-t="sair">${T('Sair','Exit')}</button><button data-t="prox" style="color:var(--gold);font-weight:700;text-decoration:none">${T('Próximo ›','Next ›')}</button></div>`;
+    balao.hidden = false; btn.setAttribute('aria-expanded','true');
+    balao.querySelector('[data-t=prox]').onclick = passoTour;
+    balao.querySelector('[data-t=sair]').onclick = ()=>{ $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo')); tour=-1; fechar(); };
+  }
+
+  // uma dica curta por tela, uma vez só, alguns segundos depois de entrar
+  function esconderDica(){ dica.hidden = true; clearTimeout(dicaTimer); }
+  function aoTrocarTela(nome){
+    esconderDica();
+    if(!cfg.assistOne || aberto() || mem.dicas[nome] || !TELAS[nome]) return;
+    dicaTimer = setTimeout(()=>{
+      if(aberto() || document.body.classList.contains('com-modal') || document.body.classList.contains('com-leitor') || telaAtual!==nome) return;
+      mem.dicas[nome] = 1; gravar();
+      dica.innerHTML = `💡 ${i(TELAS[nome].f)}<br><button data-d="ok">${T('Entendi','Got it')}</button><button data-d="mais">${T('Mais ajuda','More help')}</button>`;
+      dica.hidden = false;
+      dica.querySelector('[data-d=ok]').onclick = esconderDica;
+      dica.querySelector('[data-d=mais]').onclick = ()=>{ esconderDica(); abrir(); };
+      dicaTimer = setTimeout(esconderDica, 9000);
+    }, 2500);
+  }
+
+  function aplicar(){ document.body.classList.toggle('sem-assist', !cfg.assistOne); if(!cfg.assistOne){ fechar(); esconderDica(); } }
+  function recomecar(){ mem = {dicas:{}}; gravar(); toast(T('Dicas e passo a passo recomeçados','Tips and tour reset')); abrir('boasvindas'); }
+  function iniciar(){
+    aplicar();
+    btn.addEventListener('click', ()=>{ if(aberto()) fechar(); else abrir(); });
+    document.addEventListener('click', e=>{ if(aberto() && tour<0 && !balao.contains(e.target) && !btn.contains(e.target)) fechar(); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && aberto()){ $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo')); tour=-1; fechar(); } });
+    document.addEventListener('dgo:idioma', ()=>{ if(aberto() && tour<0) abrir(); });
+    // primeira visita: apresenta-se, mas só quando nenhuma janela estiver aberta
+    if(cfg.assistOne && !mem.visto){
+      let tentativas = 0;
+      const tentar = ()=>{ if(document.body.classList.contains('com-modal') || document.body.classList.contains('com-leitor')){ if(++tentativas<12) setTimeout(tentar, 2000); return; } abrir('boasvindas'); };
+      setTimeout(tentar, 1500);
+    }
+  }
+  return { iniciar, abrir, fechar, aplicar, recomecar, aoTrocarTela };
+})();
+chave('#tg-assist','assistOne', Assist.aplicar);
+$('#btn-assist-abrir').addEventListener('click', ()=>{ if(!cfg.assistOne){ toast(T('Ligue o AssistONE primeiro','Turn AssistONE on first')); return; } Assist.abrir(); });
+$('#btn-assist-reset').addEventListener('click', Assist.recomecar);
+
 aplicarCfgNaTela(); pintarTudo();
 atualizarVozGuardada(true);   // selos "voz guardada" dos cartões
 aplicarConfigDaUrl();
 carregarDoGithub();
+Assist.iniciar();
 
 // desbloqueia o áudio no primeiro toque (regra dos celulares)
 ['touchend','click'].forEach(ev=>document.addEventListener(ev, function um(){

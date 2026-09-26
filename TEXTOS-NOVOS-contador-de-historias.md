@@ -236,3 +236,33 @@ Comandos falados (PT → EN): tocar/continuar → play/continue · pausar → pa
 | `leitor.inicio` | Ir para o Início | Go to Home |
 | `topo.marca` | Contador de Histórias — ir para o Início | Storyteller — go to Home |
 | `midia.artista` | Contador de Histórias | Storyteller |
+
+
+---
+
+# v1.12.0 — Troca de IA, cofre, testar a chave e AssistONE
+
+Os textos montados na hora (com nome da IA, tela atual etc.) já saem em PT e EN pelo próprio
+`index.html` (`T(pt, en)`, seguindo o PT | EN do módulo). Os rótulos fixos estão no
+`diretrizes-config.js`.
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Aviso de troca (cota) | 🔁 <IA> está sem cota agora — usando <outra> | 🔁 <AI> is out of quota right now — using <other> |
+| Aviso de troca (crédito) | 🔁 <IA> está sem crédito agora — usando <outra> | 🔁 <AI> is out of credit right now — using <other> |
+| Aviso de troca (chave) | 🔁 <IA> recusou a chave — usando <outra> | 🔁 <AI> refused the key — using <other> |
+| Aviso de troca (sem chave) | 🔁 <IA> está sem chave — usando <outra> | 🔁 <AI> has no key — using <other> |
+| Cofre, selo | ✓ chave salva / sem chave | ✓ key saved / no key |
+| Botão | 🔑 Testar a chave | 🔑 Test the key |
+| Teste, ok | ✓ Chave válida | ✓ Key is valid |
+| Teste, falta permissão | ✓ Chave válida — sem permissão para este teste, mas serve para gerar | ✓ Key is valid — no permission for this test, but it works for generating |
+| Teste, recusada | Chave recusada — copie inteira ou crie outra | Key refused — copy it whole or create a new one |
+| Teste, sem resposta | Sem resposta (rede ou bloqueio do navegador). A chave ficou salva — tente usar. | No answer (network or browser block). The key is saved — try using it. |
+| ElevenLabs, vozes | A chave é válida, mas não tem a permissão voices_read para listar as vozes. Crie a chave com essa permissão. | The key is valid but lacks the voices_read permission to list voices. Create the key with that permission. |
+| Ajustes | Saiba mais | Learn more |
+| Ajustes, AssistONE | AssistONE ativado · Abrir o AssistONE · Recomeçar dicas | AssistONE on · Open AssistONE · Restart tips |
+| AssistONE, balão | Olá! Eu sou o AssistONE 👋 · Você está em <tela> · Tour rápido · Procurar algo · Ajuda desta tela · Agora não · Desligar o AssistONE | Hi! I'm AssistONE 👋 · You are in <screen> · Quick tour · Find something · Help for this screen · Not now · Turn AssistONE off |
+| AssistONE, busca | O que você procura? · Não achei. · Você quis dizer… | What are you looking for? · Nothing found. · Did you mean… |
+| AssistONE, tour | Tour rápido · Próximo › · Sair · Fim do tour ✨ | Quick tour · Next › · Exit · Tour done ✨ |
+| AssistONE, dica | Entendi · Mais ajuda | Got it · More help |
+| AssistONE, telas | Início / Acervo / Criar / Ajustes, com a frase e a ajuda de cada uma (ver `TELAS` no `index.html`) | Home / Library / Create / Settings, each with its sentence and help (see `TELAS` in `index.html`) |

@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'Contador de Histórias', en: 'Story Teller' },
-  versaoApp: '1.6.0',
+  versaoApp: '1.12.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -128,7 +128,14 @@ DGO.iniciar({
     'Gerar história': 'Generate story',
     'Motor de voz': 'Voice engine',
     'Quem escreve': 'Who writes',
-    'Sortear tema': 'Shuffle topic'
+    'Sortear tema': 'Shuffle topic',
+    'Saiba mais': 'Learn more',
+    'Testar a chave': 'Test the key',
+    'Chaves salvas': 'Saved keys',
+    'AssistONE ativado': 'AssistONE on',
+    'O ajudante do canto: ajuda da tela, tour rápido e busca.': 'The corner helper: screen help, quick tour and search.',
+    'Abrir o AssistONE': 'Open AssistONE',
+    'Recomeçar dicas': 'Restart tips'
   }
 
 });

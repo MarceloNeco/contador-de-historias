@@ -26,12 +26,15 @@ Site estático no GitHub Pages, sem servidor, sem framework e sem passo de build
    `VOZ_GUARDADA` (mapa id → trechos/bytes/vozes) alimenta os selos e a lista em Ajustes; `h.audioCompleto[marca] = nº de trechos` diz quando uma voz está inteira.
 5. **Motores de voz** — `gerarAudio` escolhe Gemini, ElevenLabs ou OpenAI e devolve um `Blob`.
 6. **Leitor** — fila de passos (fala/som), pedaços progressivos, esteira de download, faixa 🔴🟡🟢, posição salva por frase. `marcaUso` = tocar a voz guardada de outro motor sem gerar nada.
-7. **IA de texto** — `chamarIA` (ponto único): aplica `mascararNomes` antes de enviar e `desmascararNomes` na volta. Os adaptadores Gemini/Anthropic/OpenAI ficam em `chamarIASemFiltro`. Trocar de provedor = trocar a chave, não o código.
+7. **IA de texto** — `chamarIA` (ponto único): aplica `mascararNomes` antes de enviar e `desmascararNomes` na volta. `chamarIASemFiltro` monta a fila (a IA escolhida e depois as outras com chave, na ordem de `ORDEM_IA`) e troca sozinha quando uma falha por cota, crédito ou chave (`motivoTroca`, aviso `avisoTroca`, 3 s de espera). Os adaptadores Gemini/Anthropic/OpenAI ficam em `chamarMotor`. Trocar de provedor = trocar a chave, não o código.
+   **Cofre** (Ajustes → IA): `pintarCofre` lista quem tem chave (com chave primeiro); `testarChave` faz um pedido barato a cada provedor e `faltaPermissao` aceita a chave quando a resposta é só "falta permissão".
 8. **Criar** — prompts (`montarPrompt`, `montarPromptSerie`), geração em capítulos com `parcial`.
 9. **Telas** — `irTela`, `pintarInicio`, `pintarAcervo`, `cartaoHistoria`, Ajustes.
    **Nav** (logo depois de `modal`): cada camada aberta (aba ≠ Início, leitor, janela) vira uma entrada no histórico do navegador; o Voltar do celular fecha a de cima. Quem abre camada usa `modal()`, `Leitor.abrir()` ou `irTela()` — nunca `history.pushState` direto. Fechar pelo código: `fecharModal()`, `Leitor.fechar()`; ao fechar por causa do Voltar, passa `true` (sem mexer no histórico).
 10. **Comandos de voz** — módulo `Comandos`: reconhecimento do navegador → lista `FIXOS` → (opcional) IA. Para trocar o reconhecimento (Whisper, Gemini Live), mudar só `ouvirUmaVez()`.
-11. **Versão** — `HISTORICO` (a primeira linha é a versão atual), `telaNovidades`, `telaAviso`.
+11. **AssistONE** — módulo `Assist` (personagem no canto, balão com a ajuda da tela atual, tour, busca e dica por tela). O mapa por tela fica em `TELAS`; os passos do tour em `TOUR`. Guarda o que já mostrou em `ch_assist`; liga/desliga por `cfg.assistOne` (classe `sem-assist` no body). `irTela` avisa o módulo. O balão não entra no histórico.
+    **Saiba mais** — ao arrancar, as explicações longas dos Ajustes (`.info`, `.ok`, `.hint` sem id) são recolhidas num `<details class="saiba">`; para uma explicação ficar sempre visível, basta dar um `id` a ela.
+12. **Versão** — `HISTORICO` (a primeira linha é a versão atual), `telaNovidades`, `telaAviso`.
 
 ## Regras que não se quebram
 
