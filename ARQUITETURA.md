@@ -34,7 +34,8 @@ Site estático no GitHub Pages, sem servidor, sem framework e sem passo de build
 10. **Comandos de voz** — módulo `Comandos`: reconhecimento do navegador → lista `FIXOS` → (opcional) IA. Para trocar o reconhecimento (Whisper, Gemini Live), mudar só `ouvirUmaVez()`.
 11. **AssistONE** — módulo `Assist` (personagem no canto, balão com a ajuda da tela atual, tour, busca e dica por tela). O mapa por tela fica em `TELAS`; os passos do tour em `TOUR`. Guarda o que já mostrou em `ch_assist`; liga/desliga por `cfg.assistOne` (classe `sem-assist` no body). `irTela` avisa o módulo. O balão não entra no histórico.
     **Saiba mais** — ao arrancar, as explicações longas dos Ajustes (`.info`, `.ok`, `.hint` sem id) são recolhidas num `<details class="saiba">`; para uma explicação ficar sempre visível, basta dar um `id` a ela.
-12. **Versão** — `HISTORICO` (a primeira linha é a versão atual), `telaNovidades`, `telaAviso`.
+12. **Anúncios** — módulo `Anuncios` (faixa `#ad-faixa`, antes do `<header>`). Lê a lista na ordem `anuncios.json` deste repositório → `/solverone-dados/anuncios.json` (central, publicado pelo RootifyONE) → `/anuncios.json` do portal → `RESERVA` no próprio código. Aceita o formato central (`id, nome, frase{pt,en}, glifo, cor, link`) e o do OmniLifeONE (`titulo, texto, emoji, imagem, onde, ativo`). Nunca mostra o próprio app; some para assinante e anunciante (`DGO.sessao().semAnuncios`); o × grava `ch_anuncio_fechado` no `sessionStorage` e a faixa volta no próximo login (`dgo:entrou`). Contagem de exibições e cliques em `ch_anuncios_contagem`. O banner antigo do módulo está desligado no config (`anuncios.ativo: false`).
+13. **Versão** — `HISTORICO` (a primeira linha é a versão atual), `telaNovidades`, `telaAviso`.
 
 ## Regras que não se quebram
 

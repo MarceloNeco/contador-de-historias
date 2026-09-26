@@ -266,3 +266,16 @@ Os textos montados na hora (com nome da IA, tela atual etc.) já saem em PT e EN
 | AssistONE, tour | Tour rápido · Próximo › · Sair · Fim do tour ✨ | Quick tour · Next › · Exit · Tour done ✨ |
 | AssistONE, dica | Entendi · Mais ajuda | Got it · More help |
 | AssistONE, telas | Início / Acervo / Criar / Ajustes, com a frase e a ajuda de cada uma (ver `TELAS` no `index.html`) | Home / Library / Create / Settings, each with its sentence and help (see `TELAS` in `index.html`) |
+
+
+---
+
+# v1.13.0 — Faixa de anúncios em carrossel
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Etiqueta da faixa | ANÚNCIO | AD |
+| Botão × | Fechar anúncios | Close ads |
+| Região (leitor de tela) | Anúncios | Ads |
+
+Os textos de cada anúncio vêm do `anuncios.json` central (campo `frase` com `pt` e `en`).
