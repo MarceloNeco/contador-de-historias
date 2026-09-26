@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'Contador de Histórias', en: 'Story Teller' },
-  versaoApp: '1.13.0',
+  versaoApp: '1.14.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -139,6 +139,13 @@ DGO.iniciar({
     'Abrir o AssistONE': 'Open AssistONE',
     'Recomeçar dicas': 'Restart tips',
     'Fechar anúncios': 'Close ads',
+    'Fila de voz': 'Voice queue',
+    'Baixa a voz de várias histórias, uma por vez, e tenta de novo sozinha quando a cota acaba.': 'Downloads the voice of several stories, one at a time, and retries on its own when the quota runs out.',
+    'Escolher histórias': 'Choose stories',
+    'Esvaziar a fila': 'Empty the queue',
+    'Guardar num arquivo': 'Save to a file',
+    'Trazer de um arquivo': 'Bring from a file',
+    'Pôr na fila de voz': 'Add to the voice queue',
     'Anúncios': 'Ads'
   }
 

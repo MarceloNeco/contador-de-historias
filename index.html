@@ -237,6 +237,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   background:#2e2450;border:1px solid var(--line);color:var(--txt);padding:12px 18px;border-radius:999px;
   font-size:14px;font-weight:600;z-index:300;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
+.toast{border-radius:18px;width:max-content;max-width:min(90vw,420px);line-height:1.4}   /* aviso longo quebra em linhas, sem virar uma bola */
 .aviso{background:rgba(255,122,146,.12);border:1px solid rgba(255,122,146,.35);color:#ffc2ce;
   padding:12px 14px;border-radius:15px;font-size:13px;line-height:1.5}
 .info{background:rgba(155,123,255,.12);border:1px solid rgba(155,123,255,.32);color:#d6c8ff;
@@ -324,6 +325,14 @@ body.com-leitor .ad-trilho,body.com-modal .ad-trilho{animation-play-state:paused
   color:var(--dim);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center}
 @media (prefers-reduced-motion:reduce){.ad-trilho{animation:none}.ad-janela{overflow-x:auto}}
 @media print{.ad-faixa{display:none!important}}
+/* ---------- fila de voz ---------- */
+.fv-lista{display:flex;flex-direction:column;gap:6px;max-height:48vh;overflow-y:auto;margin:12px 0;padding-right:2px}
+.fv-it{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--card);
+  border:1px solid var(--line);min-height:48px;cursor:pointer}
+.fv-it input{width:22px;height:22px;accent-color:var(--gold);flex:none}
+.fv-it .t{flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fv-it small{font-size:11px;color:var(--dim2);white-space:nowrap}
+.fv-it.fila{opacity:.6}
 /* ---------- cofre: quais IAs já têm chave, de relance ---------- */
 .cofre{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .cofre .it{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;
@@ -408,6 +417,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 
 <!-- ====================== INÍCIO ====================== -->
 <section class="tela on" id="tela-inicio">
+  <button class="faixa amarela oculto" id="inicio-fila"></button>
   <div class="capa" id="capa">
     <img id="capa-img" src="capa.jpg" alt="Capa do Contador de Histórias">
     <div class="frase"><span>hoje tem história</span>Escolhe uma, senta aqui e fecha os olhos.</div>
@@ -834,8 +844,24 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <div class="txt"><b>Com a voz do celular, usar a voz guardada</b><span>Se a história já tem voz de internet inteira no aparelho, toca com ela — sem gastar cota e sem internet. Trocar para a voz do celular não apaga nada.</span></div>
       <div class="toggle on" id="tg-usar-guardada"></div>
     </div>
+    <div class="sw" style="padding-bottom:4px">
+      <div class="txt"><b>📥 Fila de voz</b><span>Baixa a voz de várias histórias, uma por vez, e tenta de novo sozinha quando a cota acaba.</span></div>
+    </div>
+    <div class="hint" id="fila-voz-status" aria-live="polite"></div>
+    <div class="prep" id="fila-voz-prep"><i id="fila-voz-barra"></i></div>
+    <div class="linha" style="margin-top:10px">
+      <button class="btn sm rox" id="btn-fila-escolher">➕ Escolher histórias</button>
+      <button class="btn sm" id="btn-fila-alternar">▶️ Continuar</button>
+    </div>
+    <button class="linkzinho" id="btn-fila-limpar">Esvaziar a fila</button>
     <div style="height:12px"></div>
     <div class="hint" id="txt-guarda" aria-live="polite">calculando…</div>
+    <div class="hint" id="txt-protecao"></div>
+    <div class="linha" style="margin-top:10px">
+      <button class="btn sm" id="btn-voz-exportar">💾 Guardar num arquivo</button>
+      <button class="btn sm" id="btn-voz-importar">📂 Trazer de um arquivo</button>
+    </div>
+    <input type="file" id="file-voz" class="oculto">
     <div class="lista-guarda" id="lista-guarda"></div>
     <div style="height:10px"></div>
     <button class="btn sm ghost" id="btn-limpar-orfaos" style="display:none">🧹 Apagar a voz de histórias que não existem mais</button>
@@ -1565,6 +1591,23 @@ function falarNativo(texto){
 /* ---------------- guarda-áudio (IndexedDB): gera uma vez, toca para sempre ------------- */
 const Guarda = (function(){
   let db=null, falhou=false;
+  // chaves já guardadas de cada história (só os nomes, sem o áudio): servem para achar um trecho pelo texto
+  const chavesPorId = new Map();
+  function chavesDe(id){
+    if(chavesPorId.has(id)) return Promise.resolve(chavesPorId.get(id));
+    if(!window.IDBKeyRange) return Promise.resolve([]);
+    return op('readonly', s=> s.getAllKeys ? s.getAllKeys(IDBKeyRange.bound(id+'|', id+'|\uffff')) : null)
+      .then(r=>{ const l = Array.isArray(r) ? r.map(String) : []; chavesPorId.set(id, l); return l; });
+  }
+  // Pede ao navegador para não apagar a voz sozinho quando faltar espaço (armazenamento permanente).
+  let pediu=false;
+  function pedirPersistencia(){
+    if(pediu) return; pediu=true;
+    try{
+      if(navigator.storage && navigator.storage.persist && navigator.storage.persisted)
+        navigator.storage.persisted().then(p=>{ if(!p) return navigator.storage.persist(); }).catch(()=>{});
+    }catch(e){}
+  }
   function abrir(){
     if(db) return Promise.resolve(db);
     if(falhou || !window.indexedDB) return Promise.resolve(null);
@@ -1596,13 +1639,71 @@ const Guarda = (function(){
     },
     // chave = id | índice | motor | voz | modelo | hash do texto.
     // "marca" opcional: permite ler a voz guardada de outro motor (ex.: Gemini guardado, celular escolhido).
+    hashTexto(txt){ let h=0; for(let k=0;k<txt.length;k++){ h=((h<<5)-h+txt.charCodeAt(k))|0; } return h; },
     chave(idHistoria, i, txt, marca){
-      let h=0; for(let k=0;k<txt.length;k++){ h=((h<<5)-h+txt.charCodeAt(k))|0; }
-      return idHistoria+'|'+i+'|'+(marca||this.marca())+'|'+h;
+      return idHistoria+'|'+i+'|'+(marca||this.marca())+'|'+this.hashTexto(txt);
     },
     pegar(k){ return op('readonly', s=>s.get(k)); },
     existe(k){ return op('readonly', s=>s.getKey(k)).then(r=>!!r); },
-    guardar(k, blob){ return op('readwrite', s=>s.put(blob,k)); },
+    guardar(k, blob){
+      const id = String(k).split('|')[0];
+      if(chavesPorId.has(id) && !chavesPorId.get(id).includes(String(k))) chavesPorId.get(id).push(String(k));
+      pedirPersistencia();
+      return op('readwrite', s=>s.put(blob,k));
+    },
+    /* Acha o trecho guardado mesmo que a posição dele tenha mudado (cumprimento ligado ou desligado,
+       por exemplo) ou que o modelo da MESMA voz tenha mudado. Quem manda é o texto do trecho.
+       Devolve a chave encontrada, ou null. Nunca mistura vozes diferentes. */
+    async acharFlex(id, i, txt, marca){
+      const exata = this.chave(id, i, txt, marca);
+      if(await this.existe(exata)) return exata;
+      const h = String(this.hashTexto(txt)), [mot, voz] = String(marca).split('|');
+      let parecida = null;
+      for(const k of await chavesDe(id)){
+        const p = k.split('|'); if(p[p.length-1]!==h) continue;
+        const m = p.slice(2,-1);
+        if(m.join('|')===marca) return k;
+        if(!parecida && m[0]===mot && m[1]===voz) parecida = k;
+      }
+      return parecida;
+    },
+    async pegarFlex(id, i, txt, marca){ const k = await this.acharFlex(id, i, txt, marca); return k ? this.pegar(k) : null; },
+    pedirPersistencia,
+    // true = o navegador não apaga sozinho; false = pode apagar se faltar espaço; null = não dá para saber
+    protegida(){
+      try{ return navigator.storage && navigator.storage.persisted ? navigator.storage.persisted().catch(()=>null) : Promise.resolve(null); }
+      catch(e){ return Promise.resolve(null); }
+    },
+    // toda a voz guardada: lista de {k, t, n} e os áudios na mesma ordem
+    async tudo(){
+      const d = await abrir(); const itens=[], blobs=[];
+      if(!d) return {itens, blobs};
+      await new Promise(res=>{
+        let cur; try{ cur = d.transaction('audio','readonly').objectStore('audio').openCursor(); }catch(e){ return res(); }
+        cur.onsuccess = e=>{ const c=e.target.result; if(!c) return res();
+          if(c.value && c.value.size){ itens.push({k:String(c.key), t:c.value.type||'', n:c.value.size}); blobs.push(c.value); }
+          c.continue(); };
+        cur.onerror = ()=>res();
+      });
+      return {itens, blobs};
+    },
+    // arquivo: "CHVOZ1" + tamanho do índice (4 bytes) + índice em JSON + os áudios, um atrás do outro
+    async importar(arquivo, aviso){
+      const cab = new Uint8Array(await arquivo.slice(0,10).arrayBuffer());
+      if(String.fromCharCode.apply(null, cab.slice(0,6))!=='CHVOZ1') throw new Error(T('Este arquivo não é uma voz guardada do Contador de Histórias.','This file is not a Storyteller saved voice.'));
+      const tam = new DataView(cab.buffer).getUint32(6, true);
+      const indice = JSON.parse(await arquivo.slice(10, 10+tam).text());
+      let pos = 10+tam, novos=0, iguais=0;
+      const itens = Array.isArray(indice.itens) ? indice.itens : [];
+      for(let j=0; j<itens.length; j++){
+        const it = itens[j], b = arquivo.slice(pos, pos+it.n, it.t||'audio/mpeg'); pos += it.n;
+        if(await this.existe(it.k)){ iguais++; continue; }       // o que já existe aqui não é trocado
+        await op('readwrite', s=>s.put(b, it.k)); novos++;
+        if(aviso && (j%15===0)) aviso(j+1, itens.length);
+      }
+      chavesPorId.clear(); pedirPersistencia();
+      return {novos, iguais, completos: indice.completos || {}};
+    },
     async quanto(){
       const d = await abrir(); if(!d) return {n:0, bytes:0};
       return new Promise(res=>{
@@ -1615,10 +1716,11 @@ const Guarda = (function(){
         t.onerror = ()=>res({n:0,bytes:0});
       });
     },
-    limpar(){ return op('readwrite', s=>{ s.clear(); return null; }); },
+    limpar(){ chavesPorId.clear(); return op('readwrite', s=>{ s.clear(); return null; }); },
     // apaga só a voz de uma história (todas as vozes/motores dela)
     limparHistoria(id){
       if(!id || !window.IDBKeyRange) return Promise.resolve(null);
+      chavesPorId.delete(id);
       return op('readwrite', s=>s.delete(IDBKeyRange.bound(id+'|', id+'|\uffff')));
     },
     // resumo por história: quantos trechos, quantos bytes e de quais vozes
@@ -1833,34 +1935,37 @@ const Leitor = (function(){
   const MAX_PARALELO = 2;
 
   // Pedaços pequenos no começo (a voz sai rápido) e maiores depois (menos pedidos).
-  function tetoDoPedaco(n){
-    const m = motor();
+  function tetoDoPedaco(n, m){
+    m = m || motor();
     if(m==='gemini')     return [180, 400, 800, 1400][n] || 1900;
     if(m==='elevenlabs') return [200, 450, 700][n] || 900;
     if(m==='openai')     return [200, 450, 700][n] || 900;
     return 0;
   }
 
-  function montarFila(){
-    fila=[];
+  // A divisão em trechos é a mesma no leitor e na fila de voz: é ela que dá o texto (e a chave) de cada trecho.
+  function filaDe(pts, m){
+    const f=[];
     if(cfg.saudarAntes){
-      const f = fraseCumprimento();
-      if(f) fila.push({tipo:'fala', texto:f, ids:[], saudacao:true});
+      const s = fraseCumprimento();
+      if(s) f.push({tipo:'fala', texto:s, ids:[], saudacao:true});
     }
-    const porApi = motor()!=='nativo';
+    const porApi = m!=='nativo';
     let buffer=[], ids=[], nFalas=0;
     const descarregar = ()=>{
       if(!buffer.length) return;
-      fila.push({tipo:'fala', texto:buffer.join(' '), ids:ids.slice()});
+      f.push({tipo:'fala', texto:buffer.join(' '), ids:ids.slice()});
       buffer=[]; ids=[]; nFalas++;
     };
-    partes.forEach((p,i)=>{
-      if(p.tipo==='som'){ descarregar(); fila.push({tipo:'som', som:p.som}); return; }
+    pts.forEach((p,i)=>{
+      if(p.tipo==='som'){ descarregar(); f.push({tipo:'som', som:p.som}); return; }
       buffer.push(p.texto); ids.push(i);
-      if(!porApi || buffer.join(' ').length > tetoDoPedaco(nFalas)) descarregar();
+      if(!porApi || buffer.join(' ').length > tetoDoPedaco(nFalas, m)) descarregar();
     });
     descarregar();
+    return f;
   }
+  function montarFila(){ fila = filaDe(partes, motor()); }
 
   function render(){
     const paras=[]; let atual=null;
@@ -1906,8 +2011,9 @@ const Leitor = (function(){
     if(memoria.has(i)) return memoria.get(i);
     const txt = fila[i].texto;
     const ch = fila[i].saudacao ? ('saudacao|'+marcaAt()+'|'+txt) : Guarda.chave(hist.id, i, txt, marcaAt());
-    const salvo = await Guarda.pegar(ch);
-    if(salvo){ memoria.set(i, salvo); return salvo; }          // já pago uma vez, nunca mais
+    // já pago uma vez, nunca mais — e acha o trecho pelo texto, mesmo se a posição ou o modelo mudou
+    const salvo = fila[i].saudacao ? await Guarda.pegar(ch) : await Guarda.pegarFlex(hist.id, i, txt, marcaAt());
+    if(salvo){ memoria.set(i, salvo); return salvo; }
     if(marcaUso){                                                // voz guardada: nunca gera de novo
       if(fila[i].saudacao) return null;                          // cumprimento cai para a voz do celular
       const e = new Error('Este trecho não está entre a voz guardada ('+nomeMarca(marcaUso)+').'); e.faltando = true; throw e;
@@ -2390,6 +2496,8 @@ const Leitor = (function(){
     alternar(){ tocando ? pausar() : playConferindo(); },
     doInicio(){ irPara(0); $('#barra-retomar').classList.add('oculto'); },
     passo, prepararTudo, atualizarBotaoBaixar, cliqueFaixa, apagarVozDaHistoria,
+    // trechos da história como o leitor os montaria com esta voz (a fila de voz usa isto)
+    trechos(h, m){ return filaDe(analisar(h.texto), m || cfg.motorVoz); },
     estaTocando(){ return tocando; },
     capitulo(dir){
       if(!hist || !hist.serie) return;
@@ -3289,11 +3397,13 @@ $('#btn-menu-hist').addEventListener('click',()=>{
     <div class="hint">${rotuloIdade(h.idade)} · ${contarPalavras(h.texto)} palavras · criada em ${new Date(h.criadaEm).toLocaleDateString('pt-BR')}</div>
     <div style="height:16px"></div>
     <button class="btn sm ok" id="mh-preparar">⬇️ Baixar a voz desta história</button><div style="height:10px"></div>
+    <button class="btn sm" id="mh-fila">📥 Pôr na fila de voz</button><div style="height:10px"></div>
     ${(VOZ_GUARDADA.get(h.id)||{}).n ? `<button class="btn sm ghost" id="mh-apagar-voz">🗑️ Apagar só a voz guardada (${fmtBytes(VOZ_GUARDADA.get(h.id).bytes)})</button><div style="height:10px"></div>` : ''}
     <button class="btn sm" id="mh-editar">✏️ Editar o texto</button><div style="height:10px"></div>
     <button class="btn sm" id="mh-copiar">📋 Copiar a história</button><div style="height:10px"></div>
     <button class="btn sm ghost" id="mh-apagar" style="color:var(--vermelho)">🗑️ Apagar do acervo</button>`);
   $('#mh-preparar').onclick=()=>{ Leitor.prepararTudo(); };
+  $('#mh-fila').onclick=()=>{ fecharModal(); FilaVoz.adicionar([h.id]); };
   if($('#mh-apagar-voz')) $('#mh-apagar-voz').onclick=()=>{ fecharModal(); Leitor.apagarVozDaHistoria(); };
   $('#mh-editar').onclick=()=>{
     fecharModal(); Leitor.fechar(); irTela('nova');
@@ -3491,6 +3601,12 @@ function mostrarGuarda(){
         if(e && e.quota) cota = ` O navegador libera até cerca de ${fmtBytes(e.quota)} para este site.`;
       }
     }catch(e){}
+    Guarda.protegida().then(p=>{
+      const el = $('#txt-protecao'); if(!el) return;
+      el.innerHTML = p===true ? T('🔒 Protegida: o navegador não apaga a voz sozinho. Atualizar o app também não apaga.','🔒 Protected: the browser will not delete the voice on its own. Updating the app does not delete it either.')
+        : p===false ? T('⚠️ Se o aparelho ficar sem espaço, o navegador pode apagar a voz. Instalar o app na tela inicial ajuda; para garantir, guarde num arquivo.','⚠️ If the device runs out of space, the browser may delete the voice. Installing the app on the home screen helps; to be safe, save it to a file.')
+        : T('Atualizar o app não apaga a voz. Para trocar de aparelho ou de endereço, guarde num arquivo.','Updating the app does not delete the voice. To change device or address, save it to a file.');
+    });
     $('#txt-guarda').innerHTML = q.n
       ? `Voz guardada ocupando <b>${fmtBytes(q.bytes)}</b> neste aparelho (${q.n} trechos).${cota}`
       : 'Nenhuma voz guardada ainda. Assim que uma história for ouvida (ou baixada) com uma voz de internet, ela fica pronta para a próxima vez.';
@@ -3844,6 +3960,13 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.14.0','26/09/2026', [
+    'Fila de voz: escolha várias histórias e o app baixa a voz de uma por vez, tentando de novo sozinho quando a cota acaba (sem limite); a fila continua depois de fechar e abrir o app',
+    'A voz guardada é achada pelo texto do trecho: ligar ou desligar o cumprimento, ou o Google trocar o modelo da mesma voz, não faz mais o app gerar tudo de novo',
+    'O app pede ao navegador para não apagar a voz guardada quando faltar espaço, e mostra se ela está protegida',
+    'Guardar a voz num arquivo e trazer de volta, para trocar de aparelho ou de endereço sem perder nada',
+    '"Pôr na fila de voz" no menu ⋯ de cada história'
+  ]],
   ['1.13.0','26/09/2026', [
     'Anúncios no topo em carrossel, iguais aos dos outros apps: andam para a esquerda sem parar, param ao tocar, e o × fecha a faixa até o próximo login',
     'A lista de anúncios vem do arquivo central (solverone-dados); sem internet, usa uma lista guardada no próprio app'
@@ -4226,6 +4349,251 @@ chave('#tg-comandos-ia','comandosIA');
 $('#txt-mic-ajuda').textContent = Comandos.ajuda();
 Comandos.mostrarBotoes();
 
+/* ---------- guardar a voz num arquivo e trazer de volta ----------
+   Para levar a voz para outro aparelho, para o endereço novo (solverone.com.br) ou para ter uma cópia.
+   Um arquivo só, sem conversão (o áudio vai do jeito que está guardado), então pesa o mesmo que a voz. */
+$('#btn-voz-exportar').addEventListener('click', async ()=>{
+  const b = $('#btn-voz-exportar'), rot = b.innerHTML;
+  b.disabled = true; b.innerHTML = '<span class="load"></span>';
+  try{
+    const {itens, blobs} = await Guarda.tudo();
+    if(!itens.length){ toast(T('Ainda não há voz guardada','No saved voice yet')); return; }
+    const completos = {};
+    historias.forEach(h=>{ if(h.audioCompleto && Object.keys(h.audioCompleto).length) completos[h.id] = h.audioCompleto; });
+    const indice = new TextEncoder().encode(JSON.stringify({v:1, app:'contador-de-historias', em:new Date().toISOString(), itens, completos}));
+    const cab = new Uint8Array(10); 'CHVOZ1'.split('').forEach((c,i)=>cab[i]=c.charCodeAt(0));
+    new DataView(cab.buffer).setUint32(6, indice.length, true);
+    const arq = new Blob([cab, indice].concat(blobs), {type:'application/octet-stream'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(arq);
+    a.download = 'contador-voz-'+new Date().toISOString().slice(0,10)+'.chvoz';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+    toast(T('Arquivo com ','File with ')+fmtBytes(arq.size)+T(' pronto — guarde num lugar seguro',' ready — keep it somewhere safe'), 4500);
+  }catch(e){ toast(T('Não consegui: ','Could not: ')+(e.message||e)); }
+  finally{ b.disabled = false; b.innerHTML = rot; }
+});
+$('#btn-voz-importar').addEventListener('click', ()=>$('#file-voz').click());
+$('#file-voz').addEventListener('change', async e=>{
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  const b = $('#btn-voz-importar'), rot = b.innerHTML; b.disabled = true;
+  try{
+    const r = await Guarda.importar(f, (j,n)=>{ b.innerHTML = '<span class="load"></span> '+j+'/'+n; });
+    // devolve às histórias a marca de "voz inteira" que veio no arquivo
+    let marcou = 0;
+    Object.keys(r.completos).forEach(id=>{
+      const h = historias.find(x=>x.id===id); if(!h) return;
+      h.audioCompleto = Object.assign({}, r.completos[id], h.audioCompleto||{}); marcou++;
+    });
+    if(marcou) salvarHistorias();
+    await atualizarVozGuardada(true); mostrarGuarda();
+    toast('✅ '+r.novos+T(' trechos trazidos',' clips brought in')+(r.iguais ? ' · '+r.iguais+T(' já estavam aqui',' were already here') : ''), 4500);
+  }catch(err){ toast(T('Não consegui: ','Could not: ')+(err.message||err), 5000); }
+  finally{ b.disabled = false; b.innerHTML = rot; }
+});
+
+/* ---------- fila de voz: baixa a voz de uma lista de histórias, uma por vez, e insiste ----------
+   A lista fica guardada (ch_fila_voz): fechar ou atualizar o app não perde a fila, e ao abrir de novo
+   ela continua sozinha. Cota cheia, rede caindo ou servidor lotado: espera e tenta de novo (30 s, 1, 2
+   e 5 min, depois a cada 10 min), sem limite. Só para quando insistir não adianta (sem chave, chave
+   recusada, sem voz escolhida) ou quando a pessoa pausa. Com uma história aberta no leitor, a fila
+   espera, para os dois não disputarem a cota. Trecho que já existe não é gerado de novo. */
+const FilaVoz = (function(){
+  const CH = 'ch_fila_voz';
+  const ESPERAS = [30, 60, 120, 300, 600];
+  let st = {ids:[], ligada:false, feitas:0, parou:''};
+  try{ st = Object.assign(st, JSON.parse(localStorage.getItem(CH)||'{}')||{}); }catch(e){}
+  if(!Array.isArray(st.ids)) st.ids = [];
+  let rodando=false, agora='', acordar=null, trava=null, tentativa=0, trecho={feitos:0, total:0, id:''};
+  const gravar = ()=>{ try{ localStorage.setItem(CH, JSON.stringify(st)); }catch(e){} };
+
+  // espera que pode ser cortada (pausar, internet voltando)
+  function esperar(seg){
+    return new Promise(res=>{ const t = setTimeout(fim, seg*1000); function fim(){ clearTimeout(t); acordar=null; res(); } acordar = fim; });
+  }
+  function acordarJa(){ if(acordar) acordar(); }
+  // a tela fica acesa enquanto a fila trabalha (com a tela apagada o celular congela o site)
+  async function segurarTela(){
+    try{
+      if(!trava && rodando && 'wakeLock' in navigator && document.visibilityState==='visible'){
+        trava = await navigator.wakeLock.request('screen');
+        trava.addEventListener('release', ()=>{ trava = null; });
+      }
+    }catch(e){}
+  }
+  function soltarTela(){ try{ if(trava) trava.release(); }catch(e){} trava = null; }
+
+  const statusDe = e => (e && e.status) || Number((String(e && e.message || '').match(/\b([1-5]\d\d)\b/)||[])[1]) || 0;
+  function naoAdiantaInsistir(e){
+    const msg = String(e && e.message || ''), s = statusDe(e);
+    if(/Cole sua chave|Escolha uma voz/i.test(msg)) return true;
+    if(/quota|cota/i.test(msg)) return false;      // sem cota ou sem caracteres (ElevenLabs): espera e tenta de novo
+    return s===400 || s===401 || s===403 || s===404;
+  }
+  // o motivo da pausa em linguagem de gente (o texto técnico do provedor não ajuda ninguém)
+  function motivoClaro(e){
+    const s = statusDe(e), msg = String(e && e.message || '');
+    if(/Cole sua chave|Escolha uma voz/i.test(msg)) return msg;
+    if(s===401 || s===403) return T('a chave de voz foi recusada (erro '+s+'). Confira ou troque a chave em Ajustes → Voz e toque em Continuar.','the voice key was refused (error '+s+'). Check or replace the key in Settings → Voice and tap Resume.');
+    if(s===400 || s===404) return T('o provedor não aceitou o pedido (erro '+s+'). Confira a voz e o modelo em Ajustes → Voz e toque em Continuar.','the provider rejected the request (error '+s+'). Check the voice and model in Settings → Voice and tap Resume.');
+    return msg;
+  }
+  const leitorAberto = ()=> document.body.classList.contains('com-leitor');
+
+  async function trabalhar(){
+    if(rodando) return;
+    rodando = true; tentativa = 0; segurarTela(); pintar();
+    try{
+      while(st.ligada && st.ids.length){
+        if(cfg.motorVoz==='nativo'){ parar(T('Escolha uma voz de internet (Gemini, ElevenLabs ou OpenAI) em Ajustes → Voz.','Choose an internet voice (Gemini, ElevenLabs or OpenAI) in Settings → Voice.')); break; }
+        if(leitorAberto()){ agora = T('esperando você fechar a história aberta…','waiting for you to close the open story…'); pintar(); await esperar(5); continue; }
+        if(navigator.onLine===false){ agora = T('sem internet — continuo quando voltar','offline — resuming when it is back'); pintar(); await esperar(60); continue; }
+        const id = st.ids[0], h = historias.find(x=>x.id===id);
+        if(!h){ st.ids.shift(); gravar(); continue; }
+        if(await umaHistoria(h)){
+          st.ids.shift(); st.feitas = (st.feitas||0)+1; gravar();
+          toast('✅ '+T('Voz pronta: ','Voice ready: ')+h.titulo, 3500);
+          atualizarVozGuardada(true);
+          if(telaAtual==='config') mostrarGuarda();
+        }
+      }
+      if(st.ligada && !st.ids.length){ st.ligada = false; gravar(); toast(T('🎉 Fila de voz terminada','🎉 Voice queue finished'), 4500); }
+    }finally{ rodando = false; agora = ''; soltarTela(); pintar(); }
+  }
+
+  // uma história: gera só os trechos que faltam. true = ficou inteira.
+  async function umaHistoria(h){
+    const marca = Guarda.marca();
+    const f = Leitor.trechos(h, cfg.motorVoz);
+    const falas = []; f.forEach((x,i)=>{ if(x.tipo==='fala') falas.push(i); });
+    trecho = {feitos:0, total:falas.length, id:h.id};
+    for(let n=0; n<falas.length; n++){
+      if(!st.ligada || leitorAberto() || Guarda.marca()!==marca) return false;
+      const i = falas[n], x = f[i];
+      const ch = x.saudacao ? ('saudacao|'+marca+'|'+x.texto) : Guarda.chave(h.id, i, x.texto, marca);
+      const tem = x.saudacao ? await Guarda.existe(ch) : await Guarda.acharFlex(h.id, i, x.texto, marca);
+      if(!tem){
+        agora = T('gerando o trecho ','generating clip ')+(n+1)+T(' de ',' of ')+falas.length; pintar();
+        try{
+          const blob = await gerarAudio(x.texto);
+          await Guarda.guardar(ch, blob);
+          tentativa = 0;
+        }catch(e){
+          if(naoAdiantaInsistir(e)){ parar(motivoClaro(e)); return false; }
+          const seg = ESPERAS[Math.min(tentativa, ESPERAS.length-1)]; tentativa++;
+          const hora = new Date(Date.now()+seg*1000).toLocaleTimeString(idiomaEN()?'en-US':'pt-BR', {hour:'2-digit', minute:'2-digit'});
+          const oque = (statusDe(e)===429 || /quota|cota/i.test(e.message||'')) ? T('cota cheia','quota full') : T('não respondeu','no answer');
+          agora = oque+' — '+T('tento de novo às ','retrying at ')+hora+' ('+T('tentativa ','attempt ')+tentativa+')';
+          pintar();
+          await esperar(seg);
+          n--; continue;                                         // o mesmo trecho, de novo
+        }
+      }
+      trecho.feitos = n+1; pintar();
+    }
+    // inteira nesta voz: é o que acende o selo ⚡ e a faixa 🟢 no leitor
+    const semSaudacao = f.filter(x=>x.tipo==='fala' && !x.saudacao).length;
+    h.audioCompleto = Object.assign({}, h.audioCompleto||{}, {[marca]: semSaudacao});
+    h.audioMarca = marca; h.audioPronto = true; h.audioParcial = falas.length; h.audioTotal = falas.length;
+    salvarHistorias();
+    return true;
+  }
+
+  function parar(msg){
+    st.ligada = false; st.parou = msg || ''; gravar(); acordarJa();
+    if(msg) toast(T('Fila de voz pausada: ','Voice queue paused: ')+msg, 6000);
+    pintar();
+  }
+  function continuar(){
+    if(!st.ids.length) return;
+    if(cfg.motorVoz==='nativo'){ toast(T('Escolha antes uma voz de internet em Ajustes → Voz','First choose an internet voice in Settings → Voice'), 4000); return; }
+    st.ligada = true; st.parou = ''; gravar(); pintar(); trabalhar();
+  }
+  function adicionar(ids){
+    let n = 0;
+    ids.forEach(id=>{ if(!st.ids.includes(id)){ st.ids.push(id); n++; } });
+    gravar();
+    toast(n ? n+T(' história(s) na fila de voz',' story(ies) added to the voice queue') : T('Já estava na fila','Already in the queue'));
+    continuar();
+  }
+  function esvaziar(){
+    if(!st.ids.length) return;
+    if(!confirm(T('Tirar todas as histórias da fila? A voz que já foi baixada continua guardada.','Remove every story from the queue? Voice already downloaded stays saved.'))) return;
+    st.ids = []; st.ligada = false; st.parou = ''; gravar(); acordarJa(); pintar();
+  }
+
+  // escolher as histórias: as que faltam já vêm fáceis de marcar
+  function escolher(){
+    if(cfg.motorVoz==='nativo'){ toast(T('Escolha antes uma voz de internet em Ajustes → Voz','First choose an internet voice in Settings → Voice'), 4000); return; }
+    const marca = Guarda.marca();
+    const estado = h=>{
+      if(st.ids.includes(h.id)) return ['fila', T('📥 na fila','📥 queued')];
+      if(vozesCompletas(h).includes(marca)) return ['inteira', T('✅ inteira','✅ complete')];
+      const r = VOZ_GUARDADA.get(h.id);
+      return (r && r.marcas[marca]) ? ['parte', T('◐ em parte','◐ partial')] : ['nada', T('○ sem voz','○ no voice')];
+    };
+    const itens = historias.map(h=>({h, e:estado(h)}));
+    modal(`<h3>📥 ${T('Fila de voz','Voice queue')}</h3>
+      <p class="hint">${T('Voz','Voice')}: <b>${esc(nomeMarca(marca))}</b>. ${T('Marque as histórias. A fila baixa uma por vez e insiste sozinha quando a cota acaba.','Tick the stories. The queue downloads one at a time and keeps retrying when the quota runs out.')}</p>
+      <div class="linha" style="margin-top:10px">
+        <button class="btn sm" id="fv-faltam">${T('Marcar as que faltam','Tick the missing ones')}</button>
+        <button class="btn sm ghost" id="fv-nenhuma">${T('Desmarcar','Untick all')}</button>
+      </div>
+      <div class="fv-lista">${itens.map(({h,e})=>`<label class="fv-it${e[0]==='fila'?' fila':''}"><input type="checkbox" value="${esc(h.id)}" data-estado="${e[0]}"${e[0]==='fila'?' disabled checked':''}><span class="t">${esc(h.titulo)}</span><small>${e[1]}</small></label>`).join('')}</div>
+      <button class="btn ok" id="fv-ok">📥 ${T('Pôr na fila','Add to queue')}: <span id="fv-n">0</span></button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="fv-f">${T('Cancelar','Cancel')}</button>`);
+    const caixas = ()=>$$('.fv-lista input:not([disabled])');
+    const contar = ()=>{ $('#fv-n').textContent = caixas().filter(c=>c.checked).length; };
+    caixas().forEach(c=>c.addEventListener('change', contar));
+    $('#fv-faltam').onclick = ()=>{ caixas().forEach(c=>{ c.checked = c.dataset.estado!=='inteira'; }); contar(); };
+    $('#fv-nenhuma').onclick = ()=>{ caixas().forEach(c=>{ c.checked = false; }); contar(); };
+    $('#fv-f').onclick = fecharModal;
+    $('#fv-ok').onclick = ()=>{
+      const ids = caixas().filter(c=>c.checked).map(c=>c.value);
+      if(!ids.length){ toast(T('Marque pelo menos uma história','Tick at least one story')); return; }
+      fecharModal(); adicionar(ids);
+    };
+  }
+
+  function pintar(){
+    const n = st.ids.length, h = n ? historias.find(x=>x.id===st.ids[0]) : null;
+    const andamento = (h && trecho.id===h.id && trecho.total) ? ' · '+trecho.feitos+'/'+trecho.total : '';
+    const el = $('#fila-voz-status');
+    if(el){
+      if(!n) el.innerHTML = T('Nenhuma história na fila.','No stories in the queue.');
+      else if(st.ligada) el.innerHTML = `<b>${n}</b> ${T('na fila','queued')} · ${esc(h ? h.titulo : '')}${andamento}<br>${esc(agora || T('trabalhando…','working…'))}`;
+      else el.innerHTML = `<b>${n}</b> ${T('na fila, pausada','queued, paused')}${st.parou ? '<br><span style="color:var(--vermelho)">'+esc(st.parou)+'</span>' : ''}`;
+    }
+    const alt = $('#btn-fila-alternar');
+    if(alt){ alt.textContent = st.ligada ? T('⏸ Pausar','⏸ Pause') : T('▶️ Continuar','▶️ Resume'); alt.disabled = !n; }
+    const lim = $('#btn-fila-limpar'); if(lim) lim.classList.toggle('oculto', !n);
+    const prep = $('#fila-voz-prep'); if(prep) prep.classList.toggle('oculto', !(st.ligada && n));
+    const bar = $('#fila-voz-barra'); if(bar) bar.style.width = (trecho.total && h && trecho.id===h.id ? trecho.feitos/trecho.total*100 : 0)+'%';
+    // no Início, uma linha discreta enquanto ela trabalha
+    const ini = $('#inicio-fila');
+    if(ini){
+      ini.classList.toggle('oculto', !(st.ligada && n));
+      if(st.ligada && n) ini.textContent = '📥 '+T('Baixando vozes','Downloading voices')+': '+n+' '+T('na fila','queued')+andamento+' · '+(agora || T('trabalhando…','working…'));
+    }
+  }
+
+  function iniciar(){
+    $('#btn-fila-escolher').addEventListener('click', escolher);
+    $('#btn-fila-alternar').addEventListener('click', ()=>{ st.ligada ? parar('') : continuar(); });
+    $('#btn-fila-limpar').addEventListener('click', esvaziar);
+    $('#inicio-fila').addEventListener('click', ()=>{ irTela('config'); setTimeout(()=>{ const e=$('#fila-voz-status'); if(e) e.scrollIntoView({block:'center', behavior:'smooth'}); }, 250); });
+    window.addEventListener('online', acordarJa);
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible'){ segurarTela(); acordarJa(); } });
+    document.addEventListener('dgo:idioma', pintar);
+    pintar();
+    // a fila que ficou ligada continua sozinha ao abrir o app
+    if(st.ligada && st.ids.length) setTimeout(()=>{ toast(T('📥 Continuando a fila de voz…','📥 Resuming the voice queue…')); trabalhar(); }, 4000);
+  }
+  return { iniciar, adicionar, escolher, continuar, pausar:()=>parar(''), estado:()=>JSON.parse(JSON.stringify(st)), acordar:acordarJa };
+})();
+FilaVoz.iniciar();
+
 /* ---------- anúncios: faixa em carrossel no topo, igual aos outros apps ----------
    A lista vem de um arquivo, na ordem: anuncios.json deste repositório (se um dia existir, para
    uma lista só deste app) → lista central do RootifyONE (/solverone-dados/anuncios.json) →
@@ -4368,7 +4736,7 @@ var Assist = (function(){
          'Only the topic is required: the rest can stay blank. Generating needs an AI key in Settings.'] },
     config: { t:['Ajustes','Settings'], s:'configurações chave voz ia backup',
       f:['Voz, IA, chaves, backup e o que mais o app precisa.','Voice, AI, keys, backup and whatever else the app needs.'],
-      a:[ ['🔑 Chaves de IA','🔑 AI keys', ()=>rolarAte('#cofre-lista')], ['🔊 Motor de voz','🔊 Voice engine', ()=>rolarAte('#sel-motor-voz')], ['🆕 Novidades','🆕 What\'s new', ()=>{ const b=$('#btn-novidades'); if(b) b.click(); }] ],
+      a:[ ['🔑 Chaves de IA','🔑 AI keys', ()=>rolarAte('#cofre-lista')], ['🔊 Motor de voz','🔊 Voice engine', ()=>rolarAte('#sel-motor-voz')], ['📥 Fila de voz','📥 Voice queue', ()=>rolarAte('#fila-voz-status')], ['🆕 Novidades','🆕 What\'s new', ()=>{ const b=$('#btn-novidades'); if(b) b.click(); }] ],
       d:['Cada seção tem um "Saiba mais" com a explicação completa. As chaves ficam só neste aparelho.',
          'Each section has a "Learn more" with the full explanation. Keys stay on this device only.'] }
   };

@@ -279,3 +279,23 @@ Os textos montados na hora (com nome da IA, tela atual etc.) já saem em PT e EN
 | Região (leitor de tela) | Anúncios | Ads |
 
 Os textos de cada anúncio vêm do `anuncios.json` central (campo `frase` com `pt` e `en`).
+
+
+---
+
+# v1.14.0 — Fila de voz e voz guardada preservada
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Ajustes, título | 📥 Fila de voz | 📥 Voice queue |
+| Ajustes, explicação | Baixa a voz de várias histórias, uma por vez, e tenta de novo sozinha quando a cota acaba. | Downloads the voice of several stories, one at a time, and retries on its own when the quota runs out. |
+| Botões | ➕ Escolher histórias · ▶️ Continuar · ⏸ Pausar · Esvaziar a fila | ➕ Choose stories · ▶️ Resume · ⏸ Pause · Empty the queue |
+| Estado | N na fila · trabalhando… · N na fila, pausada · Nenhuma história na fila. | N queued · working… · N queued, paused · No stories in the queue. |
+| Andamento | gerando o trecho X de Y · cota cheia — tento de novo às HH:MM (tentativa N) · não respondeu — … · sem internet — continuo quando voltar · esperando você fechar a história aberta… | generating clip X of Y · quota full — retrying at HH:MM (attempt N) · no answer — … · offline — resuming when it is back · waiting for you to close the open story… |
+| Avisos | ✅ Voz pronta: <título> · 🎉 Fila de voz terminada · 📥 Continuando a fila de voz… · Fila de voz pausada: <motivo> | ✅ Voice ready: <title> · 🎉 Voice queue finished · 📥 Resuming the voice queue… · Voice queue paused: <reason> |
+| Escolher | Marque as histórias. A fila baixa uma por vez e insiste sozinha quando a cota acaba. · Marcar as que faltam · Desmarcar · Pôr na fila (N) · ✅ inteira · ◐ em parte · ○ sem voz · 📥 na fila | Tick the stories. The queue downloads one at a time and keeps retrying when the quota runs out. · Tick the missing ones · Untick all · Add to queue (N) · ✅ complete · ◐ partial · ○ no voice · 📥 queued |
+| Início | 📥 Baixando vozes: N na fila · … | 📥 Downloading voices: N queued · … |
+| Menu ⋯ da história | 📥 Pôr na fila de voz | 📥 Add to the voice queue |
+| Proteção | 🔒 Protegida: o navegador não apaga a voz sozinho. Atualizar o app também não apaga. | 🔒 Protected: the browser will not delete the voice on its own. Updating the app does not delete it either. |
+| Proteção (sem garantia) | ⚠️ Se o aparelho ficar sem espaço, o navegador pode apagar a voz. Instalar o app na tela inicial ajuda; para garantir, guarde num arquivo. | ⚠️ If the device runs out of space, the browser may delete the voice. Installing the app on the home screen helps; to be safe, save it to a file. |
+| Arquivo | 💾 Guardar num arquivo · 📂 Trazer de um arquivo · Arquivo com X pronto — guarde num lugar seguro · ✅ N trechos trazidos · N já estavam aqui · Este arquivo não é uma voz guardada do Contador de Histórias. | 💾 Save to a file · 📂 Bring from a file · File with X ready — keep it somewhere safe · ✅ N clips brought in · N were already here · This file is not a Storyteller saved voice. |
