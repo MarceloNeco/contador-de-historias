@@ -1,5 +1,5 @@
-Contador de Histórias — LEIA-ME
-===============================
+UM Contador de Histórias — LEIA-ME
+==================================
 
 ESTE ZIP E SO DESTE APP.
 Repositorio: contador-de-historias

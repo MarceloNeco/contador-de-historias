@@ -1,4 +1,4 @@
-# Contador de Histórias — passo a passo
+# UM Contador de Histórias — passo a passo
 
 Pacote das diretrizes gerais para **este app**. Tudo o que está aqui é feito para
 este repositório: `contador-de-historias`.
@@ -17,7 +17,7 @@ O que muda de um app para o outro é só o arquivo `diretrizes-config.js`. O
 | `diretrizes.js` | o módulo (igual nos três apps) |
 | `diretrizes-config.js` | **os ajustes deste app** — nome, cor, traduções, avisos |
 | `sw.js` | faz o site abrir sem internet e permite instalar como app |
-| `manifest.json` | já preenchido com "Contador de Histórias" — não precisa editar |
+| `manifest.json` | já preenchido com "UM Contador de Histórias" — não precisa editar |
 | `icone-192.png` | ícone do app instalado |
 | `icone-512.png` | ícone do app instalado |
 | `TESTE-contador-de-historias.html` | página de conferência (opcional, mas recomendo subir) |
