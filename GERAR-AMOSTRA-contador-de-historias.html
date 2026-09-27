@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Gerar amostra de voz — Contador de Histórias</title>
+<!-- Ferramenta do dono: gera a amostra da voz premium com a chave do Gemini que já está salva no Contador
+     (mesmo endereço). A chave não é gravada por esta página e só vai para o Google. Não aparece no app. -->
+<style>
+  body{font:16px/1.5 system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;background:#140f22;color:#f2ecff}
+  h1{font-size:22px;margin:0 0 4px} h2{font-size:15px;color:#b6a8d8;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.6px}
+  textarea,select,button,input{width:100%;margin-top:8px;padding:12px;border-radius:14px;border:1px solid #3a2f5e;background:#1d1633;color:#f2ecff;font-size:16px;box-sizing:border-box;font-family:inherit}
+  textarea{min-height:110px;line-height:1.5}
+  button{background:linear-gradient(135deg,#ffc879,#ff9d5c);color:#2a1705;font-weight:700;border:none;cursor:pointer}
+  button.sec{background:#2e2450;color:#f2ecff;border:1px solid #3a2f5e;font-weight:600}
+  button[disabled]{opacity:.5;cursor:default}
+  .row{display:flex;gap:10px} .row>*{flex:1}
+  .box{background:#241c3d;border:1px solid #3a2f5e;border-radius:16px;padding:14px;margin-top:12px;font-size:14px}
+  .ok{color:#5fd6a4} .err{color:#ff7a92} small{color:#8c7cb4}
+  .take{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .take b{flex:1 1 100%} .take audio{flex:1 1 260px;margin-top:6px} .take button{width:auto;flex:0 0 auto;padding:10px 14px}
+  .lang{position:absolute;right:16px;top:16px;font-size:13px} .lang button{width:auto;padding:6px 10px;margin:0 2px}
+</style>
+</head>
+<body>
+<div class="lang"><button class="sec" data-lang="pt">PT</button><button class="sec" data-lang="en">EN</button></div>
+<h1 data-pt="🎙️ Gerar a amostra da voz premium" data-en="🎙️ Create the premium voice sample"></h1>
+<small data-pt="Usa a sua chave do Gemini (a mesma do Contador). Gere algumas versões, ouça e baixe a melhor. Depois suba o arquivo no repositório com o nome sugerido."
+       data-en="Uses your Gemini key (the same one as the Storyteller). Make a few takes, listen and download the best. Then upload the file to the repository with the suggested name."></small>
+
+<h2 data-pt="1. Chave do Gemini" data-en="1. Gemini key"></h2>
+<div class="box" id="estado-chave"></div>
+<input type="password" id="chave" autocomplete="off" placeholder="AIza… / AQ…" style="display:none">
+
+<h2 data-pt="2. Voz e modelo" data-en="2. Voice and model"></h2>
+<div class="row">
+  <select id="voz"></select>
+  <select id="modelo">
+    <option value="gemini-2.5-pro-preview-tts">2.5 Pro TTS</option>
+    <option value="gemini-3.1-flash-tts-preview">3.1 Flash TTS</option>
+    <option value="gemini-2.5-flash-preview-tts">2.5 Flash TTS</option>
+  </select>
+</div>
+
+<h2 data-pt="3. Jeito de falar" data-en="3. Speaking style"></h2>
+<textarea id="estilo" style="min-height:90px"></textarea>
+
+<h2 data-pt="4. Frase" data-en="4. Line"></h2>
+<div class="row"><button class="sec" id="frase-pt">Português</button><button class="sec" id="frase-en">English</button></div>
+<textarea id="frase"></textarea>
+
+<div style="height:14px"></div>
+<button id="gerar" data-pt="✨ Gerar uma versão" data-en="✨ Create a take"></button>
+<div class="box" id="aviso" style="display:none"></div>
+
+<h2 data-pt="5. Versões (ouça e baixe a melhor)" data-en="5. Takes (listen and download the best)"></h2>
+<div id="versoes"><small data-pt="Nenhuma ainda." data-en="None yet."></small></div>
+
+<div class="box">
+  <b data-pt="Depois de baixar" data-en="After downloading"></b>
+  <div data-pt="GitHub → repositório contador-de-historias → Add file → Upload files → arraste o arquivo (amostra-voz-premium.wav, ou amostra-voz-premium-en.wav para o inglês) → Commit changes. Em 1 a 2 minutos a amostra toca no convite da voz premium. Lembre de configurar a voz premium no RootifyONE com a MESMA voz e o mesmo modelo."
+       data-en="GitHub → contador-de-historias repository → Add file → Upload files → drag the file (amostra-voz-premium.wav, or amostra-voz-premium-en.wav for English) → Commit changes. In 1–2 minutes the sample plays in the premium voice invitation. Remember to set the premium voice in RootifyONE to the SAME voice and model."></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var FRASE = {
+    pt: 'Era uma vez, lá no alto de uma colina onde o vento sabia assobiar, uma estrelinha que tinha medo do escuro… Toda noite ela se escondia atrás da lua e sussurrava: — Será que alguém vai me encontrar? E sabe quem encontrou? … Você. Agora fecha os olhinhos… que a história vai começar.',
+    en: 'Once upon a time, high on a hill where the wind knew how to whistle, there lived a little star who was afraid of the dark… Every night she hid behind the moon and whispered: "Will anyone ever find me?" And do you know who found her? … You. Now close your eyes… the story is about to begin.'
+  };
+  var ESTILO = {
+    pt: 'Leia como uma contadora de histórias brasileira na hora de dormir: voz calorosa e calma, ritmo lento, pausas longas nas reticências. Sussurre a pergunta da estrelinha, faça uma pausa antes de "Você" e termine bem baixinho.',
+    en: 'Read like a warm bedtime storyteller: calm, gentle voice, slow pace, long pauses at the ellipses. Whisper the little star\'s question, pause before "You" and end very softly.'
+  };
+  // as mesmas vozes que o Contador oferece no Gemini (as calmas primeiro)
+  var VOZES = [['Sulafat','calorosa','warm'],['Achernar','suave','soft'],['Vindemiatrix','gentil','gentle'],['Enceladus','sussurrada','breathy'],
+    ['Rasalgethi','narradora','narrator'],['Umbriel','tranquila','easy-going'],['Leda','jovem','youthful'],
+    ['Aoede','leve','breezy'],['Despina','macia','smooth'],['Callirrhoe','tranquila','easy-going'],['Autonoe','clara','bright'],
+    ['Gacrux','madura','mature'],['Achird','amigável','friendly'],['Sadaltager','conhecedor','knowledgeable'],['Charon','informativo','informative']];
+  var idioma = 'pt', fraseIdioma = 'pt', versoes = [], chaveApp = '';
+  var $ = function (s) { return document.querySelector(s); };
+  var t = function (pt, en) { return idioma === 'en' ? en : pt; };
+
+  try { chaveApp = (JSON.parse(localStorage.getItem('ch_config') || '{}') || {}).geminiKey || ''; } catch (e) { chaveApp = ''; }
+  // o idioma escolhido no Contador vale aqui; sem escolha, o do navegador
+  try { var salvo = JSON.parse(localStorage.getItem('dgo:global:idioma') || 'null'); idioma = salvo ? (salvo === 'en' ? 'en' : 'pt') : ((navigator.language || '').indexOf('en') === 0 ? 'en' : 'pt'); } catch (e) {}
+
+  function traduzir() {
+    document.documentElement.lang = idioma === 'en' ? 'en' : 'pt-BR';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pt]'), function (el) { el.textContent = el.getAttribute('data-' + idioma); });
+    var ec = $('#estado-chave');
+    if (chaveApp) { ec.innerHTML = '<span class="ok">✓</span> ' + t('Usando a chave do Gemini salva no Contador neste navegador.', 'Using the Gemini key saved in the Storyteller in this browser.'); $('#chave').style.display = 'none'; }
+    else { ec.textContent = t('Não achei chave do Gemini salva no Contador neste navegador. Cole uma aqui (ela não fica guardada).', 'No Gemini key saved in the Storyteller in this browser. Paste one here (it is not stored).'); $('#chave').style.display = ''; }
+    $('#voz').innerHTML = VOZES.map(function (v) { return '<option value="' + v[0] + '">' + v[0] + ' — ' + (idioma === 'en' ? v[2] : v[1]) + '</option>'; }).join('');
+    pintarVersoes();
+  }
+  function usarFrase(l) { fraseIdioma = l; $('#frase').value = FRASE[l]; $('#estilo').value = ESTILO[l]; }
+
+  // PCM 16 bits mono (o que o Gemini devolve) → WAV
+  function wav(b64, taxa) {
+    var bin = atob(b64), n = bin.length, buf = new ArrayBuffer(44 + n), v = new DataView(buf), i;
+    var txt = function (o, s) { for (var k = 0; k < s.length; k++) v.setUint8(o + k, s.charCodeAt(k)); };
+    txt(0, 'RIFF'); v.setUint32(4, 36 + n, true); txt(8, 'WAVE'); txt(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true); v.setUint32(24, taxa, true); v.setUint32(28, taxa * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    txt(36, 'data'); v.setUint32(40, n, true);
+    var u8 = new Uint8Array(buf, 44); for (i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+    return new Blob([buf], { type: 'audio/wav' });
+  }
+  function aviso(msg, erro) { var a = $('#aviso'); a.style.display = msg ? '' : 'none'; a.className = 'box' + (erro ? ' err' : ''); a.textContent = msg || ''; }
+
+  function gerar() {
+    var chave = chaveApp || $('#chave').value.trim();
+    if (!chave) { aviso(t('Cole a chave do Gemini primeiro.', 'Paste the Gemini key first.'), true); return; }
+    var modelo = $('#modelo').value, voz = $('#voz').value, estilo = $('#estilo').value.trim(), frase = $('#frase').value.trim();
+    if (!frase) return;
+    var b = $('#gerar'); b.disabled = true; b.textContent = t('Gerando… (uns 10 a 30 segundos)', 'Creating… (about 10–30 seconds)'); aviso('');
+    fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modelo) + ':generateContent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
+      body: JSON.stringify({ contents: [{ parts: [{ text: (estilo ? estilo + '\n\n' : '') + frase }] }],
+        generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voz } } } } })
+    }).then(function (r) {
+      return r.text().then(function (txt) {
+        if (!r.ok) {
+          if (r.status === 429) throw new Error(t('A cota grátis deste modelo acabou por agora. Troque o modelo (ex.: 3.1 Flash TTS) ou tente mais tarde.', 'This model\'s free quota is used up for now. Switch model (e.g. 3.1 Flash TTS) or try later.'));
+          if (r.status === 401 || r.status === 403) throw new Error(t('O Google recusou a chave.', 'Google refused the key.'));
+          if (r.status === 404 || r.status === 400) throw new Error(t('Este modelo não está disponível para a sua chave. Escolha outro.', 'This model is not available for your key. Pick another.') + ' (' + r.status + ')');
+          throw new Error('Gemini ' + r.status + ': ' + txt.slice(0, 160));
+        }
+        var j = JSON.parse(txt), partes = (((j.candidates || [])[0] || {}).content || {}).parts || [], p = null;
+        partes.forEach(function (x) { if (!p && x && x.inlineData && x.inlineData.data) p = x.inlineData; });
+        if (!p) throw new Error(t('O Gemini não devolveu áudio. Tente de novo.', 'Gemini returned no audio. Try again.'));
+        var taxa = Number(((p.mimeType || '').match(/rate=(\d+)/) || [])[1] || 24000);
+        versoes.unshift({ blob: wav(p.data, taxa), voz: voz, modelo: modelo, idioma: fraseIdioma, url: null });
+        pintarVersoes();
+        var primeiro = document.querySelector('#versoes audio'); if (primeiro) primeiro.play().catch(function () {});
+      });
+    }).catch(function (e) { aviso(e.message || String(e), true); })
+      .then(function () { b.disabled = false; b.textContent = t('✨ Gerar outra versão', '✨ Create another take'); });
+  }
+  function pintarVersoes() {
+    var box = $('#versoes');
+    if (!versoes.length) { box.innerHTML = '<small>' + t('Nenhuma ainda.', 'None yet.') + '</small>'; return; }
+    box.innerHTML = '';
+    versoes.forEach(function (v, i) {
+      if (!v.url) v.url = URL.createObjectURL(v.blob);
+      var nome = v.idioma === 'en' ? 'amostra-voz-premium-en.wav' : 'amostra-voz-premium.wav';
+      var d = document.createElement('div'); d.className = 'box take';
+      d.innerHTML = '<b>' + t('Versão ', 'Take ') + (versoes.length - i) + ' · ' + v.voz + ' · ' + v.modelo + ' · ' + (v.idioma === 'en' ? 'EN' : 'PT') + '</b>' +
+        '<audio controls src="' + v.url + '"></audio>' +
+        '<button class="sec">⬇️ ' + t('Baixar', 'Download') + '</button>';
+      d.querySelector('button').onclick = function () {
+        var a = document.createElement('a'); a.href = v.url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+      };
+      box.appendChild(d);
+    });
+  }
+
+  $('#gerar').onclick = gerar;
+  $('#frase-pt').onclick = function () { usarFrase('pt'); };
+  $('#frase-en').onclick = function () { usarFrase('en'); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-lang]'), function (b) { b.onclick = function () { idioma = b.getAttribute('data-lang'); traduzir(); }; });
+  usarFrase('pt'); traduzir();
+})();
+</script>
+</body>
+</html>
