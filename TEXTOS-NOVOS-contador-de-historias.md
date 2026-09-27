@@ -299,3 +299,20 @@ Os textos de cada anúncio vêm do `anuncios.json` central (campo `frase` com `p
 | Proteção | 🔒 Protegida: o navegador não apaga a voz sozinho. Atualizar o app também não apaga. | 🔒 Protected: the browser will not delete the voice on its own. Updating the app does not delete it either. |
 | Proteção (sem garantia) | ⚠️ Se o aparelho ficar sem espaço, o navegador pode apagar a voz. Instalar o app na tela inicial ajuda; para garantir, guarde num arquivo. | ⚠️ If the device runs out of space, the browser may delete the voice. Installing the app on the home screen helps; to be safe, save it to a file. |
 | Arquivo | 💾 Guardar num arquivo · 📂 Trazer de um arquivo · Arquivo com X pronto — guarde num lugar seguro · ✅ N trechos trazidos · N já estavam aqui · Este arquivo não é uma voz guardada do Contador de Histórias. | 💾 Save to a file · 📂 Bring from a file · File with X ready — keep it somewhere safe · ✅ N clips brought in · N were already here · This file is not a Storyteller saved voice. |
+
+
+---
+
+# v1.15.0 — Voz premium e IA de histórias da SolverONE
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Botão de motor | ✨ SolverONE · premium, sem chave | ✨ SolverONE · premium, no key |
+| Sem login | Voz e histórias com a qualidade da SolverONE, sem precisar de chave. Entre com a sua conta para usar. · Entrar com a conta SolverONE | SolverONE-quality voice and stories, no key needed. Sign in with your account to use them. · Sign in with a SolverONE account |
+| Conectado | Conectado como <e-mail> · plano <plano> · Usado este mês: X de Y caracteres (≈ N min de história) · Sem limite no seu plano · Sair da conta SolverONE | Signed in as <e-mail> · plan <plan> · Used this month: X of Y characters (≈ N min of story) · No limit on your plan · Sign out of SolverONE |
+| Sem acesso | A sua conta ainda não está liberada. · Disponível nos planos pagos da SolverONE. · Você usou todo o saldo deste mês (X de Y). Renova no dia 1. | Your account is not approved yet. · Available on SolverONE paid plans. · You used all of this month's allowance (X of Y). It renews on the 1st. |
+| Janela de conta | Conta SolverONE · A mesma conta vale em todos os apps da SolverONE… · Entrar · Entrar com Google · Criar conta · Esqueci a senha · Nova senha · Salvar a senha | SolverONE account · The same account works in every SolverONE app… · Sign in · Sign in with Google · Create account · Forgot password · New password · Save password |
+| Erros | E-mail ou senha incorretos. · Confirme o e-mail primeiro… · Este e-mail já tem conta… · Senha fraca… · Acabou o saldo deste mês na SolverONE (renova no dia 1). · A SolverONE está ocupada agora… · A IA não aceitou escrever este pedido… | Wrong e-mail or password. · Confirm your e-mail first… · This e-mail already has an account… · Weak password… · This month's SolverONE allowance is used up (renews on the 1st). · SolverONE is busy right now… · The AI would not write this request… |
+| Avisos | ✨ Conta SolverONE conectada · Conta SolverONE desconectada · Senha trocada ✓ | ✨ SolverONE account connected · SolverONE account disconnected · Password changed ✓ |
+
+A mensagem para quem não tem o plano pode ser trocada no RootifyONE (PT e EN).

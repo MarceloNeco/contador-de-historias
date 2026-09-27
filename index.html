@@ -325,6 +325,13 @@ body.com-leitor .ad-trilho,body.com-modal .ad-trilho{animation-play-state:paused
   color:var(--dim);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center}
 @media (prefers-reduced-motion:reduce){.ad-trilho{animation:none}.ad-janela{overflow-x:auto}}
 @media print{.ad-faixa{display:none!important}}
+/* ---------- SolverONE: voz e IA da plataforma ---------- */
+.sv-status{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.5}
+.sv-status b{color:var(--txt)}
+.sv-status .sv-uso{height:6px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:8px}
+.sv-status .sv-uso i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2))}
+.sv-bloq{opacity:.62}
+.sv-login input{margin-bottom:10px}
 /* ---------- fila de voz ---------- */
 .fv-lista{display:flex;flex-direction:column;gap:6px;max-height:48vh;overflow-y:auto;margin:12px 0;padding-right:2px}
 .fv-it{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--card);
@@ -629,7 +636,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     </div>
     <label class="f">Outros nomes para proteger <span style="color:var(--dim2);font-weight:500">(opcional — irmãos, pets, escola)</span></label>
     <input type="text" id="in-nomes-protegidos" placeholder="separe por vírgula" autocomplete="off">
-    <div class="hint">A voz de internet (Gemini, ElevenLabs, OpenAI) precisa receber o texto para ler — inclusive os nomes. Para nada sair do aparelho, use a voz do celular.</div>
+    <div class="hint">A voz de internet (Gemini, ElevenLabs, OpenAI ou a voz premium da SolverONE) precisa receber o texto para ler — inclusive os nomes. Para nada sair do aparelho, use a voz do celular.</div>
     <div style="height:10px"></div>
     <div class="info">No topo da tela: <b id="previa-saudacao">—</b><br>
       <span style="opacity:.85">Em voz alta: “<span id="previa-fala">—</span>”</span></div>
@@ -644,6 +651,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <button data-motor="elevenlabs">🎙️ ElevenLabs<br><span style="font-weight:500;font-size:11px">premium</span></button>
       <button data-motor="gemini">💎 Gemini<br><span style="font-weight:500;font-size:11px">natural e grátis</span></button>
       <button data-motor="openai">🤖 OpenAI<br><span style="font-weight:500;font-size:11px">barato</span></button>
+      <button data-motor="solverone" class="oculto">✨ SolverONE<br><span style="font-weight:500;font-size:11px">premium, sem chave</span></button>
     </div>
 
     <!-- nativo -->
@@ -705,6 +713,15 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <div class="hint">Isso é uma instrução em português mesmo. Dá para pedir coisas como “sussurre nas partes de suspense” ou “faça vozes diferentes para cada personagem”.</div>
     </div>
 
+    <!-- solverone: voz da plataforma, com a chave corporativa da SolverONE -->
+    <div id="cfg-solverone" class="oculto">
+      <div class="sv-status" id="sv-voz-status" aria-live="polite"></div>
+      <div id="sv-voz-escolha" class="oculto">
+        <label class="f">Voz</label>
+        <select id="sel-voz-solverone"></select>
+      </div>
+    </div>
+
     <!-- openai -->
     <div id="cfg-openai" class="oculto">
       <div class="info">Crie uma conta em <b>platform.openai.com</b>, adicione créditos e gere a chave em <b>API keys</b>. Ela fica salva <b>só neste celular</b>.</div>
@@ -762,6 +779,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <button data-motor="gemini" class="on">Gemini<br><span style="font-weight:500;font-size:11px">tem plano grátis</span></button>
       <button data-motor="anthropic">Claude<br><span style="font-weight:500;font-size:11px">pago</span></button>
       <button data-motor="openai">OpenAI<br><span style="font-weight:500;font-size:11px">pago</span></button>
+      <button data-motor="solverone" class="oculto">✨ SolverONE<br><span style="font-weight:500;font-size:11px">premium, sem chave</span></button>
     </div>
     <div id="cfg-txt-gemini">
       <div class="info">O Google dá uma cota <b>gratuita</b> por dia. Entre em <b>aistudio.google.com/apikey</b>, faça login com sua conta Google e clique em <b>Create API key</b>.</div>
@@ -799,6 +817,9 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
         <option value="gpt-4o-mini">gpt-4o-mini (barato)</option>
         <option value="gpt-4o">gpt-4o</option>
       </select>
+    </div>
+    <div id="cfg-txt-solverone" class="oculto">
+      <div class="sv-status" id="sv-txt-status" aria-live="polite"></div>
     </div>
     <div id="cfg-txt-manual" class="oculto">
       <div class="info">Nenhuma chave necessária. A aba “Criar” vai abrir direto no modo <b>Eu escrevo</b>, e o site funciona 100% offline.</div>
@@ -1089,6 +1110,7 @@ const configPadrao = {
   geminiVoice:'Sulafat', geminiModelTts:'gemini-3.1-flash-tts-preview',
   geminiInstr:'Leia esta história de dormir em português do Brasil como um pai contando para as filhas: voz calma e carinhosa, ritmo tranquilo, pausas naturais, e emoção diferente na fala de cada personagem. Não comente nada, apenas leia o texto.',
   assistOne:true,
+  solveroneVoz:'', solveroneModeloVoz:'',
   motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-3.6-flash',
   anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
   efeitos:true, volEfeitos:35, durEfeitos:'medio', adiantar:true,
@@ -1635,7 +1657,9 @@ const Guarda = (function(){
     marca(){
       return cfg.motorVoz==='gemini' ? ('gemini|'+cfg.geminiVoice+'|'+cfg.geminiModelTts)
            : cfg.motorVoz==='elevenlabs' ? ('eleven|'+cfg.elevenVoice+'|'+cfg.elevenModel)
-           : cfg.motorVoz==='openai' ? ('openai|'+cfg.openaiVoice+'|'+cfg.openaiModel) : 'nativo';
+           : cfg.motorVoz==='openai' ? ('openai|'+cfg.openaiVoice+'|'+cfg.openaiModel)
+           // SolverONE: o código da voz é estável (definido no RootifyONE); o modelo fica gravado para funcionar sem internet
+           : cfg.motorVoz==='solverone' ? ('solverone|'+(cfg.solveroneVoz||'padrao')+'|'+(cfg.solveroneModeloVoz||'padrao')) : 'nativo';
     },
     // chave = id | índice | motor | voz | modelo | hash do texto.
     // "marca" opcional: permite ler a voz guardada de outro motor (ex.: Gemini guardado, celular escolhido).
@@ -1756,6 +1780,7 @@ function nomeMarca(m){
   if(p[0]==='gemini') return 'Gemini · '+(p[1]||'');
   if(p[0]==='eleven') return 'ElevenLabs';
   if(p[0]==='openai') return 'OpenAI · '+(p[1]||'');
+  if(p[0]==='solverone') return 'SolverONE · '+((typeof Plataforma!=='undefined' && Plataforma.nomeVoz(p[1])) || p[1] || '');
   return 'voz do celular';
 }
 function fmtBytes(b){
@@ -1914,6 +1939,7 @@ async function audioGemini(texto){
 }
 
 function gerarAudio(texto){
+  if(cfg.motorVoz==='solverone') return Plataforma.voz(texto);
   if(cfg.motorVoz==='elevenlabs') return audioElevenlabs(texto);
   if(cfg.motorVoz==='gemini') return audioGemini(texto);
   return audioOpenai(texto);
@@ -1928,7 +1954,7 @@ const Leitor = (function(){
   // Quando a voz escolhida é a do celular mas a história já tem voz de internet guardada,
   // "marcaUso" aponta para essa voz: toca o que está no aparelho e nunca gera nada novo.
   let marcaUso=null;
-  const MOTOR_DA_MARCA = {gemini:'gemini', eleven:'elevenlabs', openai:'openai'};
+  const MOTOR_DA_MARCA = {gemini:'gemini', eleven:'elevenlabs', openai:'openai', solverone:'solverone'};
   const motor = ()=> marcaUso ? (MOTOR_DA_MARCA[marcaUso.split('|')[0]]||'nativo') : cfg.motorVoz;
   const marcaAt = ()=> marcaUso || Guarda.marca();
 
@@ -1940,6 +1966,7 @@ const Leitor = (function(){
     if(m==='gemini')     return [180, 400, 800, 1400][n] || 1900;
     if(m==='elevenlabs') return [200, 450, 700][n] || 900;
     if(m==='openai')     return [200, 450, 700][n] || 900;
+    if(m==='solverone')  return [200, 450, 800, 1400][n] || 1800;
     return 0;
   }
 
@@ -2748,17 +2775,19 @@ function desmascararNomes(texto, mapa){
   });
   return texto;
 }
-async function chamarIA(promptOriginal, aviso){
+async function chamarIA(promptOriginal, aviso, opcoes){
   const {texto, mapa} = mascararNomes(promptOriginal);
-  const r = await chamarIASemFiltro(texto, aviso);
+  const r = await chamarIASemFiltro(texto, aviso, opcoes);
   return typeof r==='string' ? desmascararNomes(r, mapa) : r;
 }
 /* ---------- troca de IA sozinho ----------
    Se a IA escolhida falha por cota, crédito ou chave, o pedido vai para a próxima que tem chave,
    na ordem da lista de Ajustes, com aviso na tela. Vale só para este pedido: a escolha não muda. */
-const ORDEM_IA = ['gemini','anthropic','openai'];
-const NOME_IA  = {gemini:'Gemini', anthropic:'Claude', openai:'OpenAI'};
+const ORDEM_IA = ['gemini','anthropic','openai','solverone'];
+const NOME_IA  = {gemini:'Gemini', anthropic:'Claude', openai:'OpenAI', solverone:'SolverONE'};
 const CHAVE_IA = {gemini:'geminiKey', anthropic:'anthropicKey', openai:'openaiKey'};
+// a IA da SolverONE não tem chave: vale quando a conta tem o plano e ainda há saldo no mês
+const temChaveIA = m => m==='solverone' ? Plataforma.disponivel('texto') : !!cfg[CHAVE_IA[m]];
 function semChave(msg){ const e = new Error(msg); e.semChave = true; return e; }
 // erro de um provedor com marcas do que aconteceu: cota (429), crédito (402 ou saldo zerado) ou chave recusada (401/403)
 function erroDoProvedor(nome, status, corpo){
@@ -2782,12 +2811,15 @@ function avisoTroca(de, para, motivo){
   const en = {cota:' is out of quota right now', credito:' is out of credit right now', chave:' refused the key', semchave:' has no key'};
   return '🔁 '+NOME_IA[de]+T(pt[motivo], en[motivo])+' — '+T('usando ','using ')+NOME_IA[para];
 }
-async function chamarIASemFiltro(prompt, aviso){
+async function chamarIASemFiltro(prompt, aviso, opcoes){
   aviso = aviso || function(){};
+  opcoes = opcoes || {};
   const m = cfg.motorTexto;
   if(!NOME_IA[m]) throw new Error('Escolha uma IA em Ajustes, ou use o modo "Eu escrevo".');
   // a escolhida primeiro; depois as outras que têm chave, na ordem da lista
-  const fila = [m].concat(ORDEM_IA.filter(x=>x!==m && cfg[CHAVE_IA[x]]));
+  // (semPlataforma: pedidos pequenos, como os comandos de voz, não gastam o saldo pago da SolverONE)
+  const fila = [m].concat(ORDEM_IA.filter(x=>x!==m && temChaveIA(x))).filter(x=>!(opcoes.semPlataforma && x==='solverone'));
+  if(!fila.length) throw semChave('Sem IA disponível para este pedido.');
   for(let i=0; i<fila.length; i++){
     const proxima = fila[i+1];
     try{ return await chamarMotor(fila[i], prompt, aviso, !!proxima); }
@@ -2802,6 +2834,7 @@ async function chamarIASemFiltro(prompt, aviso){
 }
 // um pedido a um motor só; temReserva = existe outra IA pronta para assumir se esta ficar sem cota
 async function chamarMotor(m, prompt, aviso, temReserva){
+  if(m==='solverone') return Plataforma.texto(prompt, aviso);
   if(m==='gemini'){
     if(!cfg.geminiKey) throw semChave('Cole sua chave do Gemini em Ajustes → IA que escreve.');
     const esperas = [6000, 15000, 30000];
@@ -2976,7 +3009,7 @@ async function gerarHistoria(){
       ${(velho||e.sobrecarga||e.cota||feitos) ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Ajustes → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
       <div style="height:14px"></div>
       ${velho ? '<button class="btn ok" id="m-ajustes">Ir para os Ajustes</button><div style="height:10px"></div>' : ''}
-      ${(e.sobrecarga||e.cota||feitos) ? '<button class="btn ok" id="m-denovo">🔄 Tentar de novo</button><div style="height:10px"></div>' : ''}
+      ${(e.sobrecarga||(e.cota && !e.fimDoMes)||feitos) ? '<button class="btn ok" id="m-denovo">🔄 Tentar de novo</button><div style="height:10px"></div>' : ''}
       <button class="btn sm ghost" id="mfechar">Fechar</button>`);
     $('#mfechar').onclick=fecharModal;
     const dn=$('#m-denovo'); if(dn) dn.onclick=()=>{ fecharModal(); gerarHistoria(); };
@@ -3503,11 +3536,11 @@ $('#btn-ver-sons').addEventListener('click',()=>{
 
 /* ----------------------------- ajustes ----------------------------- */
 function mostrarBlocosVoz(){
-  ['nativo','elevenlabs','gemini','openai'].forEach(m=>$('#cfg-'+m).classList.toggle('oculto', cfg.motorVoz!==m));
+  ['nativo','elevenlabs','gemini','openai','solverone'].forEach(m=>$('#cfg-'+m).classList.toggle('oculto', cfg.motorVoz!==m));
 }
 function mostrarBlocosTexto(){
-  ['manual','gemini','anthropic','openai'].forEach(m=>$('#cfg-txt-'+m).classList.toggle('oculto', cfg.motorTexto!==m));
-  const nomes={manual:'você mesmo escreve as histórias',gemini:'usando o Gemini',anthropic:'usando o Claude',openai:'usando a OpenAI'};
+  ['manual','gemini','anthropic','openai','solverone'].forEach(m=>$('#cfg-txt-'+m).classList.toggle('oculto', cfg.motorTexto!==m));
+  const nomes={manual:'você mesmo escreve as histórias',gemini:'usando o Gemini',anthropic:'usando o Claude',openai:'usando a OpenAI',solverone:'usando a IA da SolverONE'};
   $('#hint-motor-texto').textContent = 'Agora: '+nomes[cfg.motorTexto];
   $('#btn-gerar').disabled = cfg.motorTexto==='manual';
 }
@@ -3517,7 +3550,8 @@ function pintarCofre(){
   const el = $('#cofre-lista'); if(!el) return;
   const itens = COFRE.map(([id,nome,campo])=>({nome, tem:!!cfg[campo]}));
   itens.sort((a,b)=>(b.tem?1:0)-(a.tem?1:0));     // sort é estável: dentro de cada grupo, a ordem da lista
-  el.innerHTML = itens.map(i=>`<div class="it${i.tem?'':' sem'}"><span>${i.tem?'🔑':'◦'} ${esc(i.nome)}</span>${
+  const sv = (typeof Plataforma!=='undefined') ? Plataforma.resumoCofre() : '';
+  el.innerHTML = sv + itens.map(i=>`<div class="it${i.tem?'':' sem'}"><span>${i.tem?'🔑':'◦'} ${esc(i.nome)}</span>${
     i.tem ? '<span class="selo">✓ '+T('chave salva','key saved')+'</span>' : '<span class="tag">'+T('sem chave','no key')+'</span>'}</div>`).join('');
 }
 document.addEventListener('dgo:idioma', pintarCofre);
@@ -3960,6 +3994,12 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.15.0','27/09/2026', [
+    'Voz premium da SolverONE: com a conta SolverONE e o plano certo, a voz de qualidade vem da plataforma, sem precisar de chave própria; o áudio continua guardado no aparelho',
+    'IA de histórias da SolverONE: a plataforma escreve as histórias com uma IA mais robusta, também sem chave própria, dentro do saldo do seu plano',
+    'Entrar, criar conta e trocar a senha da conta SolverONE direto nos Ajustes (e-mail e senha ou Google)',
+    'Ajustes mostram o plano e quanto do saldo do mês já foi usado'
+  ]],
   ['1.14.0','26/09/2026', [
     'Fila de voz: escolha várias histórias e o app baixa a voz de uma por vez, tentando de novo sozinho quando a cota acaba (sem limite); a fila continua depois de fechar e abrir o app',
     'A voz guardada é achada pelo texto do trecho: ligar ou desligar o cumprimento, ou o Google trocar o modelo da mesma voz, não faz mais o app gerar tudo de novo',
@@ -4264,7 +4304,7 @@ const Comandos = (function(){
       'Pedido: "'+frase+'"\n' +
       'Responda só com JSON, sem comentários: {"acao":"...","titulo":"(se abrirTitulo)","tema":"(se criar)"}';
     try{
-      const r = await chamarIA(prompt);
+      const r = await chamarIA(prompt, null, {semPlataforma:true});
       const j = JSON.parse(String(r).replace(/^[^{]*/,'').replace(/[^}]*$/,''));
       if(!j || !acoes.includes(j.acao) || j.acao==='nenhum') return null;
       if(j.acao==='abrirTitulo'){ const h = acharHistoria(j.titulo||''); return h ? {acao:j.acao, h} : null; }
@@ -4349,6 +4389,262 @@ chave('#tg-comandos-ia','comandosIA');
 $('#txt-mic-ajuda').textContent = Comandos.ajuda();
 Comandos.mostrarBotoes();
 
+/* ---------- SolverONE: voz premium e IA da plataforma, com a chave corporativa ----------
+   A pessoa entra com a conta SolverONE (Supabase). O app pergunta ao banco que serviços pagos existem
+   e se o plano dela dá acesso (servicos_plataforma_app). A voz e a história saem da função do servidor
+   `solverone-ia`, que confere o plano de novo e usa a chave do dono (nunca vem para o aparelho).
+   O áudio gerado fica guardado aqui, como qualquer outra voz: repetir não gasta o saldo do mês.
+   Tudo o que muda (provedor, vozes, limites, quem usa) é configurado no RootifyONE. */
+var Plataforma = (function(){   // var: outros trechos perguntam typeof Plataforma antes de ele existir
+  // valores PÚBLICOS do projeto (os mesmos do SolverONE Lab); a proteção é o banco, não esconder isto
+  const SB = 'https://qvdvkqydhnadhewcidia.supabase.co', CHAVE = 'sb_publishable_oRJmeUwlBbOP_HoOXf0xLw_4O8v43EA';
+  const APP = 'contador-de-historias', CH_SESSAO = 'ch_solverone_sessao', CH_SERV = 'ch_solverone_servicos';
+  const PLANOS = {membro:['Membro','Member'], premium:['Premium','Premium'], familia:['Família','Family'], profissional:['Profissional','Professional']};
+  let sessao = null, servicos = [], ultimoErro = '';
+  try{ sessao = JSON.parse(localStorage.getItem(CH_SESSAO)||'null'); }catch(e){ sessao = null; }
+  try{ servicos = JSON.parse(localStorage.getItem(CH_SERV)||'[]') || []; }catch(e){ servicos = []; }
+  const gravarSessao = ()=>{ try{ sessao ? localStorage.setItem(CH_SESSAO, JSON.stringify(sessao)) : localStorage.removeItem(CH_SESSAO); }catch(e){} };
+  const voltarPara = ()=> location.origin + location.pathname;
+  const nomePlano = p => p ? T((PLANOS[p]||[p,p])[0], (PLANOS[p]||[p,p])[1]) : '';
+  const txt = v => v && typeof v==='object' ? (idiomaEN() ? (v.en||v.pt) : (v.pt||v.en)) || '' : (v||'');
+  const servico = tipo => servicos.find(s=>s.tipo===tipo) || null;
+  const fmtN = n => Number(n||0).toLocaleString(idiomaEN()?'en-US':'pt-BR');
+
+  // ---------- conta ----------
+  async function auth(caminho, corpo, metodo, token){
+    const cab = {apikey:CHAVE, 'Content-Type':'application/json'};
+    if(token) cab.Authorization = 'Bearer '+token;
+    const r = await fetch(SB+'/auth/v1/'+caminho, {method:metodo||'POST', headers:cab, body: corpo ? JSON.stringify(corpo) : undefined});
+    let j = null; try{ j = await r.json(); }catch(e){}
+    if(!r.ok){ const e = new Error((j && (j.msg || j.error_description || j.message || j.error)) || ('HTTP '+r.status)); e.status = r.status; e.codigo = j && (j.error_code || j.error); throw e; }
+    return j;
+  }
+  function guardarTokens(j){
+    const email = (j.user && j.user.email) || (()=>{ try{ return JSON.parse(atob(j.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).email; }catch(e){ return ''; } })();
+    sessao = { access_token:j.access_token, refresh_token:j.refresh_token, expira: Date.now() + (Number(j.expires_in)||3600)*1000, email };
+    gravarSessao();
+  }
+  async function token(){
+    if(!sessao) return null;
+    if(Date.now() > sessao.expira - 60000){
+      try{ guardarTokens(await auth('token?grant_type=refresh_token', {refresh_token:sessao.refresh_token})); }
+      catch(e){ if(e.status===400 || e.status===401){ sessao = null; gravarSessao(); atualizar(); } return null; }
+    }
+    return sessao.access_token;
+  }
+  function explicarAuth(e){
+    const m = String(e && (e.codigo||'')+' '+(e.message||''));
+    if(/invalid_credentials|invalid login/i.test(m)) return T('E-mail ou senha incorretos.','Wrong e-mail or password.');
+    if(/email_not_confirmed|not confirmed/i.test(m)) return T('Confirme o e-mail primeiro (veja a caixa de entrada).','Confirm your e-mail first (check your inbox).');
+    if(/already registered|user_already_exists/i.test(m)) return T('Este e-mail já tem conta. É só entrar.','This e-mail already has an account. Just sign in.');
+    if(/weak_password|password should/i.test(m)) return T('Senha fraca: use pelo menos 8 caracteres.','Weak password: use at least 8 characters.');
+    if(/failed to fetch|networkerror|load failed/i.test(m)) return T('Sem internet agora.','No internet right now.');
+    return T('Não deu certo: ','That did not work: ')+(e && e.message || '');
+  }
+  function janelaEntrar(){
+    modal(`<h3>✨ ${T('Conta SolverONE','SolverONE account')}</h3>
+      <p class="hint">${T('A mesma conta vale em todos os apps da SolverONE. A voz premium e a IA de histórias dependem do seu plano.','The same account works in every SolverONE app. The premium voice and story AI depend on your plan.')}</p>
+      <div class="sv-login" style="margin-top:12px">
+        <input type="text" id="sv-email" inputmode="email" autocomplete="username" placeholder="${T('E-mail','E-mail')}" aria-label="E-mail">
+        <input type="password" id="sv-senha" autocomplete="current-password" placeholder="${T('Senha','Password')}" aria-label="${T('Senha','Password')}">
+      </div>
+      <div class="aviso oculto" id="sv-erro"></div>
+      <div class="ok oculto" id="sv-ok"></div>
+      <div style="height:10px"></div>
+      <button class="btn pri" id="sv-entrar">${T('Entrar','Sign in')}</button>
+      <div style="height:10px"></div>
+      <button class="btn" id="sv-google">${T('Entrar com Google','Sign in with Google')}</button>
+      <div class="linha" style="margin-top:10px">
+        <button class="btn sm ghost" id="sv-criar">${T('Criar conta','Create account')}</button>
+        <button class="btn sm ghost" id="sv-esqueci">${T('Esqueci a senha','Forgot password')}</button>
+      </div>`);
+    const erro = t=>{ const e=$('#sv-erro'); e.textContent=t; e.classList.toggle('oculto', !t); $('#sv-ok').classList.add('oculto'); };
+    const ok = t=>{ const e=$('#sv-ok'); e.textContent=t; e.classList.remove('oculto'); $('#sv-erro').classList.add('oculto'); };
+    const dados = ()=>({ email:$('#sv-email').value.trim().toLowerCase(), senha:$('#sv-senha').value });
+    const ocupar = async (b, fn)=>{ const r=b.innerHTML; b.disabled=true; b.innerHTML='<span class="load"></span>'; try{ await fn(); }catch(e){ erro(explicarAuth(e)); } finally{ if(document.body.contains(b)){ b.disabled=false; b.innerHTML=r; } } };
+    $('#sv-entrar').onclick = ()=>ocupar($('#sv-entrar'), async ()=>{
+      const d = dados(); if(!d.email || !d.senha) return erro(T('Preencha e-mail e senha.','Fill in e-mail and password.'));
+      guardarTokens(await auth('token?grant_type=password', {email:d.email, password:d.senha}));
+      fecharModal(); toast(T('✨ Conta SolverONE conectada','✨ SolverONE account connected')); atualizar();
+    });
+    $('#sv-google').onclick = ()=>{ location.href = SB+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(voltarPara()); };
+    $('#sv-criar').onclick = ()=>ocupar($('#sv-criar'), async ()=>{
+      const d = dados(); if(!d.email || d.senha.length < 8) return erro(T('Para criar a conta: e-mail e uma senha de pelo menos 8 caracteres.','To create the account: e-mail and a password of at least 8 characters.'));
+      const j = await auth('signup?redirect_to='+encodeURIComponent(voltarPara()), {email:d.email, password:d.senha});
+      if(j && j.access_token){ guardarTokens(j); fecharModal(); toast(T('✨ Conta criada','✨ Account created')); atualizar(); }
+      else ok(T('Enviamos um e-mail de confirmação para ','We sent a confirmation e-mail to ')+d.email+T('. Abra o link nele neste mesmo aparelho.','. Open its link on this same device.'));
+    });
+    $('#sv-esqueci').onclick = ()=>ocupar($('#sv-esqueci'), async ()=>{
+      const d = dados(); if(!d.email) return erro(T('Escreva o seu e-mail.','Write your e-mail.'));
+      await auth('recover?redirect_to='+encodeURIComponent(voltarPara()), {email:d.email});
+      ok(T('Se houver conta com este e-mail, chegou um link para criar uma senha nova.','If there is an account with this e-mail, a link to set a new password has arrived.'));
+    });
+  }
+  async function sair(){
+    const t = sessao && sessao.access_token;
+    sessao = null; gravarSessao();
+    if(t) auth('logout', null, 'POST', t).catch(()=>{});
+    toast(T('Conta SolverONE desconectada','SolverONE account disconnected'));
+    atualizar();
+  }
+  // volta do Google, da confirmação de e-mail ou do "esqueci a senha": os tokens chegam no endereço (#access_token=…)
+  function lerRetorno(){
+    const h = location.hash || '';
+    if(!/access_token=|error_description=/.test(h)) return;
+    const p = new URLSearchParams(h.slice(1));
+    try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}   // mantém o marcador do Voltar
+    if(p.get('error_description')){ setTimeout(()=>toast(T('Não deu para entrar: ','Could not sign in: ')+p.get('error_description'), 5000), 800); return; }
+    guardarTokens({ access_token:p.get('access_token'), refresh_token:p.get('refresh_token'), expires_in:p.get('expires_in') });
+    if(p.get('type')==='recovery') setTimeout(janelaNovaSenha, 900);
+    else setTimeout(()=>toast(T('✨ Conta SolverONE conectada','✨ SolverONE account connected')), 900);
+  }
+  function janelaNovaSenha(){
+    modal(`<h3>${T('Nova senha','New password')}</h3>
+      <input type="password" id="sv-nova" autocomplete="new-password" placeholder="${T('Pelo menos 8 caracteres','At least 8 characters')}" aria-label="${T('Nova senha','New password')}">
+      <div class="aviso oculto" id="sv-erro" style="margin-top:10px"></div>
+      <div style="height:12px"></div><button class="btn pri" id="sv-salvar-senha">${T('Salvar a senha','Save password')}</button>`);
+    $('#sv-salvar-senha').onclick = async ()=>{
+      const v = $('#sv-nova').value;
+      const erro = t=>{ const e=$('#sv-erro'); e.textContent=t; e.classList.remove('oculto'); };
+      if(v.length < 8) return erro(T('Use pelo menos 8 caracteres.','Use at least 8 characters.'));
+      try{ await auth('user', {password:v}, 'PUT', await token()); fecharModal(); toast(T('Senha trocada ✓','Password changed ✓')); }
+      catch(e){ erro(explicarAuth(e)); }
+    };
+  }
+
+  // ---------- que serviços existem e se posso usar ----------
+  async function atualizar(){
+    try{
+      const t = await token();
+      const cab = {apikey:CHAVE, 'Content-Type':'application/json'};
+      if(t) cab.Authorization = 'Bearer '+t;
+      const r = await fetch(SB+'/rest/v1/rpc/servicos_plataforma_app', {method:'POST', headers:cab, body:JSON.stringify({p_app:APP})});
+      if(r.status===401 && t){ sessao = null; gravarSessao(); return atualizar(); }
+      // sem o SQL rodado (404) ou sem internet: nada aparece, o app segue como antes
+      servicos = r.ok ? ((await r.json()) || []) : [];
+      ultimoErro = '';
+      try{ localStorage.setItem(CH_SERV, JSON.stringify(servicos)); }catch(e){}
+      const v = servico('voz');
+      if(v){
+        const ids = (v.vozes||[]).map(x=>x.id);
+        let mudou = false;
+        if(ids.length && !ids.includes(cfg.solveroneVoz)){ cfg.solveroneVoz = ids[0]; mudou = true; }
+        if(v.modelo && cfg.solveroneModeloVoz!==v.modelo){ cfg.solveroneModeloVoz = v.modelo; mudou = true; }
+        if(mudou) salvarCfg();
+      }
+    }catch(e){ ultimoErro = T('Sem conexão com a SolverONE agora.','No connection to SolverONE right now.'); }
+    pintar();
+  }
+  function disponivel(tipo){ const s = servico(tipo); return !!(s && s.disponivel && sessao); }
+  function aparece(s){ return !!s && (s.disponivel || s.motivo==='entrar' || s.visivel_sem_acesso!=='oculto'); }
+
+  // ---------- telas ----------
+  function statusHTML(s){
+    if(!s) return T('A SolverONE ainda não oferece este serviço aqui.','SolverONE does not offer this service here yet.');
+    const conta = sessao ? `${T('Conectado como','Signed in as')} <b>${esc(sessao.email||'')}</b>${s.plano ? ' · '+T('plano','plan')+' <b>'+esc(nomePlano(s.plano))+'</b>' : ''}` : '';
+    const unid = s.unidade==='historias' ? T(' histórias',' stories') : T(' caracteres',' characters');
+    const minutos = s.unidade==='caracteres' ? ` (≈ ${Math.max(1, Math.round((s.limite||0)/900))} ${T('min de história','min of story')})` : '';
+    let corpo;
+    if(!sessao || s.motivo==='entrar') corpo = `${T('Voz e histórias com a qualidade da SolverONE, sem precisar de chave. Entre com a sua conta para usar.','SolverONE-quality voice and stories, no key needed. Sign in with your account to use them.')}<div style="height:10px"></div><button class="btn sm pri" data-sv="entrar">${T('Entrar com a conta SolverONE','Sign in with a SolverONE account')}</button>`;
+    else if(s.motivo==='aguardando') corpo = `${conta}<br>${T('A sua conta ainda não está liberada.','Your account is not approved yet.')}`;
+    else if(s.motivo==='plano') corpo = `${conta}<br>${esc(txt(s.mensagem) || T('Disponível nos planos pagos da SolverONE.','Available on SolverONE paid plans.'))}`;
+    else if(s.motivo==='limite') corpo = `${conta}<br>${T('Você usou todo o saldo deste mês','You used all of this month\'s allowance')} (${fmtN(s.usado)} ${T('de','of')} ${fmtN(s.limite)}${unid}). ${T('Renova no dia 1.','It renews on the 1st.')}`;
+    else if(Number(s.limite)===-1) corpo = `${conta}<br>${T('Sem limite no seu plano','No limit on your plan')} · ${T('usado este mês','used this month')}: ${fmtN(s.usado)}${unid}`;
+    else corpo = `${conta}<br>${T('Usado este mês','Used this month')}: <b>${fmtN(s.usado)}</b> ${T('de','of')} ${fmtN(s.limite)}${unid}${minutos}
+      <div class="sv-uso"><i style="width:${Math.min(100, (s.usado||0)/(s.limite||1)*100)}%"></i></div>`;
+    const rodape = sessao ? `<div style="height:8px"></div><button class="linkzinho" style="margin:0" data-sv="sair">${T('Sair da conta SolverONE','Sign out of SolverONE')}</button>` : '';
+    return (ultimoErro ? `<div class="hint" style="color:var(--vermelho)">${esc(ultimoErro)}</div>` : '') + corpo + rodape;
+  }
+  function pintar(){
+    const v = servico('voz'), x = servico('texto');
+    $$('#sel-motor-voz [data-motor="solverone"]').forEach(b=>{ b.classList.toggle('oculto', !aparece(v) && cfg.motorVoz!=='solverone'); b.classList.toggle('sv-bloq', !!v && !v.disponivel && !!sessao); });
+    $$('#sel-motor-texto [data-motor="solverone"]').forEach(b=>{ b.classList.toggle('oculto', !aparece(x) && cfg.motorTexto!=='solverone'); b.classList.toggle('sv-bloq', !!x && !x.disponivel && !!sessao); });
+    const sv = $('#sv-voz-status'); if(sv) sv.innerHTML = statusHTML(v);
+    const st = $('#sv-txt-status'); if(st) st.innerHTML = statusHTML(x);
+    const sel = $('#sel-voz-solverone'), vozes = (v && v.vozes) || [];
+    if(sel){
+      sel.innerHTML = vozes.map(o=>`<option value="${esc(o.id)}">${esc(txt(o.nome) || o.id)}</option>`).join('');
+      sel.value = cfg.solveroneVoz || '';
+      $('#sv-voz-escolha').classList.toggle('oculto', !(vozes.length > 1 && v && v.disponivel));
+    }
+    $$('[data-sv="entrar"]').forEach(b=>b.onclick = janelaEntrar);
+    $$('[data-sv="sair"]').forEach(b=>b.onclick = sair);
+    if(typeof pintarCofre==='function') pintarCofre();
+  }
+  function resumoCofre(){
+    if(!servicos.length) return '';
+    const s = servicos.find(x=>x.disponivel) || servicos[0];
+    return sessao
+      ? `<div class="it"><span>✨ SolverONE · ${esc(sessao.email||'')}</span><span class="selo">✓ ${esc(nomePlano(s.plano) || T('conectado','connected'))}</span></div>`
+      : `<div class="it sem"><span>✨ SolverONE</span><span class="tag">${T('não conectado','not connected')}</span></div>`;
+  }
+
+  // ---------- chamar a função do servidor ----------
+  function erroDaPlataforma(status, j){
+    const e = new Error(({
+      entrar: T('Entre com a sua conta SolverONE em Ajustes.','Sign in with your SolverONE account in Settings.'),
+      aguardando: T('A sua conta SolverONE ainda não está liberada.','Your SolverONE account is not approved yet.'),
+      plano: T('Este serviço não faz parte do seu plano SolverONE.','This service is not part of your SolverONE plan.'),
+      limite: T('Acabou o saldo deste mês na SolverONE (renova no dia 1).','This month\'s SolverONE allowance is used up (renews on the 1st).'),
+      desligado: T('A SolverONE desligou este serviço por agora.','SolverONE switched this service off for now.'),
+      grande: T('Trecho grande demais para a SolverONE.','Chunk too large for SolverONE.'),
+      recusou: T('A IA não aceitou escrever este pedido. Mude o tema e tente de novo.','The AI would not write this request. Change the topic and try again.'),
+      ocupado: T('A SolverONE está ocupada agora. Tentando de novo…','SolverONE is busy right now. Retrying…'),
+      'chave-plataforma': T('A SolverONE está com um problema na voz/IA. Já estamos vendo.','SolverONE has a voice/AI problem. We are on it.'),
+      ritmo: T('Muitos pedidos seguidos. Espere um minuto.','Too many requests in a row. Wait a minute.')
+    })[j && j.erro] || (j && j.mensagem) || ('SolverONE: '+status));
+    e.plataforma = true; e.codigo = j && j.erro;
+    e.passageiro = status===503 || status===502 || status===429 || status===0;   // lotado, falha passageira, rede
+    e.status = status===503 || status===429 ? 429 : status;                        // 429: o leitor espera e tenta de novo
+    if(e.codigo==='limite' || e.codigo==='ocupado') e.cota = true;               // para a troca de IA
+    if(e.codigo==='limite') e.fimDoMes = true;                                   // tentar de novo não adianta até o dia 1
+    if(['entrar','aguardando','plano','desligado'].includes(e.codigo)) e.semChave = true;
+    if(e.codigo==='chave-plataforma') e.chave = true;
+    return e;
+  }
+  async function chamar(corpo){
+    const t = await token();
+    if(!t) throw erroDaPlataforma(401, {erro:'entrar'});
+    let r;
+    try{ r = await fetch(SB+'/functions/v1/solverone-ia', {method:'POST', headers:{apikey:CHAVE, Authorization:'Bearer '+t, 'Content-Type':'application/json'}, body:JSON.stringify(Object.assign({app:APP}, corpo))}); }
+    catch(e){ const x = erroDaPlataforma(0, {mensagem:T('Sem internet agora.','No internet right now.')}); x.passageiro = true; throw x; }
+    // o saldo do mês vem junto de cada resposta: a tela de Ajustes acompanha sem perguntar de novo
+    const usado = r.headers.get('x-uso'), s = servico(corpo.acao==='voz' ? 'voz' : 'texto');
+    if(r.ok && usado!==null && usado!=='' && s){ s.usado = Number(usado); if(s.limite!==-1 && s.usado>=s.limite){ s.disponivel=false; s.motivo='limite'; } pintar(); }
+    if(!r.ok){
+      let j = null; try{ j = await r.json(); }catch(e){}
+      if(j && ['limite','plano','aguardando','desligado'].includes(j.erro)) atualizar();
+      throw erroDaPlataforma(r.status, j);
+    }
+    return r;
+  }
+  async function voz(texto){
+    const s = servico('voz');
+    const r = await chamar({acao:'voz', servico: s ? s.id : 'voz-premium', texto: semMarcadores(texto), voz: cfg.solveroneVoz});
+    return await r.blob();
+  }
+  async function texto(prompt, aviso){
+    const s = servico('texto');
+    if(aviso) aviso(T('a IA da SolverONE está escrevendo…','SolverONE AI is writing…'));
+    const r = await chamar({acao:'texto', servico: s ? s.id : 'historia-ia', prompt});
+    const j = await r.json();
+    return String(j.texto || '');
+  }
+  function nomeVoz(id){ const v = servico('voz'); const o = v && (v.vozes||[]).find(x=>x.id===id); return o ? txt(o.nome) : ''; }
+
+  function iniciar(){
+    lerRetorno();
+    const sel = $('#sel-voz-solverone');
+    if(sel) sel.addEventListener('change', ()=>{ cfg.solveroneVoz = sel.value; salvarCfg(); });
+    document.addEventListener('dgo:idioma', pintar);
+    window.addEventListener('online', atualizar);
+    pintar();
+    atualizar();
+  }
+  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, entrar: janelaEntrar, sair, conectado:()=>!!sessao };
+})();
+Plataforma.iniciar();
+
 /* ---------- guardar a voz num arquivo e trazer de volta ----------
    Para levar a voz para outro aparelho, para o endereço novo (solverone.com.br) ou para ter uma cópia.
    Um arquivo só, sem conversão (o áudio vai do jeito que está guardado), então pesa o mesmo que a voz. */
@@ -4427,12 +4723,14 @@ const FilaVoz = (function(){
   const statusDe = e => (e && e.status) || Number((String(e && e.message || '').match(/\b([1-5]\d\d)\b/)||[])[1]) || 0;
   function naoAdiantaInsistir(e){
     const msg = String(e && e.message || ''), s = statusDe(e);
+    if(e && e.plataforma) return !e.passageiro;   // SolverONE: sem login, sem plano ou fim do saldo do mês não passam esperando
     if(/Cole sua chave|Escolha uma voz/i.test(msg)) return true;
     if(/quota|cota/i.test(msg)) return false;      // sem cota ou sem caracteres (ElevenLabs): espera e tenta de novo
     return s===400 || s===401 || s===403 || s===404;
   }
   // o motivo da pausa em linguagem de gente (o texto técnico do provedor não ajuda ninguém)
   function motivoClaro(e){
+    if(e && e.plataforma) return e.message;
     const s = statusDe(e), msg = String(e && e.message || '');
     if(/Cole sua chave|Escolha uma voz/i.test(msg)) return msg;
     if(s===401 || s===403) return T('a chave de voz foi recusada (erro '+s+'). Confira ou troque a chave em Ajustes → Voz e toque em Continuar.','the voice key was refused (error '+s+'). Check or replace the key in Settings → Voice and tap Resume.');
