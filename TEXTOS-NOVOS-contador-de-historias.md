@@ -316,3 +316,18 @@ Os textos de cada anúncio vêm do `anuncios.json` central (campo `frase` com `p
 | Avisos | ✨ Conta SolverONE conectada · Conta SolverONE desconectada · Senha trocada ✓ | ✨ SolverONE account connected · SolverONE account disconnected · Password changed ✓ |
 
 A mensagem para quem não tem o plano pode ser trocada no RootifyONE (PT e EN).
+
+
+---
+
+# v1.16.0 — Convite da voz premium e da IA da SolverONE
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Botão | ✨ SolverONE ⓘ · premium, sem chave | ✨ SolverONE ⓘ · premium, no key |
+| Leitor de tela | Voz premium SolverONE — saiba mais · IA de histórias SolverONE — saiba mais | SolverONE premium voice — learn more · SolverONE story AI — learn more |
+| Convite, voz | Uma voz que conta a história como gente: calma, expressiva, do jeito que se conta na hora de dormir. · 🎭 Emoção, pausas e sussurros de contador de histórias de verdade · 🔑 Sem chave e sem configurar nada · 📱 Fica guardada no aparelho: ouvir de novo não gasta nada e funciona sem internet | A voice that tells the story like a person: calm, expressive, the way stories are told at bedtime. · 🎭 Emotion, pauses and whispers like a real storyteller · 🔑 No key and nothing to set up · 📱 Stays on the device: listening again costs nothing and works offline |
+| Convite, IA | A IA da SolverONE escreve as histórias por você, com mais capricho, dentro do seu plano. · 🖋️ Enredo, ritmo e final de dormir mais caprichados · 🛡️ Os nomes das crianças continuam protegidos | SolverONE AI writes the stories for you, with more care, within your plan. · 🖋️ Richer plots, rhythm and bedtime endings · 🛡️ Children's names stay protected |
+| Situação | Chega em breve nos planos pagos da SolverONE. · Faz parte dos planos pagos da SolverONE. Já é assinante? Entre com a sua conta. · Você já usou todo o saldo deste mês. Renova no dia 1. | Coming soon to SolverONE paid plans. · Part of SolverONE paid plans. Already a subscriber? Sign in with your account. · You have used all of this month's allowance. It renews on the 1st. |
+| Botões | ▶️ Ouvir uma amostra · ⏸ Parar · Entendi | ▶️ Hear a sample · ⏸ Stop · Got it |
+| Frase da amostra | ver `AMOSTRA-VOZ-PREMIUM-contador-de-historias.md` | see `AMOSTRA-VOZ-PREMIUM-contador-de-historias.md` |

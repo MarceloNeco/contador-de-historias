@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'Contador de Histórias', en: 'Story Teller' },
-  versaoApp: '1.15.0',
+  versaoApp: '1.16.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -54,7 +54,8 @@ DGO.iniciar({
     '#modal-conteudo',
     '#sugestao-conteudo',
     '#chips-tema',
-    '#chips-personagem'
+    '#chips-personagem',
+    '[data-motor="solverone"]'   /* botões da SolverONE: o app escreve o texto em PT/EN (muda com o plano) */
   ],
 
   /* ---------- barras que ficam grudadas no topo ----------
