@@ -25,7 +25,22 @@ Por que esta frase: em ~20 segundos mostra tudo o que a voz premium faz melhor q
 narração calma, uma pausa longa (as reticências), um sussurro de personagem, uma pergunta, a virada
 ("… Você.") falando direto com a criança, e um fim de dormir.
 
+## Jeito mais fácil (grátis): a página GERAR-AMOSTRA
+
+Abra, **no mesmo navegador em que você usa o Contador** (onde a chave do Gemini já está salva):
+
+- `https://solverone.com.br/contador-de-historias/GERAR-AMOSTRA-contador-de-historias.html`
+  (ou `https://marceloneco.github.io/contador-de-historias/GERAR-AMOSTRA-contador-de-historias.html`)
+
+A frase, o jeito de falar e as vozes já vêm preenchidos. Toque em **✨ Gerar uma versão**, ouça, gere outras
+trocando a voz (Sulafat, Achernar, Enceladus…) e toque em **⬇️ Baixar** na melhor: o arquivo já sai com o nome
+certo (`amostra-voz-premium.wav`). Depois é só subir no repositório (passo 8 abaixo). A página não aparece no app
+e não guarda a chave; ela só conversa com o Google.
+
 ## Caminho grátis: Google AI Studio (qualidade muito boa, sem contratar nada)
+
+Se o AI Studio abrir no **Antigravity Agent Preview** (o agente que pede chave), ignore: para voz é preciso
+escolher um modelo com **TTS** no nome (no seletor de modelo, à direita) ou abrir a geração de fala.
 
 Só precisa de uma conta Google. É a mesma família de vozes do Gemini que o Contador já usa.
 
