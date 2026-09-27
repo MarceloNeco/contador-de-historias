@@ -1,4 +1,4 @@
-# ARQUITETURA — Contador de Histórias
+# ARQUITETURA — UM Contador de Histórias
 
 Leia isto **antes** de mexer no código (vale para pessoas e para qualquer IA).
 Site estático no GitHub Pages, sem servidor, sem framework e sem passo de build: HTML, CSS e JavaScript puros.

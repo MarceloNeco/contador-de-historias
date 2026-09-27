@@ -338,3 +338,13 @@ A mensagem para quem não tem o plano pode ser trocada no RootifyONE (PT e EN).
 # v1.16.1 — Amostra toca sozinha
 
 Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
+
+
+---
+
+# v1.16.2 — Nome novo
+
+| Onde | PT | EN |
+|---|---|---|
+| Nome do app (topo, aba do navegador, ícone instalado, Sobre) | UM Contador de Histórias | ONE Storyteller (nome do app em inglês, usado pelo módulo comum) |
+| Novidades | O app agora se chama UM Contador de Histórias · A amostra da voz premium já vem com o app | — |

@@ -1,4 +1,4 @@
-# 📖 Contador de Histórias
+# 📖 UM Contador de Histórias
 
 Um site simples e bonito para contar histórias de dormir, feito para funcionar no celular.
 

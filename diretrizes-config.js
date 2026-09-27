@@ -1,5 +1,5 @@
 /* =====================================================================
-   Contador de Histórias  —  configuracao
+   UM Contador de Histórias  —  configuracao
    ---------------------------------------------------------------------
    ESTE e o unico arquivo diferente entre os seus apps.
    O diretrizes.js e identico nos tres; aqui ficam o nome, a cor, as
@@ -13,8 +13,8 @@ DGO.iniciar({
                                 guarda os dados. Seus sites moram todos em
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
-  nome: { pt: 'Contador de Histórias', en: 'Story Teller' },
-  versaoApp: '1.16.1',
+  nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
+  versaoApp: '1.16.2',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -83,7 +83,7 @@ DGO.iniciar({
   email: {
     formulario: '',      /* ex.: 'https://formspree.io/f/xxxxxxx' */
     deAvisos: '',        /* o e-mail que voce usa para responder */
-    assuntoPadrao: 'Contador de Histórias'
+    assuntoPadrao: 'UM Contador de Histórias'
   },
 
   /* ---------- nuvem ---------- */

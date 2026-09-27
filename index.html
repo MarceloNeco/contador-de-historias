@@ -8,7 +8,7 @@
 <meta name="description" content="Projeto pessoal e sem fins comerciais para narração de histórias em âmbito familiar.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Contador de Histórias</title>
+<title>UM Contador de Histórias</title>
 <!-- ícone: livro aberto bege/âmbar, desenhado em SVG (nítido em qualquer tamanho) -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z' fill='%23E3A04A'/%3E%3Cpath d='M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z' fill='%23F7E8C9' stroke='%239A5F1E' stroke-width='3' stroke-linejoin='round'/%3E%3Cpath d='M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1' stroke='%23C99A5B' stroke-width='2.2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="icone-180.png">
@@ -418,7 +418,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <header>
   <div class="hd">
     <div class="logo" aria-hidden="true"><svg width="34" height="34" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z" fill="#E3A04A"/><path d="M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z" fill="#F7E8C9" stroke="#9A5F1E" stroke-width="3" stroke-linejoin="round"/><path d="M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1" stroke="#C99A5B" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg></div>
-    <h1 id="hd-marca" role="button" tabindex="0" aria-label="Contador de Histórias — ir para o Início">Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
+    <h1 id="hd-marca" role="button" tabindex="0" aria-label="UM Contador de Histórias — ir para o Início">UM Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
     <button class="icobtn btn-mic oculto" id="btn-mic-topo" aria-label="Comando de voz">🎤</button>
     <button class="icobtn" id="btn-config-topo" aria-label="Configurações">⚙️</button>
   </div>
@@ -430,7 +430,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <section class="tela on" id="tela-inicio">
   <button class="faixa amarela oculto" id="inicio-fila"></button>
   <div class="capa" id="capa">
-    <img id="capa-img" src="capa.jpg" alt="Capa do Contador de Histórias">
+    <img id="capa-img" src="capa.jpg" alt="Capa do UM Contador de Histórias">
     <div class="frase"><span>hoje tem história</span>Escolhe uma, senta aqui e fecha os olhos.</div>
   </div>
   <div class="contador">
@@ -942,7 +942,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
   <div class="tit">ℹ️ Sobre</div>
   <div class="card">
     <div style="text-align:center">
-      <div style="font-size:15px;font-weight:700">Contador de Histórias</div>
+      <div style="font-size:15px;font-weight:700">UM Contador de Histórias</div>
       <div class="hint" style="margin-top:2px">versão <b id="txt-versao">—</b> · <span id="txt-data-versao">—</span></div>
     </div>
     <div style="height:14px"></div>
@@ -1718,7 +1718,7 @@ const Guarda = (function(){
     // arquivo: "CHVOZ1" + tamanho do índice (4 bytes) + índice em JSON + os áudios, um atrás do outro
     async importar(arquivo, aviso){
       const cab = new Uint8Array(await arquivo.slice(0,10).arrayBuffer());
-      if(String.fromCharCode.apply(null, cab.slice(0,6))!=='CHVOZ1') throw new Error(T('Este arquivo não é uma voz guardada do Contador de Histórias.','This file is not a Storyteller saved voice.'));
+      if(String.fromCharCode.apply(null, cab.slice(0,6))!=='CHVOZ1') throw new Error(T('Este arquivo não é uma voz guardada do UM Contador de Histórias.','This file is not a ONE Storyteller saved voice.'));
       const tam = new DataView(cab.buffer).getUint32(6, true);
       const indice = JSON.parse(await arquivo.slice(10, 10+tam).text());
       let pos = 10+tam, novos=0, iguais=0;
@@ -2188,7 +2188,7 @@ const Leitor = (function(){
     if(!('mediaSession' in navigator) || !hist) return;
     try{
       if(estado){ navigator.mediaSession.playbackState = estado; return; }
-      navigator.mediaSession.metadata = new MediaMetadata({ title: hist.titulo, artist: 'Contador de Histórias',
+      navigator.mediaSession.metadata = new MediaMetadata({ title: hist.titulo, artist: 'UM Contador de Histórias',
         album: hist.serie||'', artwork:[{src:'icone-180.png', sizes:'180x180', type:'image/png'}] });
       navigator.mediaSession.setActionHandler('play', ()=>{ if(!tocando) playConferindo(); });
       navigator.mediaSession.setActionHandler('pause', ()=>{ if(tocando) pausar(); });
@@ -3998,6 +3998,10 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.16.2','27/09/2026', [
+    'O app agora se chama UM Contador de Histórias',
+    'A amostra da voz premium já vem com o app'
+  ]],
   ['1.16.1','27/09/2026', [
     'A amostra da voz premium toca sozinha ao abrir o convite e para ao fechar',
     'A amostra pode ser MP3 ou WAV (o arquivo que o Google AI Studio entrega)'
