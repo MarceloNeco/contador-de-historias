@@ -331,6 +331,10 @@ body.com-leitor .ad-trilho,body.com-modal .ad-trilho{animation-play-state:paused
 .sv-status .sv-uso{height:6px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:8px}
 .sv-status .sv-uso i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2))}
 .sv-bloq{opacity:.62}
+.sv-i{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;margin-left:5px;
+  font-size:11px;font-weight:800;background:rgba(255,200,121,.2);color:var(--gold);vertical-align:1px}
+.sv-pontos{list-style:none;padding:0;margin:12px 0;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.sv-frase{font-style:italic;color:var(--dim);font-size:13px;margin:8px 2px 0;line-height:1.5}
 .sv-login input{margin-bottom:10px}
 /* ---------- fila de voz ---------- */
 .fv-lista{display:flex;flex-direction:column;gap:6px;max-height:48vh;overflow-y:auto;margin:12px 0;padding-right:2px}
@@ -3994,6 +3998,10 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.16.0','27/09/2026', [
+    'A voz premium e a IA de histórias da SolverONE aparecem sempre nos Ajustes; quem ainda não tem acesso vê a opção em cinza com ⓘ',
+    'Tocar nela abre o convite: o que é, a situação da sua conta e uma amostra da voz para ouvir'
+  ]],
   ['1.15.0','27/09/2026', [
     'Voz premium da SolverONE: com a conta SolverONE e o plano certo, a voz de qualidade vem da plataforma, sem precisar de chave própria; o áudio continua guardado no aparelho',
     'IA de histórias da SolverONE: a plataforma escreve as histórias com uma IA mais robusta, também sem chave própria, dentro do saldo do seu plano',
@@ -4536,7 +4544,10 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     pintar();
   }
   function disponivel(tipo){ const s = servico(tipo); return !!(s && s.disponivel && sessao); }
-  function aparece(s){ return !!s && (s.disponivel || s.motivo==='entrar' || s.visivel_sem_acesso!=='oculto'); }
+  // Sempre aparece como convite (mesmo antes de ligar: "em breve"). Só some se o RootifyONE marcar "escondido"
+  // e a pessoa, já conectada, não tiver acesso.
+  function aparece(s){ return !s || s.disponivel || s.motivo==='entrar' || s.visivel_sem_acesso!=='oculto'; }
+  const podeUsar = tipo => disponivel(tipo);
 
   // ---------- telas ----------
   function statusHTML(s){
@@ -4557,8 +4568,18 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
   }
   function pintar(){
     const v = servico('voz'), x = servico('texto');
-    $$('#sel-motor-voz [data-motor="solverone"]').forEach(b=>{ b.classList.toggle('oculto', !aparece(v) && cfg.motorVoz!=='solverone'); b.classList.toggle('sv-bloq', !!v && !v.disponivel && !!sessao); });
-    $$('#sel-motor-texto [data-motor="solverone"]').forEach(b=>{ b.classList.toggle('oculto', !aparece(x) && cfg.motorTexto!=='solverone'); b.classList.toggle('sv-bloq', !!x && !x.disponivel && !!sessao); });
+    [['#sel-motor-voz','voz',v,cfg.motorVoz],['#sel-motor-texto','texto',x,cfg.motorTexto]].forEach(([sel,tipo,s,atual])=>{
+      $$(sel+' [data-motor="solverone"]').forEach(b=>{
+        const livre = podeUsar(tipo);
+        b.classList.toggle('oculto', !aparece(s) && atual!=='solverone');
+        b.classList.toggle('sv-bloq', !livre);               // em cinza com ⓘ: tocar abre o convite em vez de trocar
+        // o texto do botão é escrito aqui (PT/EN): o tradutor do módulo comum não mexe nele (lista ignorar do config)
+        b.innerHTML = '✨ SolverONE' + (livre ? '' : '<span class="sv-i" aria-hidden="true">i</span>')
+          + '<br><span style="font-weight:500;font-size:11px">' + T('premium, sem chave','premium, no key') + '</span>';
+        b.setAttribute('aria-label', livre ? (tipo==='voz' ? T('Voz premium SolverONE','SolverONE premium voice') : T('IA de histórias SolverONE','SolverONE story AI'))
+                                           : (tipo==='voz' ? T('Voz premium SolverONE — saiba mais','SolverONE premium voice — learn more') : T('IA de histórias SolverONE — saiba mais','SolverONE story AI — learn more')));
+      });
+    });
     const sv = $('#sv-voz-status'); if(sv) sv.innerHTML = statusHTML(v);
     const st = $('#sv-txt-status'); if(st) st.innerHTML = statusHTML(x);
     const sel = $('#sel-voz-solverone'), vozes = (v && v.vozes) || [];
@@ -4571,6 +4592,68 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     $$('[data-sv="sair"]').forEach(b=>b.onclick = sair);
     if(typeof pintarCofre==='function') pintarCofre();
   }
+  /* ---------- convite: o que é, como está para mim, amostra ----------
+     A amostra é um arquivo que vem com o app (amostra-voz-premium.mp3; em inglês, amostra-voz-premium-en.mp3),
+     gravado com a MESMA voz configurada no RootifyONE. Sem o arquivo, o botão de ouvir não aparece. */
+  const AMOSTRA = { pt:'amostra-voz-premium.mp3', en:'amostra-voz-premium-en.mp3' };
+  const FRASE_AMOSTRA = {
+    pt:'Era uma vez, lá no alto de uma colina onde o vento sabia assobiar, uma estrelinha que tinha medo do escuro… Toda noite ela se escondia atrás da lua e sussurrava: — Será que alguém vai me encontrar? E sabe quem encontrou? … Você. Agora fecha os olhinhos… que a história vai começar.',
+    en:'Once upon a time, high on a hill where the wind knew how to whistle, there lived a little star who was afraid of the dark… Every night she hid behind the moon and whispered: "Will anyone ever find me?" And do you know who found her? … You. Now close your eyes… the story is about to begin.'
+  };
+  const existeArquivo = new Map();
+  async function acharAmostra(){
+    for(const nome of idiomaEN() ? [AMOSTRA.en, AMOSTRA.pt] : [AMOSTRA.pt]){
+      if(!existeArquivo.has(nome)){
+        try{ const r = await fetch(nome, {method:'HEAD', cache:'no-cache'}); existeArquivo.set(nome, r.ok); }
+        catch(e){ existeArquivo.set(nome, true); }            // sem internet: tenta tocar (pode estar guardado)
+      }
+      if(existeArquivo.get(nome)) return nome;
+    }
+    return null;
+  }
+  let audioAmostra = null;
+  function pararAmostra(){ if(audioAmostra){ audioAmostra.pause(); audioAmostra = null; } const b=$('#sv-amostra'); if(b) b.textContent = T('▶️ Ouvir uma amostra','▶️ Hear a sample'); }
+  function situacao(tipo){
+    const s = servico(tipo);
+    if(!s) return T('Chega em breve nos planos pagos da SolverONE.','Coming soon to SolverONE paid plans.');
+    if(!sessao || s.motivo==='entrar') return T('Faz parte dos planos pagos da SolverONE. Já é assinante? Entre com a sua conta.','Part of SolverONE paid plans. Already a subscriber? Sign in with your account.');
+    if(s.motivo==='aguardando') return T('A sua conta SolverONE ainda não está liberada.','Your SolverONE account is not approved yet.');
+    if(s.motivo==='plano') return txt(s.mensagem) || T('Faz parte dos planos pagos da SolverONE.','Part of SolverONE paid plans.');
+    if(s.motivo==='limite') return T('Você já usou todo o saldo deste mês. Renova no dia 1.','You have used all of this month\'s allowance. It renews on the 1st.');
+    return '';
+  }
+  async function convite(tipo){
+    const voz = tipo==='voz', s = servico(tipo);
+    const pontos = voz
+      ? [['🎭', T('Emoção, pausas e sussurros de contador de histórias de verdade','Emotion, pauses and whispers like a real storyteller')],
+         ['🔑', T('Sem chave e sem configurar nada','No key and nothing to set up')],
+         ['📱', T('Fica guardada no aparelho: ouvir de novo não gasta nada e funciona sem internet','Stays on the device: listening again costs nothing and works offline')]]
+      : [['🖋️', T('Enredo, ritmo e final de dormir mais caprichados','Richer plots, rhythm and bedtime endings')],
+         ['🔑', T('Sem chave e sem configurar nada','No key and nothing to set up')],
+         ['🛡️', T('Os nomes das crianças continuam protegidos','Children\'s names stay protected')]];
+    const amostra = voz ? await acharAmostra() : null;
+    const mostrarEntrar = !!s && !sessao;
+    modal(`<h3>✨ ${voz ? T('Voz premium SolverONE','SolverONE premium voice') : T('IA de histórias SolverONE','SolverONE story AI')}</h3>
+      <p class="hint" style="font-size:14px">${voz ? T('Uma voz que conta a história como gente: calma, expressiva, do jeito que se conta na hora de dormir.','A voice that tells the story like a person: calm, expressive, the way stories are told at bedtime.')
+                                               : T('A IA da SolverONE escreve as histórias por você, com mais capricho, dentro do seu plano.','SolverONE AI writes the stories for you, with more care, within your plan.')}</p>
+      <ul class="sv-pontos">${pontos.map(p=>`<li>${p[0]} ${esc(p[1])}</li>`).join('')}</ul>
+      ${amostra ? `<button class="btn" id="sv-amostra">${T('▶️ Ouvir uma amostra','▶️ Hear a sample')}</button><p class="sv-frase">“${esc(idiomaEN() && amostra===AMOSTRA.en ? FRASE_AMOSTRA.en : FRASE_AMOSTRA.pt)}”</p>` : ''}
+      ${situacao(tipo) ? `<div class="info" style="margin-top:12px">${esc(situacao(tipo))}</div>` : ''}
+      <div style="height:12px"></div>
+      ${mostrarEntrar ? `<button class="btn pri" id="sv-conv-entrar">${T('Entrar com a conta SolverONE','Sign in with a SolverONE account')}</button><div style="height:10px"></div>` : ''}
+      <button class="btn sm ghost" id="sv-conv-ok">${T('Entendi','Got it')}</button>`);
+    const b = $('#sv-amostra');
+    if(b) b.onclick = ()=>{
+      if(audioAmostra){ pararAmostra(); return; }
+      audioAmostra = new Audio(amostra);
+      audioAmostra.onended = pararAmostra;
+      audioAmostra.onerror = ()=>{ pararAmostra(); toast(T('A amostra não abriu agora.','The sample could not play right now.')); };
+      audioAmostra.play().then(()=>{ b.textContent = T('⏸ Parar','⏸ Stop'); }).catch(()=>pararAmostra());
+    };
+    $('#sv-conv-ok').onclick = ()=>{ pararAmostra(); fecharModal(); };
+    const e = $('#sv-conv-entrar'); if(e) e.onclick = ()=>{ pararAmostra(); janelaEntrar(); };
+  }
+
   function resumoCofre(){
     if(!servicos.length) return '';
     const s = servicos.find(x=>x.disponivel) || servicos[0];
@@ -4634,6 +4717,13 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
 
   function iniciar(){
     lerRetorno();
+    // tocar no botão em cinza abre o convite em vez de trocar o motor (a escolha antiga continua como estava)
+    [['#sel-motor-voz','voz'],['#sel-motor-texto','texto']].forEach(([sel,tipo])=>{
+      const b = $(sel+' [data-motor="solverone"]'); if(!b) return;
+      b.addEventListener('click', e=>{ if(podeUsar(tipo)) return; e.stopImmediatePropagation(); e.preventDefault(); convite(tipo); }, true);
+    });
+    const fecharConvite = ()=>pararAmostra();
+    document.addEventListener('visibilitychange', ()=>{ if(document.hidden) fecharConvite(); });
     const sel = $('#sel-voz-solverone');
     if(sel) sel.addEventListener('change', ()=>{ cfg.solveroneVoz = sel.value; salvarCfg(); });
     document.addEventListener('dgo:idioma', pintar);
@@ -4641,7 +4731,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     pintar();
     atualizar();
   }
-  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, entrar: janelaEntrar, sair, conectado:()=>!!sessao };
+  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, convite, entrar: janelaEntrar, sair, conectado:()=>!!sessao };
 })();
 Plataforma.iniciar();
 
