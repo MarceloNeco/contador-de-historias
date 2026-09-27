@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'Contador de Histórias', en: 'Story Teller' },
-  versaoApp: '1.16.0',
+  versaoApp: '1.16.1',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 

@@ -3998,6 +3998,10 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.16.1','27/09/2026', [
+    'A amostra da voz premium toca sozinha ao abrir o convite e para ao fechar',
+    'A amostra pode ser MP3 ou WAV (o arquivo que o Google AI Studio entrega)'
+  ]],
   ['1.16.0','27/09/2026', [
     'A voz premium e a IA de histórias da SolverONE aparecem sempre nos Ajustes; quem ainda não tem acesso vê a opção em cinza com ⓘ',
     'Tocar nela abre o convite: o que é, a situação da sua conta e uma amostra da voz para ouvir'
@@ -4595,14 +4599,15 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
   /* ---------- convite: o que é, como está para mim, amostra ----------
      A amostra é um arquivo que vem com o app (amostra-voz-premium.mp3; em inglês, amostra-voz-premium-en.mp3),
      gravado com a MESMA voz configurada no RootifyONE. Sem o arquivo, o botão de ouvir não aparece. */
-  const AMOSTRA = { pt:'amostra-voz-premium.mp3', en:'amostra-voz-premium-en.mp3' };
+  // aceita MP3 ou WAV (o Google AI Studio entrega WAV; não precisa converter)
+  const AMOSTRA = { pt:['amostra-voz-premium.mp3','amostra-voz-premium.wav'], en:['amostra-voz-premium-en.mp3','amostra-voz-premium-en.wav'] };
   const FRASE_AMOSTRA = {
     pt:'Era uma vez, lá no alto de uma colina onde o vento sabia assobiar, uma estrelinha que tinha medo do escuro… Toda noite ela se escondia atrás da lua e sussurrava: — Será que alguém vai me encontrar? E sabe quem encontrou? … Você. Agora fecha os olhinhos… que a história vai começar.',
     en:'Once upon a time, high on a hill where the wind knew how to whistle, there lived a little star who was afraid of the dark… Every night she hid behind the moon and whispered: "Will anyone ever find me?" And do you know who found her? … You. Now close your eyes… the story is about to begin.'
   };
   const existeArquivo = new Map();
   async function acharAmostra(){
-    for(const nome of idiomaEN() ? [AMOSTRA.en, AMOSTRA.pt] : [AMOSTRA.pt]){
+    for(const nome of idiomaEN() ? AMOSTRA.en.concat(AMOSTRA.pt) : AMOSTRA.pt){
       if(!existeArquivo.has(nome)){
         try{ const r = await fetch(nome, {method:'HEAD', cache:'no-cache'}); existeArquivo.set(nome, r.ok); }
         catch(e){ existeArquivo.set(nome, true); }            // sem internet: tenta tocar (pode estar guardado)
@@ -4637,19 +4642,23 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
       <p class="hint" style="font-size:14px">${voz ? T('Uma voz que conta a história como gente: calma, expressiva, do jeito que se conta na hora de dormir.','A voice that tells the story like a person: calm, expressive, the way stories are told at bedtime.')
                                                : T('A IA da SolverONE escreve as histórias por você, com mais capricho, dentro do seu plano.','SolverONE AI writes the stories for you, with more care, within your plan.')}</p>
       <ul class="sv-pontos">${pontos.map(p=>`<li>${p[0]} ${esc(p[1])}</li>`).join('')}</ul>
-      ${amostra ? `<button class="btn" id="sv-amostra">${T('▶️ Ouvir uma amostra','▶️ Hear a sample')}</button><p class="sv-frase">“${esc(idiomaEN() && amostra===AMOSTRA.en ? FRASE_AMOSTRA.en : FRASE_AMOSTRA.pt)}”</p>` : ''}
+      ${amostra ? `<button class="btn" id="sv-amostra">${T('▶️ Ouvir uma amostra','▶️ Hear a sample')}</button><p class="sv-frase">“${esc(AMOSTRA.en.includes(amostra) ? FRASE_AMOSTRA.en : FRASE_AMOSTRA.pt)}”</p>` : ''}
       ${situacao(tipo) ? `<div class="info" style="margin-top:12px">${esc(situacao(tipo))}</div>` : ''}
       <div style="height:12px"></div>
       ${mostrarEntrar ? `<button class="btn pri" id="sv-conv-entrar">${T('Entrar com a conta SolverONE','Sign in with a SolverONE account')}</button><div style="height:10px"></div>` : ''}
       <button class="btn sm ghost" id="sv-conv-ok">${T('Entendi','Got it')}</button>`);
     const b = $('#sv-amostra');
-    if(b) b.onclick = ()=>{
-      if(audioAmostra){ pararAmostra(); return; }
+    const tocar = ()=>{
       audioAmostra = new Audio(amostra);
       audioAmostra.onended = pararAmostra;
       audioAmostra.onerror = ()=>{ pararAmostra(); toast(T('A amostra não abriu agora.','The sample could not play right now.')); };
       audioAmostra.play().then(()=>{ b.textContent = T('⏸ Parar','⏸ Stop'); }).catch(()=>pararAmostra());
     };
+    if(b){
+      b.onclick = ()=>{ if(audioAmostra) pararAmostra(); else tocar(); };
+      // toca sozinha ao abrir o convite (o toque que abriu vale como permissão; se o navegador barrar, fica o botão)
+      tocar();
+    }
     $('#sv-conv-ok').onclick = ()=>{ pararAmostra(); fecharModal(); };
     const e = $('#sv-conv-entrar'); if(e) e.onclick = ()=>{ pararAmostra(); janelaEntrar(); };
   }
@@ -4722,8 +4731,10 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
       const b = $(sel+' [data-motor="solverone"]'); if(!b) return;
       b.addEventListener('click', e=>{ if(podeUsar(tipo)) return; e.stopImmediatePropagation(); e.preventDefault(); convite(tipo); }, true);
     });
-    const fecharConvite = ()=>pararAmostra();
-    document.addEventListener('visibilitychange', ()=>{ if(document.hidden) fecharConvite(); });
+    // a amostra para quando o convite fecha de qualquer jeito: Entendi, toque fora, Voltar do celular ou trocar de app
+    document.addEventListener('visibilitychange', ()=>{ if(document.hidden) pararAmostra(); });
+    $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') pararAmostra(); });
+    window.addEventListener('popstate', pararAmostra);
     const sel = $('#sel-voz-solverone');
     if(sel) sel.addEventListener('change', ()=>{ cfg.solveroneVoz = sel.value; salvarCfg(); });
     document.addEventListener('dgo:idioma', pintar);

@@ -331,3 +331,10 @@ A mensagem para quem não tem o plano pode ser trocada no RootifyONE (PT e EN).
 | Situação | Chega em breve nos planos pagos da SolverONE. · Faz parte dos planos pagos da SolverONE. Já é assinante? Entre com a sua conta. · Você já usou todo o saldo deste mês. Renova no dia 1. | Coming soon to SolverONE paid plans. · Part of SolverONE paid plans. Already a subscriber? Sign in with your account. · You have used all of this month's allowance. It renews on the 1st. |
 | Botões | ▶️ Ouvir uma amostra · ⏸ Parar · Entendi | ▶️ Hear a sample · ⏸ Stop · Got it |
 | Frase da amostra | ver `AMOSTRA-VOZ-PREMIUM-contador-de-historias.md` | see `AMOSTRA-VOZ-PREMIUM-contador-de-historias.md` |
+
+
+---
+
+# v1.16.1 — Amostra toca sozinha
+
+Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
