@@ -348,3 +348,33 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 |---|---|---|
 | Nome do app (topo, aba do navegador, ícone instalado, Sobre) | UM Contador de Histórias | ONE Storyteller (nome do app em inglês, usado pelo módulo comum) |
 | Novidades | O app agora se chama UM Contador de Histórias · A amostra da voz premium já vem com o app | — |
+
+
+# v1.17.0 — Topo padrão, menus e AssistONE (02/Out/2026)
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Topo | Menu · Buscar · Mensagens · Perfil | Menu · Search · Messages · Profile |
+| Barra de baixo | Início · Acervo · Criar · Configurações | Home · Library · Create · Settings |
+| Gaveta ☰ | Buscar · Mensagens · AssistONE · Novidades · Aviso de uso · versão | Search · Messages · AssistONE · What's new · Terms of use · version |
+| Gaveta ☰ | Fechar o menu | Close the menu |
+| Menu 👤 | Visitante · Sem conta: nada sai deste aparelho. | Guest · No account: nothing leaves this device. |
+| Menu 👤 | Conta neste aparelho: nenhuma · Entrar · Sair | Account on this device: none · Sign in · Sign out |
+| Menu 👤 | SolverONE: não conectado | SolverONE: not signed in |
+| Menu 👤 | Membro · Anunciante · via senha / digital / Google · desde | Member · Advertiser · via password / fingerprint / Google · since |
+| Menu 👤 | São duas contas diferentes: a deste aparelho guarda histórias e chaves só aqui; a SolverONE dá a voz premium e a IA da plataforma. | They are two different accounts: this device's one keeps stories and keys here only; SolverONE gives the premium voice and the platform AI. |
+| Menu 👤 | Configurações · Tema claro · Efeitos sonoros · AssistONE · Sair | Settings · Light theme · Sound effects · AssistONE · Sign out |
+| Menu 👤 | Você saiu · Você saiu da conta deste aparelho | Signed out · Signed out of this device's account |
+| Configurações | Idioma e aparência | Language and appearance |
+| Configurações | Idioma — Português ou inglês, em todo o app. | Language — Portuguese or English, across the app. |
+| Configurações | Tema claro — Fundo claro para o dia. O escuro é o padrão, feito para a hora de dormir. | Light theme — Light background for daytime. Dark is the default, made for bedtime. |
+| Configurações | Reduzir animações — Para o balanço do AssistONE e as transições do app. | Reduce animations — Stops the AssistONE bounce and the app transitions. |
+| Configurações | Notificações, instalação e nuvem | Notifications, install and cloud |
+| Mensagens | Mensagens · Caixa de entrada · Arquivadas · Ver · Marcar como lida · Arquivar · Desarquivar · Fechar | Messages · Inbox · Archived · Open · Mark as read · Archive · Unarchive · Close |
+| Mensagens | Aviso do app · Aviso da SolverONE · Novidades da versão … · n mensagens novas · não lidas | App notice · SolverONE notice · What's new in version … · n new messages · unread |
+| Mensagens | Nada por aqui. Os avisos do app e da SolverONE chegam nesta caixa. | Nothing here. App and SolverONE notices arrive in this box. |
+| Busca | Buscar · História, tela ou função · Histórias · Telas e funções · você quis dizer… · Não achei nada com esse nome. | Search · Story, screen or function · Stories · Screens and functions · did you mean… · Nothing found with that name. |
+| AssistONE | AssistONE — ajuda e assistente (aria-label) | AssistONE — help and assistant |
+| Tour | O ☰ abre o menu com todas as telas, a busca e as mensagens. | The ☰ opens the menu with every screen, search and messages. |
+| Tour | O perfil mostra quem está conectado e abre Configurações, tema, som e Sair. | The profile shows who is signed in and opens Settings, theme, sound and Sign out. |
+| Tour | A barra de baixo leva ao Início, ao Acervo, a Criar e às Configurações. | The bottom bar takes you Home, to the Library, Create and Settings. |

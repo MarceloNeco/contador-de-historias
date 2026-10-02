@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.16.2',
+  versaoApp: '1.17.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -22,8 +22,9 @@ DGO.iniciar({
   idiomaPadrao: 'pt',                    /* 'pt' ou 'en' */
   idiomaCompartilhado: true,             /* o idioma escolhido vale nos seus 3 sites */
   seletorIdiomaVisivel: true,
-  posicaoSeletorIdioma: 'topo-esquerda',  /* topo-direita, topo-esquerda,
-                                            baixo-direita, baixo-esquerda */
+  posicaoSeletorIdioma: 'topo-esquerda',  /* topo-direita, topo-esquerda, baixo-direita, baixo-esquerda.
+                                            Neste app o index.html move o seletor para dentro de
+                                            Configurações → Idioma (diretriz do topo: sem PT|EN no topo). */
   datasAutomaticas: true,
 
   /* ---------- anuncio do topo ---------- */
@@ -147,7 +148,24 @@ DGO.iniciar({
     'Guardar num arquivo': 'Save to a file',
     'Trazer de um arquivo': 'Bring from a file',
     'Pôr na fila de voz': 'Add to the voice queue',
-    'Anúncios': 'Ads'
+    'Anúncios': 'Ads',
+    'Idioma e aparência': 'Language and appearance',
+    'Idioma': 'Language',
+    'Português ou inglês, em todo o app.': 'Portuguese or English, across the app.',
+    'Tema claro': 'Light theme',
+    'Fundo claro para o dia. O escuro é o padrão, feito para a hora de dormir.': 'Light background for daytime. Dark is the default, made for bedtime.',
+    'Reduzir animações': 'Reduce animations',
+    'Para o balanço do AssistONE e as transições do app.': 'Stops the AssistONE bounce and the app transitions.',
+    'Notificações, instalação e nuvem': 'Notifications, install and cloud',
+    'Menu': 'Menu',
+    'Buscar': 'Search',
+    'Mensagens': 'Messages',
+    'Perfil': 'Profile',
+    'Comando de voz': 'Voice command',
+    'Ir para o Início': 'Go Home',
+    'Início': 'Home',
+    'Criar': 'Create',
+    'Configurações': 'Settings'
   }
 
 });
