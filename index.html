@@ -22,6 +22,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
+html{scroll-padding-top:calc(var(--dgo-topo,0px) + 84px)}   /* foco e âncoras não ficam atrás do topo fixo */
 body{
   background:radial-gradient(1200px 600px at 50% -10%, #2a1f4d 0%, var(--bg) 60%) fixed, var(--bg);
   color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -40,23 +41,92 @@ header{
   background:rgba(20,15,34,.82);border-bottom:1px solid var(--line);
   padding-top:env(safe-area-inset-top);
 }
-.hd{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:var(--coluna);margin:0 auto}
-.hd .logo{width:34px;height:34px;flex:none;display:flex;cursor:pointer}
-#hd-marca{cursor:pointer}
-/* seletor PT|EN do módulo de diretrizes: vai para dentro do topo (não flutua por cima de nada) */
-.hd .dgo-idioma{position:static!important;inset:auto!important;flex:none;box-shadow:none}
-body.com-leitor .dgo-idioma, body.com-modal .dgo-idioma{display:none!important}
-/* celular estreito: o ⚙️ do topo some — Ajustes continua na barra de baixo */
-@media (max-width:420px){ #btn-config-topo{display:none} .hd h1{font-size:16px} }
+.hd{display:flex;align-items:center;gap:6px;padding:10px 12px;max-width:var(--coluna);margin:0 auto}
+@media (min-width:600px){.hd{gap:10px;padding:12px 16px}}
+/* padrão comum (diretriz AssistONE e menu): ☰ + nome (= Início) | … | 🔍 📥 👤 — todos com 44 px de toque */
+.hd .icobtn{width:44px;height:44px;flex:none}
+.hd .logo{width:24px;height:24px;flex:none;display:inline-flex;vertical-align:-5px;margin-right:6px}
 .hd .logo svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(227,160,74,.35))}
-.hd h1{font-size:18px;font-weight:700;letter-spacing:.2px;flex:1}
+#hd-marca{cursor:pointer;min-width:0;flex:1}
+.hd h1{font-size:18px;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hd h1 small{display:block;font-size:11px;font-weight:500;color:var(--dim2);letter-spacing:.6px;text-transform:uppercase}
-.icobtn{width:42px;height:42px;border-radius:14px;background:var(--card);border:1px solid var(--line);
+@media (max-width:420px){ .hd h1{font-size:15px} }
+/* seletor PT|EN do módulo de diretrizes: mora dentro das Configurações (nunca flutua por cima de nada) */
+.dgo-idioma{display:none!important}
+#cfg-idioma .dgo-idioma{display:flex!important;position:static!important;inset:auto!important;box-shadow:none}
+/* perfil: foto ou iniciais; nome curto ao lado no computador */
+.hd .perfil{border-radius:50%;overflow:hidden;font-weight:800;font-size:14px;letter-spacing:.3px}
+.hd .perfil.com-nome{background:linear-gradient(135deg,var(--roxo),#6f4fe0);color:#fff;border-color:transparent}
+.hd .perfil img{width:100%;height:100%;object-fit:cover;display:block}
+.hd .perfil-nome{display:none;max-width:130px;font-size:13px;font-weight:600;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:700px){.hd .perfil-nome{display:block}}
+.icobtn .badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--vermelho);
+  color:#2a0810;font-size:11px;font-weight:800;line-height:18px;text-align:center}
+.hd .icobtn:focus-visible,#hd-marca:focus-visible{outline:3px solid var(--roxo);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* gaveta do ☰ (celular e computador): abre e fecha com movimento suave */
+.gaveta-fundo{position:fixed;inset:0;z-index:180;background:rgba(8,5,16,.55);opacity:0;pointer-events:none;transition:opacity .22s}
+.gaveta{position:fixed;top:0;bottom:0;left:0;z-index:181;width:min(300px,84vw);background:var(--bg2);border-right:1px solid var(--line);
+  box-shadow:var(--sh);transform:translateX(-102%);transition:transform .22s ease;overflow-y:auto;
+  padding:calc(12px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:2px}
+body.com-menu .gaveta{transform:none}
+body.com-menu .gaveta-fundo{opacity:1;pointer-events:auto}
+.gaveta .gv-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding-left:10px}
+.gaveta .gv-topo b{font-size:15px}
+.gaveta button.gv{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 12px;border-radius:14px;font-size:15px;font-weight:600;min-height:48px}
+.gaveta button.gv .i{font-size:20px;width:26px;text-align:center;flex:none}
+.gaveta button.gv:hover,.gaveta button.gv:focus-visible{background:var(--card)}
+.gaveta button.gv.on{background:rgba(255,200,121,.14);color:var(--gold)}
+.gaveta hr,.menu-perfil hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.gaveta .gv-rodape{margin-top:auto;font-size:12px;color:var(--dim2);padding:10px 12px 0}
+/* menu do 👤: identidade conectada, Configurações, Tema, extras e Sair */
+.menu-perfil{position:fixed;z-index:181;right:12px;top:64px;width:min(360px,calc(100vw - 24px));background:var(--bg2);border:1px solid var(--line);
+  border-radius:18px;box-shadow:var(--sh);padding:8px;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .2s,transform .2s;
+  max-height:calc(100vh - 80px);overflow-y:auto}
+.menu-perfil.on{opacity:1;transform:none;pointer-events:auto}
+.menu-perfil .quem{display:flex;gap:12px;align-items:center;padding:8px 10px 10px}
+.menu-perfil .quem .av{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-weight:800;
+  background:linear-gradient(135deg,var(--roxo),#6f4fe0);color:#fff;overflow:hidden;font-size:16px}
+.menu-perfil .quem .av img{width:100%;height:100%;object-fit:cover}
+.menu-perfil .quem b{display:block;font-size:15px}
+.menu-perfil .quem span{display:block;font-size:12px;color:var(--dim2);line-height:1.4}
+.menu-perfil .ident{font-size:12px;color:var(--dim);padding:7px 10px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;line-height:1.4}
+.menu-perfil .ident button{color:var(--gold);font-weight:700;font-size:12px;padding:6px 0;min-height:32px;white-space:nowrap;flex:none}
+.menu-perfil .nota{font-size:11.5px;color:var(--dim2);padding:4px 10px 8px;line-height:1.4;margin:0}
+.menu-perfil button.mp{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 10px;border-radius:12px;font-size:15px;font-weight:600;min-height:46px}
+.menu-perfil button.mp .i{width:24px;text-align:center;font-size:18px;flex:none}
+.menu-perfil button.mp .toggle{margin-left:auto}
+.menu-perfil button.mp:hover,.menu-perfil button.mp:focus-visible{background:var(--card)}
+.menu-perfil button.mp.sair{color:var(--vermelho)}
+@media (prefers-reduced-motion:reduce){.gaveta,.gaveta-fundo,.menu-perfil{transition:none}}
+/* "Reduzir animações" (Configurações): tira todo movimento do app */
+body.sem-animacao *,body.sem-animacao *::before,body.sem-animacao *::after{animation:none!important;transition:none!important}
+.icobtn{width:42px;height:42px;border-radius:14px;background:var(--card);border:1px solid var(--line);position:relative;
   display:flex;align-items:center;justify-content:center;font-size:19px}
 .icobtn:active{background:var(--card2)}
 .btn-mic.ouvindo{background:#b8325a!important;border-color:#ff7a92!important;animation:pulso 1s ease-in-out infinite}
 @keyframes pulso{50%{box-shadow:0 0 0 8px rgba(255,122,146,.25)}}
 @media (prefers-reduced-motion:reduce){.btn-mic.ouvindo{animation:none}}
+/* ---------- tema claro: o escuro continua sendo o padrão (hora de dormir) ---------- */
+body.tema-claro{
+  --bg:#f6f2ff; --bg2:#ffffff; --card:#ffffff; --card2:#efe9fb;
+  --line:#dcd3f0; --txt:#231a3d; --dim:#574b7d; --dim2:#6f6396;
+  --gold:#9a5a0c; --gold2:#c8742a; --roxo:#6f4fe0; --verde:#1f8f62; --vermelho:#c0304f;
+  --sh:0 8px 26px rgba(60,40,110,.12);
+  background:radial-gradient(1200px 600px at 50% -10%, #e9ddff 0%, var(--bg) 60%) fixed, var(--bg);
+}
+body.tema-claro header{background:rgba(246,242,255,.88)}
+body.tema-claro nav.tabs{background:rgba(255,255,255,.96)}
+body.tema-claro nav.tabs button.on .i,body.tema-claro .gaveta button.gv.on{background:rgba(154,90,12,.12)}
+body.tema-claro .leitor .top{background:rgba(246,242,255,.92)}
+body.tema-claro .modal{background:rgba(40,25,80,.45)}
+body.tema-claro .toast{background:#fff}
+body.tema-claro .btn.pri,body.tema-claro .chip.on{background:linear-gradient(135deg,#ffc879,#ff9d5c);color:#2a1705}
+body.tema-claro .destaque{background:linear-gradient(150deg,#ece4ff,#f7f3ff);border-color:#d6c9f5}
+body.tema-claro .aviso{color:#8d1f3a} body.tema-claro .info{color:#4a2fb8} body.tema-claro .ok{color:#17704c}
+body.tema-claro .faixa.verde{color:#17704c} body.tema-claro .faixa.amarela{color:#9a5a0c} body.tema-claro .faixa.vermelha{color:#8d1f3a}
+body.tema-claro .seg button.on{box-shadow:0 2px 8px rgba(60,40,110,.15)}
+body.tema-claro .gaveta-fundo{background:rgba(40,25,80,.35)}
 /* ---------- abas ---------- */
 nav.tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:50;
@@ -264,6 +334,10 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   .lado.esq::after{background:linear-gradient(90deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.58) 55%,rgba(20,15,34,.97) 100%)}
   .lado.dir::after{background:linear-gradient(270deg,rgba(20,15,34,.30) 0%,rgba(20,15,34,.58) 55%,rgba(20,15,34,.97) 100%)}
   header{background:rgba(20,15,34,.9)}
+  body.tema-claro .lado.esq::after{background:linear-gradient(90deg,rgba(246,242,255,.30) 0%,rgba(246,242,255,.6) 55%,rgba(246,242,255,.97) 100%)}
+  body.tema-claro .lado.dir::after{background:linear-gradient(270deg,rgba(246,242,255,.30) 0%,rgba(246,242,255,.6) 55%,rgba(246,242,255,.97) 100%)}
+  body.tema-claro main.wrap{background:rgba(246,242,255,.93)}
+  body.tema-claro header{background:rgba(246,242,255,.92)}
   main.wrap{position:relative;z-index:1;background:rgba(20,15,34,.92);
     backdrop-filter:blur(8px);border-left:1px solid var(--line);border-right:1px solid var(--line);
     min-height:100vh;padding-left:24px;padding-right:24px}
@@ -290,9 +364,9 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .capa img{display:block;width:100%;height:100%;object-fit:cover}
 .capa::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(180deg,rgba(20,15,34,0) 38%,rgba(20,15,34,.55) 70%,rgba(20,15,34,.95) 100%)}
-.capa .frase{position:absolute;left:0;right:0;bottom:0;padding:14px 16px;z-index:2;
+.capa .frase{position:absolute;left:0;right:0;bottom:0;padding:14px 16px;z-index:2;color:#f2ecff;
   font-size:15px;font-weight:700;text-shadow:0 2px 12px rgba(0,0,0,.9)}
-.capa .frase span{display:block;font-size:11px;font-weight:600;color:var(--gold);
+.capa .frase span{display:block;font-size:11px;font-weight:600;color:#ffc879;
   text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
 .capa.semimg{display:none}
 .sons{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
@@ -358,14 +432,20 @@ details.saiba summary::before{content:"▸";transition:transform .15s}
 details.saiba[open] summary::before{transform:rotate(90deg)}
 details.saiba > :not(summary){margin-top:4px}
 /* ---------- AssistONE: ajudante no canto, no mesmo lugar em todas as telas ---------- */
-.assist{position:fixed;right:14px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:150;width:58px;height:58px;
-  border-radius:50%;padding:0;box-shadow:0 10px 26px rgba(224,138,46,.45);transition:transform .25s ease;
-  animation:flutua 3.2s ease-in-out infinite}
-.assist svg{width:100%;height:100%;display:block}
-.assist.grande{transform:scale(1.5);animation:none}
-.assist[aria-expanded="true"]{transform:scale(1.5);animation:none}
-@keyframes flutua{50%{transform:translateY(-5px)}}
-@media (prefers-reduced-motion:reduce){.assist{animation:none;transition:none}.assist[aria-expanded="true"]{transform:none}}
+/* o personagem (ajuda-botao.png, o mesmo em todos os apps): botão redondo de 58 px, fundo SEMPRE escuro
+   (também no tema claro), anel dourado e um balanço leve que para com o balão aberto ou com "reduzir movimento" */
+.assist{position:fixed;right:16px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:150;width:58px;height:58px;
+  border-radius:50%;padding:0;cursor:pointer;border:1px solid rgba(201,162,74,.55);
+  background:radial-gradient(circle at 50% 38%,#232838,#11141c 72%);
+  box-shadow:0 6px 18px rgba(0,0,0,.28),0 0 0 3px rgba(201,162,74,.16);
+  animation:aone-flutua 3.2s ease-in-out infinite;transition:width .25s,height .25s}
+.assist img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;pointer-events:none}
+.assist:focus-visible{outline:3px solid var(--roxo);outline-offset:3px}
+.assist.grande,.assist[aria-expanded="true"]{width:84px;height:84px;animation:none}
+@keyframes aone-flutua{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.assist{animation:none;transition:none}}
+body.sem-animacao .assist{animation:none}
+body.com-menu .assist, body.com-menu .assist-balao, body.com-menu .assist-dica,
 body.com-modal .assist, body.com-leitor .assist, body.sem-assist .assist,
 body.com-modal .assist-balao, body.com-leitor .assist-balao, body.sem-assist .assist-balao,
 body.com-modal .assist-dica, body.com-leitor .assist-dica, body.sem-assist .assist-dica{display:none!important}
@@ -415,14 +495,22 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
   </div>
 </div>
 
+<!-- topo padrão: ☰ + nome (tocar = Início) | … | 🔍 busca, 📥 mensagens, 👤 perfil. Sem 🏠, ⚙️ e PT|EN (foram para Configurações e para o 👤). -->
 <header>
   <div class="hd">
-    <div class="logo" aria-hidden="true"><svg width="34" height="34" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z" fill="#E3A04A"/><path d="M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z" fill="#F7E8C9" stroke="#9A5F1E" stroke-width="3" stroke-linejoin="round"/><path d="M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1" stroke="#C99A5B" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg></div>
-    <h1 id="hd-marca" role="button" tabindex="0" aria-label="UM Contador de Histórias — ir para o Início">UM Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
-    <button class="icobtn btn-mic oculto" id="btn-mic-topo" aria-label="Comando de voz">🎤</button>
-    <button class="icobtn" id="btn-config-topo" aria-label="Configurações">⚙️</button>
+    <button class="icobtn" id="btn-menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-lateral">☰</button>
+    <h1 id="hd-marca" role="button" tabindex="0" aria-label="UM Contador de Histórias — ir para o Início"><span class="logo" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z" fill="#E3A04A"/><path d="M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z" fill="#F7E8C9" stroke="#9A5F1E" stroke-width="3" stroke-linejoin="round"/><path d="M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1" stroke="#C99A5B" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg></span>UM Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
+    <button class="icobtn btn-mic oculto" id="btn-mic-topo" type="button" aria-label="Comando de voz">🎤</button>
+    <button class="icobtn" id="btn-busca-topo" type="button" aria-label="Buscar">🔍</button>
+    <button class="icobtn" id="btn-inbox-topo" type="button" aria-label="Mensagens">📥<span class="badge" id="inbox-badge" hidden></span></button>
+    <span class="perfil-nome" id="perfil-nome" aria-hidden="true"></span>
+    <button class="icobtn perfil" id="btn-perfil-topo" type="button" aria-label="Perfil" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-perfil">👤</button>
   </div>
 </header>
+<div class="gaveta-fundo" id="gaveta-fundo"></div>
+<nav class="gaveta" id="menu-lateral" aria-label="Menu" aria-hidden="true" data-dgo-ignorar></nav>
+<div class="menu-perfil" id="menu-perfil" role="menu" aria-label="Perfil" data-dgo-ignorar></div>
+<div class="sr-only" id="inbox-vivo" aria-live="polite"></div>
 
 <main class="wrap">
 
@@ -611,6 +699,22 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 
 <!-- ====================== CONFIG ====================== -->
 <section class="tela" id="tela-config">
+
+  <div class="tit">🌐 Idioma e aparência</div>
+  <div class="card">
+    <div class="sw">
+      <div class="txt"><b>Idioma</b><span>Português ou inglês, em todo o app.</span></div>
+      <div id="cfg-idioma"></div>
+    </div>
+    <div class="sw">
+      <div class="txt"><b>Tema claro</b><span>Fundo claro para o dia. O escuro é o padrão, feito para a hora de dormir.</span></div>
+      <div class="toggle" id="tg-tema"></div>
+    </div>
+    <div class="sw">
+      <div class="txt"><b>Reduzir animações</b><span>Para o balanço do AssistONE e as transições do app.</span></div>
+      <div class="toggle" id="tg-reduzir"></div>
+    </div>
+  </div>
 
   <div class="tit">👧 Para quem são as histórias</div>
   <div class="card">
@@ -950,6 +1054,8 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <button class="btn sm" id="btn-novidades">🆕 Novidades</button>
       <button class="btn sm" id="btn-aviso">📄 Aviso de uso</button>
     </div>
+    <div style="height:10px"></div>
+    <button class="btn sm ghost" id="btn-dgo-config">🔔 Notificações, instalação e nuvem</button>
   </div>
   <div style="height:20px"></div>
   <div class="hint" style="text-align:center">Projeto pessoal, sem fins comerciais.<br>Feito com carinho para as meninas 💜</div>
@@ -961,7 +1067,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <div class="leitor" id="leitor">
   <div class="top">
     <button class="icobtn" id="btn-fechar-leitor" aria-label="Fechar a história">✕</button>
-    <button class="icobtn" id="btn-inicio-leitor" aria-label="Ir para o Início" title="Início">🏠</button>
+    <button class="icobtn" id="btn-inicio-leitor" aria-label="Ir para o Início" title="Início">🌙</button>
     <b id="leitor-titulo"></b>
     <button class="icobtn" id="btn-fav">☆</button>
     <button class="icobtn" id="btn-menu-hist">⋯</button>
@@ -1006,18 +1112,18 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <div class="toast" id="toast"></div>
 
 <!-- AssistONE: o ajudante, sempre no mesmo canto -->
-<button class="assist" id="assist-btn" aria-label="AssistONE — ajuda" aria-expanded="false">
-  <svg viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="assist-g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffe3a6"/><stop offset="1" stop-color="#e08a2e"/></radialGradient></defs><circle cx="32" cy="32" r="30" fill="url(#assist-g)"/><text x="32" y="45" text-anchor="middle" font-size="38" font-weight="800" fill="#3a2205" font-family="Arial,Helvetica,sans-serif">?</text></svg>
+<button class="assist" id="assist-btn" type="button" aria-label="AssistONE — ajuda e assistente" aria-haspopup="dialog" aria-expanded="false">
+  <img src="ajuda-botao.png" alt="" width="58" height="58">
 </button>
 <div class="assist-balao" id="assist-balao" role="dialog" aria-label="AssistONE" hidden></div>
 <div class="assist-dica" id="assist-dica" hidden></div>
 
 <nav class="tabs">
   <div class="inner">
-    <button class="on" data-tela="inicio"><span class="i">🏠</span>Início</button>
+    <button class="on" data-tela="inicio"><span class="i">🌙</span>Início</button>
     <button data-tela="acervo"><span class="i">📚</span>Acervo</button>
     <button data-tela="nova"><span class="i">✨</span>Criar</button>
-    <button data-tela="config"><span class="i">⚙️</span>Ajustes</button>
+    <button data-tela="config"><span class="i">⚙️</span>Configurações</button>
   </div>
 </nav>
 
@@ -1083,6 +1189,7 @@ const Nav = (function(){
     if(ignorar>0){ ignorar--; if(!ocupado()) rodarFila(); return; }
     const tipo = pilha.pop();       // o usuário apertou Voltar
     if(tipo==='modal') fecharModal(true);
+    else if(tipo==='menu'){ if(typeof Topo!=='undefined') Topo.fecharGaveta(true); }
     else if(tipo==='leitor'){ if(typeof Leitor!=='undefined') Leitor.fechar(true); }
     else if(tipo==='tela') irTela('inicio', true);
   });
@@ -1120,7 +1227,8 @@ const configPadrao = {
   efeitos:true, volEfeitos:35, durEfeitos:'medio', adiantar:true,
   carregarGithub:true, ghRepo:'', ghToken:'',
   fonte:19, telaAcesa:true, destaque:true, usarVozGuardada:true,
-  protegerNomes:true, nomesProtegidos:'', comandosVoz:false, comandosIA:false
+  protegerNomes:true, nomesProtegidos:'', comandosVoz:false, comandosIA:false,
+  tema:'escuro', reduzirAnimacoes:false
 };
 const statsPadrao = { leituras:0, segundos:0, ultimaNoite:'', sequencia:0 };
 
@@ -1812,8 +1920,8 @@ function vozesCompletas(h){
 
 /* ---------------------------- motores de voz (devolvem Blob) ---------------------------- */
 async function audioElevenlabs(texto){
-  if(!cfg.elevenKey) throw new Error('Cole sua chave da ElevenLabs em Ajustes.');
-  if(!cfg.elevenVoice) throw new Error('Escolha uma voz da ElevenLabs em Ajustes.');
+  if(!cfg.elevenKey) throw new Error('Cole sua chave da ElevenLabs em Configurações.');
+  if(!cfg.elevenVoice) throw new Error('Escolha uma voz da ElevenLabs em Configurações.');
   const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+encodeURIComponent(cfg.elevenVoice), {
     method:'POST',
     headers:{'xi-api-key':cfg.elevenKey,'Content-Type':'application/json','Accept':'audio/mpeg'},
@@ -1828,7 +1936,7 @@ async function audioElevenlabs(texto){
 }
 
 async function audioOpenai(texto){
-  if(!cfg.openaiKey) throw new Error('Cole sua chave da OpenAI em Ajustes.');
+  if(!cfg.openaiKey) throw new Error('Cole sua chave da OpenAI em Configurações.');
   const corpo = { model:cfg.openaiModel, voice:cfg.openaiVoice, input:semMarcadores(texto), response_format:'mp3' };
   if(cfg.openaiModel==='gpt-4o-mini-tts' && cfg.openaiInstr) corpo.instructions = cfg.openaiInstr;
   const r = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -1921,7 +2029,7 @@ async function geminiGenerate(texto){
 }
 
 async function audioGemini(texto){
-  if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Ajustes.');
+  if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Configurações.');
   const ordem = caminhoGemini==='generate' ? [['generate',geminiGenerate],['interactions',geminiInteractions]]
                                            : [['interactions',geminiInteractions],['generate',geminiGenerate]];
   let ultimo=null;
@@ -2730,7 +2838,7 @@ async function geminiTexto(prompt, modelo){
     const e = new Error('Gemini: '+r.status+' — '+corpo.slice(0,200));
     e.status = r.status;
     if(r.status===404 && /no longer available|not found|is not supported/i.test(corpo)){
-      e.message = 'O modelo "'+modelo+'" saiu de linha no Google. Em Ajustes → IA que escreve as histórias, toque em "Ver os modelos que a minha chave aceita" e escolha outro da lista.';
+      e.message = 'O modelo "'+modelo+'" saiu de linha no Google. Em Configurações → IA que escreve as histórias, toque em "Ver os modelos que a minha chave aceita" e escolha outro da lista.';
       e.modeloVelho = true;
     }
     if(r.status===503 || /high demand|overloaded|UNAVAILABLE/i.test(corpo)) e.sobrecarga = true;
@@ -2786,7 +2894,7 @@ async function chamarIA(promptOriginal, aviso, opcoes){
 }
 /* ---------- troca de IA sozinho ----------
    Se a IA escolhida falha por cota, crédito ou chave, o pedido vai para a próxima que tem chave,
-   na ordem da lista de Ajustes, com aviso na tela. Vale só para este pedido: a escolha não muda. */
+   na ordem da lista de Configurações, com aviso na tela. Vale só para este pedido: a escolha não muda. */
 const ORDEM_IA = ['gemini','anthropic','openai','solverone'];
 const NOME_IA  = {gemini:'Gemini', anthropic:'Claude', openai:'OpenAI', solverone:'SolverONE'};
 const CHAVE_IA = {gemini:'geminiKey', anthropic:'anthropicKey', openai:'openaiKey'};
@@ -2819,7 +2927,7 @@ async function chamarIASemFiltro(prompt, aviso, opcoes){
   aviso = aviso || function(){};
   opcoes = opcoes || {};
   const m = cfg.motorTexto;
-  if(!NOME_IA[m]) throw new Error('Escolha uma IA em Ajustes, ou use o modo "Eu escrevo".');
+  if(!NOME_IA[m]) throw new Error('Escolha uma IA em Configurações, ou use o modo "Eu escrevo".');
   // a escolhida primeiro; depois as outras que têm chave, na ordem da lista
   // (semPlataforma: pedidos pequenos, como os comandos de voz, não gastam o saldo pago da SolverONE)
   const fila = [m].concat(ORDEM_IA.filter(x=>x!==m && temChaveIA(x))).filter(x=>!(opcoes.semPlataforma && x==='solverone'));
@@ -2840,7 +2948,7 @@ async function chamarIASemFiltro(prompt, aviso, opcoes){
 async function chamarMotor(m, prompt, aviso, temReserva){
   if(m==='solverone') return Plataforma.texto(prompt, aviso);
   if(m==='gemini'){
-    if(!cfg.geminiKey) throw semChave('Cole sua chave do Gemini em Ajustes → IA que escreve.');
+    if(!cfg.geminiKey) throw semChave('Cole sua chave do Gemini em Configurações → IA que escreve.');
     const esperas = [6000, 15000, 30000];
     let ultimo = null;
     for(let t=0; t<=esperas.length; t++){
@@ -2867,7 +2975,7 @@ async function chamarMotor(m, prompt, aviso, temReserva){
     throw ultimo;
   }
   if(m==='anthropic'){
-    if(!cfg.anthropicKey) throw semChave('Cole sua chave da Anthropic em Ajustes → IA que escreve.');
+    if(!cfg.anthropicKey) throw semChave('Cole sua chave da Anthropic em Configurações → IA que escreve.');
     const r = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':cfg.anthropicKey,
@@ -2880,7 +2988,7 @@ async function chamarMotor(m, prompt, aviso, temReserva){
     return (j.content||[]).map(b=>b.text||'').join('').trim();
   }
   if(m==='openai'){
-    if(!cfg.openaiKey) throw semChave('Cole sua chave da OpenAI em Ajustes.');
+    if(!cfg.openaiKey) throw semChave('Cole sua chave da OpenAI em Configurações.');
     const r = await fetch('https://api.openai.com/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.openaiKey},
@@ -2891,7 +2999,7 @@ async function chamarMotor(m, prompt, aviso, temReserva){
     const j = await r.json();
     return (((j.choices||[])[0]||{}).message||{}).content || '';
   }
-  throw new Error('Escolha uma IA em Ajustes, ou use o modo "Eu escrevo".');
+  throw new Error('Escolha uma IA em Configurações, ou use o modo "Eu escrevo".');
 }
 
 function separarTitulo(saida){
@@ -3010,9 +3118,9 @@ async function gerarHistoria(){
     const feitos = parcial ? parcial.caps.length : 0;
     modal(`<h3>${e.sobrecarga ? 'O Google está lotado agora 🙁' : 'Não deu certo 🙁'}</h3><p class="hint">${esc(e.message||e)}</p>
       ${feitos ? `<div class="ok" style="margin-top:12px">Os <b>${feitos}</b> capítulo(s) que já ficaram prontos estão guardados. Ao tocar em gerar de novo, com os mesmos campos, ele continua do capítulo ${feitos+1} — sem gastar cota com o que já saiu.</div>` : ''}
-      ${(velho||e.sobrecarga||e.cota||feitos) ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Ajustes → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
+      ${(velho||e.sobrecarga||e.cota||feitos) ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Configurações → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
       <div style="height:14px"></div>
-      ${velho ? '<button class="btn ok" id="m-ajustes">Ir para os Ajustes</button><div style="height:10px"></div>' : ''}
+      ${velho ? '<button class="btn ok" id="m-ajustes">Ir para as Configurações</button><div style="height:10px"></div>' : ''}
       ${(e.sobrecarga||(e.cota && !e.fimDoMes)||feitos) ? '<button class="btn ok" id="m-denovo">🔄 Tentar de novo</button><div style="height:10px"></div>' : ''}
       <button class="btn sm ghost" id="mfechar">Fechar</button>`);
     $('#mfechar').onclick=fecharModal;
@@ -3164,6 +3272,7 @@ function irTela(nome, semHistorico){
     if(nome==='inicio' && Nav.tem('tela')) Nav.tirar('tela');
   }
   telaAtual = nome;
+  if(typeof Topo!=='undefined') Topo.aoTrocarTela(nome);
   $$('section.tela').forEach(s=>s.classList.toggle('on', s.id==='tela-'+nome));
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tela===nome));
   document.body.classList.toggle('larga', nome==='acervo');   // lista usa a tela toda; texto não
@@ -3175,17 +3284,16 @@ $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
   if(b.dataset.tela==='config' && typeof mostrarGuarda==='function') mostrarGuarda();
   if(b.dataset.tela==='config' && typeof carregarVozesNativas==='function') carregarVozesNativas();
 }));
-$('#btn-config-topo').addEventListener('click',()=>irTela('config'));
-// tocar no ícone ou no nome do app leva ao Início, de qualquer aba
-['.hd .logo','#hd-marca'].forEach(sel=>{
+// tocar no nome do app (com o ícone) leva ao Início, de qualquer aba
+['#hd-marca'].forEach(sel=>{
   const el=$(sel); if(!el) return;
   el.addEventListener('click',()=>irTela('inicio'));
   el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); irTela('inicio'); } });
 });
-// o módulo de diretrizes cria o PT|EN solto na tela; aqui ele entra no topo, ao lado do ⚙️
+// o módulo de diretrizes cria o PT|EN solto na tela; aqui ele entra em Configurações → Idioma (diretriz do topo)
 (function moverIdioma(t){
-  const el = document.querySelector('.dgo-idioma'), alvo = $('#btn-config-topo');
-  if(el && alvo){ if(el.parentNode!==alvo.parentNode) alvo.parentNode.insertBefore(el, alvo); return; }
+  const el = document.querySelector('.dgo-idioma'), alvo = $('#cfg-idioma');
+  if(el && alvo){ if(el.parentNode!==alvo) alvo.appendChild(el); return; }
   if(t<40) setTimeout(()=>moverIdioma(t+1), 150);
 })(0);
 $('#btn-ir-nova').addEventListener('click',()=>irTela('nova'));
@@ -3615,10 +3723,18 @@ $('#in-gemini-key').addEventListener('input',()=>{ $('#in-gemini-key-voz').value
 function chave(sel, campoCfg, depois){
   const el=$(sel);
   el.classList.toggle('on', !!cfg[campoCfg]);
+  // o interruptor é um <div>: aqui ele ganha papel, estado e teclado (Tab, Enter, Espaço)
+  el.setAttribute('role','switch'); el.setAttribute('tabindex','0'); el.setAttribute('aria-checked', String(!!cfg[campoCfg]));
+  const rot = el.closest('.sw') && el.closest('.sw').querySelector('.txt b'); if(rot && !el.getAttribute('aria-label')) el.setAttribute('aria-label', rot.textContent.trim());
   el.addEventListener('click',()=>{
-    cfg[campoCfg]=!cfg[campoCfg]; el.classList.toggle('on', cfg[campoCfg]); salvarCfg(); depois&&depois();
+    cfg[campoCfg]=!cfg[campoCfg]; el.classList.toggle('on', cfg[campoCfg]); el.setAttribute('aria-checked', String(!!cfg[campoCfg])); salvarCfg(); depois&&depois();
   });
+  el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } });
 }
+// tema: o estado vem de cfg.tema ('escuro' | 'claro'); o desenho do interruptor é feito por Topo.aplicarTema()
+(function(){ const el=$('#tg-tema'); el.setAttribute('role','switch'); el.setAttribute('tabindex','0'); el.setAttribute('aria-label','Tema claro');
+  el.addEventListener('click', ()=>Topo.alternarTema()); el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } }); })();
+chave('#tg-reduzir','reduzirAnimacoes', ()=>Topo.aplicarTema());
 chave('#tg-efeitos','efeitos', ()=>{ if(!cfg.efeitos) Som.parar(true); });
 chave('#tg-adiantar','adiantar');
 chave('#tg-usar-guardada','usarVozGuardada');
@@ -3628,7 +3744,7 @@ chave('#tg-proteger-nomes','protegerNomes');
 $('#in-nomes-protegidos').value = cfg.nomesProtegidos||'';
 $('#in-nomes-protegidos').addEventListener('input',()=>{ cfg.nomesProtegidos=$('#in-nomes-protegidos').value; salvarCfg(); });
 
-// Ajustes → Voz guardada: total em MB e a lista por história, cada uma com a sua lixeira
+// Configurações → Voz guardada: total em MB e a lista por história, cada uma com a sua lixeira
 function mostrarGuarda(){
   atualizarVozGuardada().then(async r=>{
     const q = r.total;
@@ -3702,7 +3818,7 @@ $('#btn-ajuda-vozes').addEventListener('click',()=>{
       <p><b>1.</b> Configurações → 🔍 “conversão de texto em voz” (na Samsung pode aparecer como <i>Configurações de Leitura de texto Samsung</i>; não é o TalkBack).</p>
       <p><b>2.</b> Em <b>Mecanismo preferido</b>, escolha o motor novo (SherpaTTS, Google, Samsung ou Acapela). Toque em <b>Reproduzir</b> e confira que a amostra sai com a voz nova.</p>
       <p><b>3.</b> <b>Feche o navegador de vez:</b> Configurações → Aplicativos → Chrome (ou Edge) → <b>Forçar parada</b>. Só recarregar a página não basta.</p>
-      <p><b>4.</b> Abra o site de novo → Ajustes → toque em <b>🔄 Recarregar vozes</b>.</p>
+      <p><b>4.</b> Abra o site de novo → Configurações → toque em <b>🔄 Recarregar vozes</b>.</p>
       <p><b>5.</b> Se a voz nova aparecer na lista, escolha-a. Se <b>não</b> aparecer, deixe em <b>🔧 Padrão do aparelho</b>: o site pede “português do Brasil” sem escolher voz, e o Android responde com o mecanismo padrão — que agora é o novo.</p>
       <p><b>6.</b> Toque em <b>▶️ Testar a voz</b>. Se ainda sair a voz antiga, reinicie o celular uma vez.</p>
       <p style="opacity:.8;margin-top:10px">As vozes “Naturais” do Edge de computador não existem no Android — a Microsoft não as libera para sites no celular. O caminho no Android é o mecanismo do sistema.</p>
@@ -3998,6 +4114,15 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.17.0','02/10/2026', [
+    'AssistONE com o personagem oficial (ajuda-botao.png): botão redondo, fundo escuro, anel dourado, balançando de leve — igual em todos os apps',
+    'Topo novo, igual nos outros apps: ☰ menu, nome do app (tocar = Início), 🔍 busca, 📥 mensagens e 👤 perfil; saíram o ⚙️ e o PT|EN do topo',
+    'Menu do 👤: quem está conectado (conta deste aparelho e conta SolverONE), Configurações, tema claro/escuro, efeitos sonoros, AssistONE e Sair',
+    '📥 Mensagens: avisos do app e da SolverONE numa caixa só, com contador, marcar como lida e arquivar',
+    '🔍 Busca do topo acha histórias, telas e funções',
+    'A aba passa a se chamar Configurações (o nome padrão em todos os apps): idioma PT/EN, tema claro e "Reduzir animações" ganharam o primeiro bloco; os interruptores funcionam com o teclado',
+    'Tema claro, para quem lê de dia'
+  ]],
   ['1.16.2','27/09/2026', [
     'O app agora se chama UM Contador de Histórias',
     'A amostra da voz premium já vem com o app'
@@ -4007,14 +4132,14 @@ const HISTORICO = [
     'A amostra pode ser MP3 ou WAV (o arquivo que o Google AI Studio entrega)'
   ]],
   ['1.16.0','27/09/2026', [
-    'A voz premium e a IA de histórias da SolverONE aparecem sempre nos Ajustes; quem ainda não tem acesso vê a opção em cinza com ⓘ',
+    'A voz premium e a IA de histórias da SolverONE aparecem sempre nas Configurações; quem ainda não tem acesso vê a opção em cinza com ⓘ',
     'Tocar nela abre o convite: o que é, a situação da sua conta e uma amostra da voz para ouvir'
   ]],
   ['1.15.0','27/09/2026', [
     'Voz premium da SolverONE: com a conta SolverONE e o plano certo, a voz de qualidade vem da plataforma, sem precisar de chave própria; o áudio continua guardado no aparelho',
     'IA de histórias da SolverONE: a plataforma escreve as histórias com uma IA mais robusta, também sem chave própria, dentro do saldo do seu plano',
-    'Entrar, criar conta e trocar a senha da conta SolverONE direto nos Ajustes (e-mail e senha ou Google)',
-    'Ajustes mostram o plano e quanto do saldo do mês já foi usado'
+    'Entrar, criar conta e trocar a senha da conta SolverONE direto nas Configurações (e-mail e senha ou Google)',
+    'As Configurações mostram o plano e quanto do saldo do mês já foi usado'
   ]],
   ['1.14.0','26/09/2026', [
     'Fila de voz: escolha várias histórias e o app baixa a voz de uma por vez, tentando de novo sozinho quando a cota acaba (sem limite); a fila continua depois de fechar e abrir o app',
@@ -4031,9 +4156,9 @@ const HISTORICO = [
     'Troca de IA sozinho: se a IA escolhida está sem cota, sem crédito ou com a chave recusada, o pedido vai para a próxima que tem chave, com aviso na tela',
     'Cofre de chaves: no topo da seção de IA, a lista mostra quem já tem chave (✓ chave salva / sem chave), com as que têm chave primeiro',
     'Botão "Testar a chave" em cada IA; resposta de "falta permissão" (como na ElevenLabs) conta como chave válida',
-    'AssistONE: o ajudante do canto, com a ajuda da tela atual, tour rápido, busca e uma dica por tela (liga e desliga em Ajustes)',
+    'AssistONE: o ajudante do canto, com a ajuda da tela atual, tour rápido, busca e uma dica por tela (liga e desliga em Configurações)',
     'Visual mais limpo no celular: cantos mais suaves, aba ativa em pílula, janelas que sobem com movimento curto',
-    'Menos texto nos Ajustes: as explicações longas ficam recolhidas em "Saiba mais"'
+    'Menos texto nas Configurações: as explicações longas ficam recolhidas em "Saiba mais"'
   ]],
   ['1.11.1','24/09/2026', [
     'O botão Voltar do celular agora navega dentro do app: fecha a janela aberta, depois a história, depois volta ao Início — só sai do app a partir do Início',
@@ -4044,7 +4169,7 @@ const HISTORICO = [
   ['1.11.0','24/09/2026', [
     'Voz guardada por história: selo ⚡ voz guardada (ou ◐ em parte) vale para qualquer voz, mesmo com a voz do celular escolhida',
     'Com a voz do celular, a história que já tem voz de internet guardada toca com ela, sem gastar cota; trocar de voz não apaga nada',
-    'Ajustes mostra quantos MB a voz guardada ocupa, história por história, com lixeira em cada uma, limpeza de sobras e botão para apagar tudo',
+    'As Configurações mostram quantos MB a voz guardada ocupa, história por história, com lixeira em cada uma, limpeza de sobras e botão para apagar tudo',
     'Proteção dos nomes das crianças: antes de ir para a IA, os nomes viram códigos e voltam ao normal no aparelho',
     'Comandos de voz (experimental, desligado de fábrica): 🎤 para tocar, pausar, voltar, pular, abrir história pelo nome e mais',
     'No computador, o acervo usa a tela toda em 2 ou 3 colunas; o texto da história continua na coluna de leitura',
@@ -4068,7 +4193,7 @@ const HISTORICO = [
     'Clima da história aceita mais de uma marcação ao mesmo tempo'
   ]],
   ['1.8.1','18/09/2026', [
-    'Botão para ouvir o cumprimento nos Ajustes, com a voz escolhida',
+    'Botão para ouvir o cumprimento nas Configurações, com a voz escolhida',
     'Opção de falar o cumprimento em voz alta antes de cada história'
   ]],
   ['1.8.0','18/09/2026', [
@@ -4086,7 +4211,7 @@ const HISTORICO = [
   ['1.6.0','15/09/2026', [
     'Faixa 🔴🟡🟢 mostrando se o áudio da história já está baixado, antes de tocar',
     'Aviso ao dar play sem o áudio pronto, com opção de baixar ou trocar para a voz do celular',
-    'Efeitos de ambiente com duração limitada e desaparecimento suave, ajustável em Ajustes',
+    'Efeitos de ambiente com duração limitada e desaparecimento suave, ajustável em Configurações',
     'Número de versão, histórico de mudanças e aviso de uso e privacidade'
   ]],
   ['1.5.0','15/09/2026', [
@@ -4437,7 +4562,8 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
   }
   function guardarTokens(j){
     const email = (j.user && j.user.email) || (()=>{ try{ return JSON.parse(atob(j.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).email; }catch(e){ return ''; } })();
-    sessao = { access_token:j.access_token, refresh_token:j.refresh_token, expira: Date.now() + (Number(j.expires_in)||3600)*1000, email };
+    sessao = { access_token:j.access_token, refresh_token:j.refresh_token, expira: Date.now() + (Number(j.expires_in)||3600)*1000, email,
+               desde: (sessao && sessao.desde) || Date.now() };   // "conectado desde": a renovação do token não zera
     gravarSessao();
   }
   async function token(){
@@ -4499,6 +4625,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
   async function sair(){
     const t = sessao && sessao.access_token;
     sessao = null; gravarSessao();
+    document.dispatchEvent(new CustomEvent('ch:conta'));
     if(t) auth('logout', null, 'POST', t).catch(()=>{});
     toast(T('Conta SolverONE desconectada','SolverONE account disconnected'));
     atualizar();
@@ -4540,6 +4667,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
       servicos = r.ok ? ((await r.json()) || []) : [];
       ultimoErro = '';
       try{ localStorage.setItem(CH_SERV, JSON.stringify(servicos)); }catch(e){}
+      document.dispatchEvent(new CustomEvent('ch:conta'));
       const v = servico('voz');
       if(v){
         const ids = (v.vozes||[]).map(x=>x.id);
@@ -4678,7 +4806,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
   // ---------- chamar a função do servidor ----------
   function erroDaPlataforma(status, j){
     const e = new Error(({
-      entrar: T('Entre com a sua conta SolverONE em Ajustes.','Sign in with your SolverONE account in Settings.'),
+      entrar: T('Entre com a sua conta SolverONE em Configurações.','Sign in with your SolverONE account in Settings.'),
       aguardando: T('A sua conta SolverONE ainda não está liberada.','Your SolverONE account is not approved yet.'),
       plano: T('Este serviço não faz parte do seu plano SolverONE.','This service is not part of your SolverONE plan.'),
       limite: T('Acabou o saldo deste mês na SolverONE (renova no dia 1).','This month\'s SolverONE allowance is used up (renews on the 1st).'),
@@ -4704,7 +4832,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     let r;
     try{ r = await fetch(SB+'/functions/v1/solverone-ia', {method:'POST', headers:{apikey:CHAVE, Authorization:'Bearer '+t, 'Content-Type':'application/json'}, body:JSON.stringify(Object.assign({app:APP}, corpo))}); }
     catch(e){ const x = erroDaPlataforma(0, {mensagem:T('Sem internet agora.','No internet right now.')}); x.passageiro = true; throw x; }
-    // o saldo do mês vem junto de cada resposta: a tela de Ajustes acompanha sem perguntar de novo
+    // o saldo do mês vem junto de cada resposta: a tela de Configurações acompanha sem perguntar de novo
     const usado = r.headers.get('x-uso'), s = servico(corpo.acao==='voz' ? 'voz' : 'texto');
     if(r.ok && usado!==null && usado!=='' && s){ s.usado = Number(usado); if(s.limite!==-1 && s.usado>=s.limite){ s.disponivel=false; s.motivo='limite'; } pintar(); }
     if(!r.ok){
@@ -4746,7 +4874,13 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     pintar();
     atualizar();
   }
-  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, convite, entrar: janelaEntrar, sair, conectado:()=>!!sessao };
+  // resumo da conta para o topo e o menu do 👤 (identidade conectada)
+  function conta(){
+    if(!sessao) return null;
+    const s = servicos.find(x=>x && x.plano) || {};
+    return { email: sessao.email||'', plano: s.plano||'', planoNome: nomePlano(s.plano||''), desde: sessao.desde||0 };
+  }
+  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, convite, entrar: janelaEntrar, sair, conectado:()=>!!sessao, conta };
 })();
 Plataforma.iniciar();
 
@@ -4838,8 +4972,8 @@ const FilaVoz = (function(){
     if(e && e.plataforma) return e.message;
     const s = statusDe(e), msg = String(e && e.message || '');
     if(/Cole sua chave|Escolha uma voz/i.test(msg)) return msg;
-    if(s===401 || s===403) return T('a chave de voz foi recusada (erro '+s+'). Confira ou troque a chave em Ajustes → Voz e toque em Continuar.','the voice key was refused (error '+s+'). Check or replace the key in Settings → Voice and tap Resume.');
-    if(s===400 || s===404) return T('o provedor não aceitou o pedido (erro '+s+'). Confira a voz e o modelo em Ajustes → Voz e toque em Continuar.','the provider rejected the request (error '+s+'). Check the voice and model in Settings → Voice and tap Resume.');
+    if(s===401 || s===403) return T('a chave de voz foi recusada (erro '+s+'). Confira ou troque a chave em Configurações → Voz e toque em Continuar.','the voice key was refused (error '+s+'). Check or replace the key in Settings → Voice and tap Resume.');
+    if(s===400 || s===404) return T('o provedor não aceitou o pedido (erro '+s+'). Confira a voz e o modelo em Configurações → Voz e toque em Continuar.','the provider rejected the request (error '+s+'). Check the voice and model in Settings → Voice and tap Resume.');
     return msg;
   }
   const leitorAberto = ()=> document.body.classList.contains('com-leitor');
@@ -4849,7 +4983,7 @@ const FilaVoz = (function(){
     rodando = true; tentativa = 0; segurarTela(); pintar();
     try{
       while(st.ligada && st.ids.length){
-        if(cfg.motorVoz==='nativo'){ parar(T('Escolha uma voz de internet (Gemini, ElevenLabs ou OpenAI) em Ajustes → Voz.','Choose an internet voice (Gemini, ElevenLabs or OpenAI) in Settings → Voice.')); break; }
+        if(cfg.motorVoz==='nativo'){ parar(T('Escolha uma voz de internet (Gemini, ElevenLabs ou OpenAI) em Configurações → Voz.','Choose an internet voice (Gemini, ElevenLabs or OpenAI) in Settings → Voice.')); break; }
         if(leitorAberto()){ agora = T('esperando você fechar a história aberta…','waiting for you to close the open story…'); pintar(); await esperar(5); continue; }
         if(navigator.onLine===false){ agora = T('sem internet — continuo quando voltar','offline — resuming when it is back'); pintar(); await esperar(60); continue; }
         const id = st.ids[0], h = historias.find(x=>x.id===id);
@@ -4910,7 +5044,7 @@ const FilaVoz = (function(){
   }
   function continuar(){
     if(!st.ids.length) return;
-    if(cfg.motorVoz==='nativo'){ toast(T('Escolha antes uma voz de internet em Ajustes → Voz','First choose an internet voice in Settings → Voice'), 4000); return; }
+    if(cfg.motorVoz==='nativo'){ toast(T('Escolha antes uma voz de internet em Configurações → Voz','First choose an internet voice in Settings → Voice'), 4000); return; }
     st.ligada = true; st.parou = ''; gravar(); pintar(); trabalhar();
   }
   function adicionar(ids){
@@ -4928,7 +5062,7 @@ const FilaVoz = (function(){
 
   // escolher as histórias: as que faltam já vêm fáceis de marcar
   function escolher(){
-    if(cfg.motorVoz==='nativo'){ toast(T('Escolha antes uma voz de internet em Ajustes → Voz','First choose an internet voice in Settings → Voice'), 4000); return; }
+    if(cfg.motorVoz==='nativo'){ toast(T('Escolha antes uma voz de internet em Configurações → Voz','First choose an internet voice in Settings → Voice'), 4000); return; }
     const marca = Guarda.marca();
     const estado = h=>{
       if(st.ids.includes(h.id)) return ['fila', T('📥 na fila','📥 queued')];
@@ -5098,7 +5232,7 @@ const Anuncios = (function(){
 })();
 Anuncios.iniciar();
 
-/* ---------- menos texto nos Ajustes ----------
+/* ---------- menos texto nas Configurações ----------
    Explicações longas ficam recolhidas num "Saiba mais". Nada some: só espera o toque. */
 (function(){
   $$('#tela-config .info, #tela-config .ok, #tela-config .hint').forEach(el=>{
@@ -5135,9 +5269,9 @@ var Assist = (function(){
     nova: { t:['Criar','Create'], s:'nova história ia escrever gerar',
       f:['A IA escreve a partir dos seus pedidos, ou você mesmo escreve.','The AI writes from your requests, or you write it yourself.'],
       a:[ ['🎲 Sortear tema','🎲 Shuffle topic', ()=>{ const b=$('#btn-mais-temas'); if(b) b.click(); }], ['✍️ Eu escrevo','✍️ I write', ()=>{ const b=$('#modo-nova [data-modo=manual]'); if(b) b.click(); }] ],
-      d:['Só o tema é obrigatório: o resto pode ficar em branco. Para gerar, é preciso uma chave de IA em Ajustes.',
+      d:['Só o tema é obrigatório: o resto pode ficar em branco. Para gerar, é preciso uma chave de IA em Configurações.',
          'Only the topic is required: the rest can stay blank. Generating needs an AI key in Settings.'] },
-    config: { t:['Ajustes','Settings'], s:'configurações chave voz ia backup',
+    config: { t:['Configurações','Settings'], s:'configurações chave voz ia backup',
       f:['Voz, IA, chaves, backup e o que mais o app precisa.','Voice, AI, keys, backup and whatever else the app needs.'],
       a:[ ['🔑 Chaves de IA','🔑 AI keys', ()=>rolarAte('#cofre-lista')], ['🔊 Motor de voz','🔊 Voice engine', ()=>rolarAte('#sel-motor-voz')], ['📥 Fila de voz','📥 Voice queue', ()=>rolarAte('#fila-voz-status')], ['🆕 Novidades','🆕 What\'s new', ()=>{ const b=$('#btn-novidades'); if(b) b.click(); }] ],
       d:['Cada seção tem um "Saiba mais" com a explicação completa. As chaves ficam só neste aparelho.',
@@ -5145,8 +5279,9 @@ var Assist = (function(){
   };
   const TOUR = [
     ['#hd-marca', 'Toque no nome do app para voltar ao Início, de qualquer lugar.', 'Tap the app name to go back Home from anywhere.'],
-    ['nav.tabs', 'A barra de baixo leva ao Início, ao Acervo, a Criar e aos Ajustes.', 'The bottom bar takes you Home, to the Library, Create and Settings.'],
-    ['#btn-config-topo', 'A engrenagem abre os Ajustes: voz, IA e chaves.', 'The gear opens Settings: voice, AI and keys.'],
+    ['nav.tabs', 'A barra de baixo leva ao Início, ao Acervo, a Criar e às Configurações.', 'The bottom bar takes you Home, to the Library, Create and Settings.'],
+    ['#btn-menu', 'O ☰ abre o menu com todas as telas, a busca e as mensagens.', 'The ☰ opens the menu with every screen, search and messages.'],
+    ['#btn-perfil-topo', 'O perfil mostra quem está conectado e abre Configurações, tema, som e Sair.', 'The profile shows who is signed in and opens Settings, theme, sound and Sign out.'],
     ['#assist-btn', 'Eu fico sempre aqui. Toque quando precisar de ajuda.', 'I\'m always here. Tap whenever you need help.']
   ];
   const i = k => T(k[0], k[1]);
@@ -5166,13 +5301,13 @@ var Assist = (function(){
     }
     return ant[n];
   }
-  // índice da busca: as telas e os títulos das seções dos Ajustes
+  // índice da busca: as telas e os títulos das seções das Configurações
   function indice(){
     const it = [];
     Object.keys(TELAS).forEach(k=>it.push({r:i(TELAS[k].t), s:TELAS[k].s, ir:()=>irTela(k)}));
     $$('#tela-config .tit').forEach(el=>{
       const r = el.textContent.trim();
-      it.push({r, s:'ajustes settings', ir:()=>{ irTela('config'); setTimeout(()=>rolarAte('#'+(el.id || (el.id='tit-'+it.length))), 250); }});
+      it.push({r, s:'configurações settings', ir:()=>{ irTela('config'); setTimeout(()=>rolarAte('#'+(el.id || (el.id='tit-'+it.length))), 250); }});
     });
     return it;
   }
@@ -5208,7 +5343,7 @@ var Assist = (function(){
     $$('#assist-balao [data-op]').forEach(b=>b.addEventListener('click',()=>{
       const op = b.dataset.op;
       if(op==='fechar') fechar();
-      if(op==='desligar'){ fechar(); cfg.assistOne=false; salvarCfg(); aplicar(); const tg=$('#tg-assist'); if(tg) tg.classList.remove('on'); toast(T('AssistONE desligado. Religue em Ajustes → AssistONE.','AssistONE off. Turn it back on in Settings → AssistONE.'), 4000); }
+      if(op==='desligar'){ fechar(); cfg.assistOne=false; salvarCfg(); aplicar(); const tg=$('#tg-assist'); if(tg) tg.classList.remove('on'); toast(T('AssistONE desligado. Religue em Configurações → AssistONE.','AssistONE off. Turn it back on in Settings → AssistONE.'), 4000); }
       if(op==='tour'){ fechar(); iniciarTour(); }
       if(op==='ajuda'){ fechar(); modal(`<h3>${i(tela.t)}</h3><p class="hint" style="font-size:14px">${i(tela.d)}</p><div style="height:14px"></div><button class="btn sm ghost" id="mfechar">${T('Fechar','Close')}</button>`); $('#mfechar').onclick=fecharModal; }
       if(op==='busca'){ const bx=$('#assist-busca'); bx.hidden=false; bx.querySelector('input').focus(); }
@@ -5277,11 +5412,260 @@ var Assist = (function(){
       setTimeout(tentar, 1500);
     }
   }
-  return { iniciar, abrir, fechar, aplicar, recomecar, aoTrocarTela };
+  return { iniciar, abrir, fechar, aplicar, recomecar, aoTrocarTela, buscar };
 })();
 chave('#tg-assist','assistOne', Assist.aplicar);
 $('#btn-assist-abrir').addEventListener('click', ()=>{ if(!cfg.assistOne){ toast(T('Ligue o AssistONE primeiro','Turn AssistONE on first')); return; } Assist.abrir(); });
 $('#btn-assist-reset').addEventListener('click', Assist.recomecar);
+
+/* ---------- 📥 Mensagens (inbox) ----------
+   Uma caixa só para: avisos do administrador (recados.json deste repositório e /solverone-dados/recados.json,
+   publicados pelo RootifyONE, com início, fim e app de destino) e avisos do app (a versão nova).
+   Funciona sem servidor. Marcar como lida e arquivar ficam em ch_inbox; nada é apagado sozinho. */
+var Inbox = (function(){
+  const CH = 'ch_inbox', APP = 'contador-de-historias';
+  let st = {lidos:{}, arq:{}};
+  try{ st = Object.assign(st, JSON.parse(localStorage.getItem(CH)||'{}')||{}); }catch(e){}
+  const gravar = ()=>{ try{ localStorage.setItem(CH, JSON.stringify(st)); }catch(e){} };
+  let externos = [];
+  const txt = v => v && typeof v==='object' ? (idiomaEN() ? (v.en||v.pt) : (v.pt||v.en)) || '' : String(v||'');
+  const iso = d => { const m = String(d||'').match(/^(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3]+'-'+m[2]+'-'+m[1] : String(d||'').slice(0,10); };
+  function valido(r){
+    if(!r || !r.id || r.ativo===false) return false;
+    if(r.app && r.app!=='*' && r.app!==APP) return false;
+    const h = hoje();
+    if(r.inicio && iso(r.inicio) > h) return false;
+    if(r.fim && iso(r.fim) < h) return false;
+    return true;
+  }
+  async function buscarLista(url){
+    try{
+      const r = await fetch(url, {cache:'no-cache'}); if(!r.ok) return [];
+      const j = await r.json(); const l = Array.isArray(j) ? j : (j && Array.isArray(j.recados) ? j.recados : []);
+      return l.filter(valido).map(r=>({ id:'r:'+r.id, bruto:r, quando: iso(r.inicio||''), tipo:'admin' }));
+    }catch(e){ return []; }
+  }
+  function doApp(){
+    const v = HISTORICO[0];
+    return [{ id:'v:'+v[0], titulo:T('Novidades da versão ','What\'s new in version ')+v[0], texto:v[2].slice(0,3).join(' · '), quando: iso(v[1]), tipo:'app', abrir: telaNovidades }];
+  }
+  function lista(){
+    const m = new Map();
+    externos.forEach(x=>m.set(x.id, Object.assign({}, x, {titulo: txt(x.bruto.titulo), texto: txt(x.bruto.texto)})));
+    doApp().forEach(x=>m.set(x.id, x));
+    return [...m.values()].sort((a,b)=>String(b.quando).localeCompare(String(a.quando)));
+  }
+  const naoLidos = ()=> lista().filter(x=>!st.lidos[x.id] && !st.arq[x.id]).length;
+  const dataBonita = d => { try{ return (window.DGO && DGO.formatarData) ? DGO.formatarData(d) : d; }catch(e){ return d; } };
+  function pintarBadge(){
+    const n = naoLidos(), b = $('#inbox-badge');
+    b.hidden = !n; b.textContent = n>99 ? '99+' : n;
+    $('#btn-inbox-topo').setAttribute('aria-label', T('Mensagens','Messages') + (n ? ' — '+n+' '+T('não lidas','unread') : ''));
+    $('#inbox-vivo').textContent = n ? n+' '+T('mensagens novas','new messages') : '';
+    try{ if(navigator.setAppBadge){ n ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } }catch(e){}
+  }
+  async function carregar(){
+    const [a, b] = await Promise.all([buscarLista('recados.json'), buscarLista('/solverone-dados/recados.json')]);
+    externos = [...a, ...b]; pintarBadge();
+  }
+  function abrir(aba){
+    aba = aba || 'caixa';
+    const its = lista().filter(x=> aba==='arq' ? st.arq[x.id] : !st.arq[x.id]);
+    modal(`<h3>📥 ${T('Mensagens','Messages')}</h3>
+      <div class="seg" style="margin-bottom:12px"><button class="${aba==='caixa'?'on':''}" data-ib-aba="caixa">${T('Caixa de entrada','Inbox')}</button><button class="${aba==='arq'?'on':''}" data-ib-aba="arq">${T('Arquivadas','Archived')}</button></div>
+      ${its.length ? its.map(x=>`<div class="card" style="margin-bottom:10px;padding:14px">
+          <b>${st.lidos[x.id] ? '' : '● '}${esc(x.titulo)}</b>
+          <div class="hint" style="margin-top:4px;font-size:13px;color:var(--dim)">${esc(x.texto)}</div>
+          <div class="hint">${x.tipo==='admin' ? T('Aviso da SolverONE','SolverONE notice') : T('Aviso do app','App notice')} · ${esc(dataBonita(x.quando))}</div>
+          <div class="linha" style="margin-top:10px">
+            ${x.abrir ? `<button class="btn sm" data-ib-ver="${x.id}">${T('Ver','Open')}</button>` : ''}
+            ${st.lidos[x.id] ? '' : `<button class="btn sm ghost" data-ib-lido="${x.id}">${T('Marcar como lida','Mark as read')}</button>`}
+            <button class="btn sm ghost" data-ib-arq="${x.id}">${aba==='arq' ? T('Desarquivar','Unarchive') : T('Arquivar','Archive')}</button>
+          </div></div>`).join('') : `<p class="hint" style="font-size:14px">${T('Nada por aqui. Os avisos do app e da SolverONE chegam nesta caixa.','Nothing here. App and SolverONE notices arrive in this box.')}</p>`}
+      <div style="height:8px"></div><button class="btn sm ghost" id="ib-f">${T('Fechar','Close')}</button>`);
+    const marcar = id => { st.lidos[id] = Date.now(); gravar(); pintarBadge(); };
+    $$('#modal [data-ib-aba]').forEach(b=>b.onclick=()=>abrir(b.dataset.ibAba));
+    $$('#modal [data-ib-lido]').forEach(b=>b.onclick=()=>{ marcar(b.dataset.ibLido); abrir(aba); });
+    $$('#modal [data-ib-arq]').forEach(b=>b.onclick=()=>{ const id=b.dataset.ibArq; if(st.arq[id]) delete st.arq[id]; else st.arq[id]=Date.now(); marcar(id); abrir(aba); });
+    $$('#modal [data-ib-ver]').forEach(b=>b.onclick=()=>{ const id=b.dataset.ibVer; marcar(id); const it=lista().find(x=>x.id===id); fecharModal(); if(it && it.abrir) it.abrir(); });
+    $('#ib-f').onclick = fecharModal;
+  }
+  function iniciar(){ pintarBadge(); carregar(); document.addEventListener('dgo:idioma', pintarBadge); }
+  return { abrir, iniciar, naoLidos };
+})();
+
+/* ---------- 🔍 Busca do topo: histórias + telas e funções (índice do AssistONE) ---------- */
+function abrirBusca(){
+  modal(`<h3>🔍 ${T('Buscar','Search')}</h3>
+    <input type="text" id="busca-geral" placeholder="${T('História, tela ou função','Story, screen or function')}" aria-label="${T('Buscar','Search')}" autocomplete="off">
+    <div id="busca-geral-res" style="margin-top:10px;display:flex;flex-direction:column;gap:6px" aria-live="polite"></div>
+    <div style="height:10px"></div><button class="btn sm ghost" id="bg-f">${T('Fechar','Close')}</button>`);
+  const inp = $('#busca-geral'), res = $('#busca-geral-res');
+  const norm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  function pintar(){
+    const q = inp.value.trim(); if(!q){ res.innerHTML=''; return; }
+    const nq = norm(q);
+    const hs = historias.filter(h=>norm(h.titulo+' '+(h.tema||'')+' '+(h.personagens||'')+' '+(h.serie||'')).includes(nq)).slice(0,8);
+    const fn = Assist.buscar(q), fns = fn.lista.length ? fn.lista : fn.parecidos;
+    res.innerHTML = (hs.length ? `<div class="tit" style="margin:4px 0">${T('Histórias','Stories')}</div>` : '')
+      + hs.map((h,k)=>`<button class="btn sm ghost" data-bh="${k}" style="justify-content:flex-start">📖 ${esc(h.titulo)}</button>`).join('')
+      + (fns.length ? `<div class="tit" style="margin:8px 0 4px">${T('Telas e funções','Screens and functions')}${fn.lista.length ? '' : ' · '+T('você quis dizer…','did you mean…')}</div>` : '')
+      + fns.map((x,k)=>`<button class="btn sm ghost" data-bf="${k}" style="justify-content:flex-start">${esc(x.r)}</button>`).join('')
+      + (!hs.length && !fns.length ? `<p class="hint" style="font-size:14px">${T('Não achei nada com esse nome.','Nothing found with that name.')}</p>` : '');
+    $$('[data-bh]', res).forEach(b=>b.onclick=()=>{ fecharModal(); Leitor.abrir(hs[Number(b.dataset.bh)]); });
+    $$('[data-bf]', res).forEach(b=>b.onclick=()=>{ fecharModal(); fns[Number(b.dataset.bf)].ir(); });
+  }
+  inp.addEventListener('input', pintar);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const b=res.querySelector('button'); if(b) b.click(); } });
+  $('#bg-f').onclick = fecharModal;
+  setTimeout(()=>inp.focus(), 60);
+}
+
+/* ---------- Topo padrão: ☰ gaveta, 👤 perfil (identidade conectada, Configurações, Tema, Som, Sair), tema ----------
+   Diretriz "AssistONE igual em todo lugar + topo e menus padronizados" (02/Out/2026). */
+var Topo = (function(){
+  const gav = $('#menu-lateral'), fundo = $('#gaveta-fundo'), btnMenu = $('#btn-menu');
+  const mp = $('#menu-perfil'), btnPerfil = $('#btn-perfil-topo');
+  let desdeLocal = 0; try{ desdeLocal = Number(localStorage.getItem('ch_topo_desde'))||0; }catch(e){}
+
+  // ---- tema e animações ----
+  function aplicarTema(){
+    const claro = cfg.tema==='claro';
+    document.body.classList.toggle('tema-claro', claro);
+    document.body.classList.toggle('sem-animacao', !!cfg.reduzirAnimacoes);
+    $$('meta[name=theme-color]').forEach(m=>m.setAttribute('content', claro ? '#f6f2ff' : '#140f22'));
+    const tg = $('#tg-tema'); if(tg){ tg.classList.toggle('on', claro); tg.setAttribute('aria-checked', String(claro)); }
+    const tr = $('#tg-reduzir'); if(tr){ tr.classList.toggle('on', !!cfg.reduzirAnimacoes); tr.setAttribute('aria-checked', String(!!cfg.reduzirAnimacoes)); }
+  }
+  function alternarTema(){ cfg.tema = cfg.tema==='claro' ? 'escuro' : 'claro'; salvarCfg(); aplicarTema(); }
+
+  // ---- identidade conectada (conta deste aparelho = módulo DGO; conta SolverONE = Plataforma) ----
+  function identidade(){
+    let s = null; try{ s = (window.DGO && DGO.sessao) ? DGO.sessao() : null; }catch(e){}
+    const local = (s && s.tipo && s.tipo!=='visitante') ? Object.assign({tipo:s.tipo}, s.usuario||{}) : null;
+    const nuvem = (typeof Plataforma!=='undefined' && Plataforma.conta) ? Plataforma.conta() : null;
+    const nome = local ? (local.apelido || local.nome || local.email || '') : (nuvem ? String(nuvem.email||'').split('@')[0] : '');
+    return { local, nuvem, nome, visitante: !local && !nuvem, foto: local && local.foto };
+  }
+  const iniciais = n => (String(n||'').trim().split(/[\s._@-]+/).filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join('')) || '👤';
+  const tipoRot = t => ({pagante:T('Membro','Member'), anunciante:T('Anunciante','Advertiser'), visitante:T('Visitante','Guest')})[t] || t || '';
+  const viaRot = v => ({senha:T('senha','password'), biometria:T('digital','fingerprint'), google:'Google'})[v] || v || T('senha','password');
+  const dataDe = ms => ms ? new Date(ms).toISOString().slice(0,10) : '';
+  function pintarTopo(){
+    const id = identidade();
+    btnPerfil.classList.toggle('com-nome', !id.visitante);
+    btnPerfil.innerHTML = id.foto ? `<img src="${esc(id.foto)}" alt="">` : (id.visitante ? '👤' : esc(iniciais(id.nome)));
+    const rot = id.visitante ? T('Visitante','Guest') : id.nome;
+    const partes = [];
+    if(id.local) partes.push(T('conta neste aparelho: ','account on this device: ')+(id.local.email||id.local.apelido||'')+' · '+tipoRot(id.local.tipo));
+    if(id.nuvem) partes.push('SolverONE: '+id.nuvem.email+(id.nuvem.planoNome ? ' · '+id.nuvem.planoNome : ''));
+    btnPerfil.setAttribute('aria-label', T('Perfil — ','Profile — ')+rot+(partes.length ? ' ('+partes.join('; ')+')' : ''));
+    $('#perfil-nome').textContent = rot;
+  }
+
+  // ---- gaveta do ☰ ----
+  const TELAS_MENU = ()=>[ ['inicio','🌙',T('Início','Home')], ['acervo','📚',T('Acervo','Library')], ['nova','✨',T('Criar','Create')], ['config','⚙️',T('Configurações','Settings')] ];
+  function pintarGaveta(){
+    gav.innerHTML = `<div class="gv-topo"><b>${T('UM Contador de Histórias','ONE Storyteller')}</b><button class="icobtn" type="button" data-gv="fechar" aria-label="${T('Fechar o menu','Close the menu')}">✕</button></div>`
+      + TELAS_MENU().map(x=>`<button class="gv${telaAtual===x[0]?' on':''}" type="button" data-tela="${x[0]}"${telaAtual===x[0]?' aria-current="page"':''}><span class="i">${x[1]}</span>${x[2]}</button>`).join('')
+      + `<hr>
+         <button class="gv" type="button" data-gv="busca"><span class="i">🔍</span>${T('Buscar','Search')}</button>
+         <button class="gv" type="button" data-gv="inbox"><span class="i">📥</span>${T('Mensagens','Messages')}${Inbox.naoLidos() ? ' <span class="badge" style="position:static;margin-left:auto">'+Inbox.naoLidos()+'</span>' : ''}</button>
+         <button class="gv" type="button" data-gv="assist"><span class="i">💬</span>AssistONE</button>
+         <button class="gv" type="button" data-gv="novidades"><span class="i">🆕</span>${T('Novidades','What\'s new')}</button>
+         <button class="gv" type="button" data-gv="aviso"><span class="i">📄</span>${T('Aviso de uso','Terms of use')}</button>
+         <div class="gv-rodape">${T('versão','version')} ${VERSAO}</div>`;
+    $$('[data-tela]', gav).forEach(b=>b.onclick=()=>{ fecharGaveta(); const t=$('nav.tabs button[data-tela="'+b.dataset.tela+'"]'); if(t) t.click(); else irTela(b.dataset.tela); });
+    $$('[data-gv]', gav).forEach(b=>b.onclick=()=>{
+      const op = b.dataset.gv; fecharGaveta();
+      if(op==='busca') abrirBusca();
+      if(op==='inbox') Inbox.abrir();
+      if(op==='assist'){ if(!cfg.assistOne){ toast(T('Ligue o AssistONE em Configurações','Turn AssistONE on in Settings')); } else setTimeout(()=>Assist.abrir(), 250); }
+      if(op==='novidades') telaNovidades();
+      if(op==='aviso') telaAviso();
+    });
+  }
+  const gavetaAberta = ()=> document.body.classList.contains('com-menu');
+  function abrirGaveta(){
+    if(gavetaAberta()) return;
+    fecharPerfil(); pintarGaveta();
+    document.body.classList.add('com-menu'); btnMenu.setAttribute('aria-expanded','true'); gav.setAttribute('aria-hidden','false');
+    Nav.empurrar('menu');
+    const f = gav.querySelector('button.gv'); if(f) setTimeout(()=>f.focus(), 60);
+  }
+  function fecharGaveta(semHistorico){
+    if(!gavetaAberta()) return;
+    document.body.classList.remove('com-menu'); btnMenu.setAttribute('aria-expanded','false'); gav.setAttribute('aria-hidden','true');
+    if(semHistorico!==true) Nav.tirar('menu');
+    if(gav.contains(document.activeElement)) btnMenu.focus();
+  }
+
+  // ---- menu do 👤 ----
+  const perfilAberto = ()=> mp.classList.contains('on');
+  function pintarPerfil(){
+    const id = identidade(), l = id.local, n = id.nuvem;
+    const av = id.foto ? `<img src="${esc(id.foto)}" alt="">` : (id.visitante ? '👤' : esc(iniciais(id.nome)));
+    const detalhe = id.visitante ? T('Sem conta: nada sai deste aparelho.','No account: nothing leaves this device.')
+      : [l && (l.email||''), l && tipoRot(l.tipo), n && !l && n.email, n && n.planoNome].filter(Boolean).join(' · ');
+    mp.innerHTML = `
+      <div class="quem"><div class="av" aria-hidden="true">${av}</div><div style="min-width:0"><b>${esc(id.visitante ? T('Visitante','Guest') : id.nome)}</b><span>${esc(detalhe)}</span></div></div>
+      ${l ? `<div class="ident"><span>📱 ${T('Conta neste aparelho','Account on this device')}: ${esc(l.email||l.apelido||'')} · ${esc(tipoRot(l.tipo))} · ${T('via','via')} ${esc(viaRot(l.via))}${desdeLocal ? ' · '+T('desde','since')+' '+dataDe(desdeLocal) : ''}</span><button type="button" data-mp="sair-local">${T('Sair','Sign out')}</button></div>`
+          : `<div class="ident"><span>📱 ${T('Conta neste aparelho: nenhuma','Account on this device: none')}</span><button type="button" data-mp="entrar-local">${T('Entrar','Sign in')}</button></div>`}
+      ${n ? `<div class="ident"><span>☁️ SolverONE: ${esc(n.email)}${n.planoNome ? ' · '+esc(n.planoNome) : ''}${n.desde ? ' · '+T('desde','since')+' '+dataDe(n.desde) : ''}</span><button type="button" data-mp="sair-nuvem">${T('Sair','Sign out')}</button></div>`
+          : `<div class="ident"><span>☁️ SolverONE: ${T('não conectado','not signed in')}</span><button type="button" data-mp="entrar-nuvem">${T('Entrar','Sign in')}</button></div>`}
+      <p class="nota">${T('São duas contas diferentes: a deste aparelho guarda histórias e chaves só aqui; a SolverONE dá a voz premium e a IA da plataforma.','They are two different accounts: this device\'s one keeps stories and keys here only; SolverONE gives the premium voice and the platform AI.')}</p>
+      <hr>
+      <button class="mp" type="button" role="menuitem" data-mp="config"><span class="i">⚙️</span>${T('Configurações','Settings')}</button>
+      <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${cfg.tema==='claro'}" data-mp="tema"><span class="i">🌓</span>${T('Tema claro','Light theme')}<span class="toggle${cfg.tema==='claro'?' on':''}" aria-hidden="true"></span></button>
+      <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.efeitos}" data-mp="som"><span class="i">🔊</span>${T('Efeitos sonoros','Sound effects')}<span class="toggle${cfg.efeitos?' on':''}" aria-hidden="true"></span></button>
+      <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.assistOne}" data-mp="assist"><span class="i">💬</span>AssistONE<span class="toggle${cfg.assistOne?' on':''}" aria-hidden="true"></span></button>
+      ${id.visitante ? '' : `<hr><button class="mp sair" type="button" role="menuitem" data-mp="sair"><span class="i">🚪</span>${T('Sair','Sign out')}</button>`}`;
+    $$('[data-mp]', mp).forEach(b=>b.onclick=()=>{
+      const op = b.dataset.mp;
+      if(op==='config'){ fecharPerfil(); const t=$('nav.tabs button[data-tela=config]'); if(t) t.click(); }
+      if(op==='tema'){ alternarTema(); pintarPerfil(); }
+      if(op==='som'){ $('#tg-efeitos').click(); pintarPerfil(); }
+      if(op==='assist'){ $('#tg-assist').click(); pintarPerfil(); }
+      if(op==='entrar-local'){ fecharPerfil(); try{ DGO.abrirLogin(); }catch(e){ toast(T('Login indisponível agora','Login unavailable now')); } }
+      if(op==='entrar-nuvem'){ fecharPerfil(); Plataforma.entrar(); }
+      if(op==='sair-local'){ try{ DGO.sair(); }catch(e){} toast(T('Você saiu da conta deste aparelho','Signed out of this device\'s account')); pintarPerfil(); pintarTopo(); }
+      if(op==='sair-nuvem'){ Plataforma.sair(); pintarPerfil(); pintarTopo(); }
+      if(op==='sair'){ fecharPerfil(); if(id.local){ try{ DGO.sair(); }catch(e){} } if(id.nuvem) Plataforma.sair(); toast(T('Você saiu','Signed out')); pintarTopo(); }
+    });
+  }
+  function abrirPerfil(){
+    if(perfilAberto()) return;
+    fecharGaveta(); pintarPerfil();
+    const r = document.querySelector('header').getBoundingClientRect();
+    mp.style.top = Math.round(r.bottom + 6) + 'px';
+    mp.classList.add('on'); btnPerfil.setAttribute('aria-expanded','true');
+    const f = mp.querySelector('button'); if(f) setTimeout(()=>f.focus(), 60);
+  }
+  function fecharPerfil(){
+    if(!perfilAberto()) return;
+    mp.classList.remove('on'); btnPerfil.setAttribute('aria-expanded','false');
+    if(mp.contains(document.activeElement)) btnPerfil.focus();
+  }
+
+  function aoTrocarTela(){ fecharPerfil(); if(gavetaAberta()) pintarGaveta(); }
+  function iniciar(){
+    aplicarTema(); pintarTopo();
+    btnMenu.addEventListener('click', ()=> gavetaAberta() ? fecharGaveta() : abrirGaveta());
+    fundo.addEventListener('click', ()=>fecharGaveta());
+    btnPerfil.addEventListener('click', ()=> perfilAberto() ? fecharPerfil() : abrirPerfil());
+    $('#btn-busca-topo').addEventListener('click', ()=>{ fecharPerfil(); abrirBusca(); });
+    $('#btn-inbox-topo').addEventListener('click', ()=>{ fecharPerfil(); Inbox.abrir(); });
+    document.addEventListener('click', e=>{ if(perfilAberto() && !mp.contains(e.target) && !btnPerfil.contains(e.target)) fecharPerfil(); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(gavetaAberta()) fecharGaveta(); else if(perfilAberto()) fecharPerfil(); } });
+    ['dgo:pronto','dgo:saiu','ch:conta','dgo:idioma'].forEach(ev=>document.addEventListener(ev, ()=>{ pintarTopo(); if(perfilAberto()) pintarPerfil(); if(gavetaAberta()) pintarGaveta(); }));
+    document.addEventListener('dgo:entrou', ()=>{ desdeLocal = Date.now(); try{ localStorage.setItem('ch_topo_desde', String(desdeLocal)); }catch(e){} pintarTopo(); if(perfilAberto()) pintarPerfil(); });
+    window.addEventListener('resize', ()=>{ if(perfilAberto()){ const r=document.querySelector('header').getBoundingClientRect(); mp.style.top=Math.round(r.bottom+6)+'px'; } });
+    $('#btn-dgo-config').addEventListener('click', ()=>{ try{ DGO.abrirConfiguracoes(); }catch(e){ toast(T('Painel indisponível agora','Panel unavailable now')); } });
+  }
+  return { iniciar, aplicarTema, alternarTema, abrirGaveta, fecharGaveta, abrirPerfil, fecharPerfil, aoTrocarTela, pintarTopo };
+})();
+Topo.iniciar();
+Inbox.iniciar();
 
 aplicarCfgNaTela(); pintarTudo();
 atualizarVozGuardada(true);   // selos "voz guardada" dos cartões

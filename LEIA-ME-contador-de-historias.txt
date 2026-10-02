@@ -37,3 +37,7 @@ NAO SOBEM NO GITHUB: este LEIA-ME e o PASSO-A-PASSO.
 
 ENQUANTO VOCE NAO COLAR AS 2 LINHAS, o site continua exatamente igual.
 Os arquivos ficam parados la, sem fazer nada. Nada quebra.
+
+TESTAR NO COMPUTADOR (http:// local, para o service worker e a câmera funcionarem):
+  na pasta do site:  python3 -m http.server 8203
+  e abra            http://localhost:8203/   (ou http://localhost:8203/TESTE-contador-de-historias.html)

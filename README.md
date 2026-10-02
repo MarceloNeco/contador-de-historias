@@ -62,7 +62,7 @@ Para trocar qualquer uma: suba outra imagem com o mesmo nome por cima. Se o arqu
 
 ## 👧 Para quem são as histórias
 
-Em **Ajustes**, a primeira seção permite informar os **primeiros nomes** de quem vai ouvir e se é uma menina, um menino, duas ou mais meninas, dois ou mais meninos, ou um grupo misto.
+Em **Configurações**, a primeira seção permite informar os **primeiros nomes** de quem vai ouvir e se é uma menina, um menino, duas ou mais meninas, dois ou mais meninos, ou um grupo misto.
 
 Com isso:
 
@@ -71,7 +71,7 @@ Com isso:
 
 ### 🛡️ Nomes das crianças não vão para a IA
 
-Com **Ajustes → 🛡️ Não mandar os nomes para a IA** ligado (vem ligado), antes de pedir uma história o site troca cada nome por um código (`[NOME1]`, `[NOME2]`…). A IA escreve com os códigos e o próprio celular coloca os nomes de volta. Dá para acrescentar outros nomes em **Outros nomes para proteger** (irmãos, pets, escola).
+Com **Configurações → 🛡️ Não mandar os nomes para a IA** ligado (vem ligado), antes de pedir uma história o site troca cada nome por um código (`[NOME1]`, `[NOME2]`…). A IA escreve com os códigos e o próprio celular coloca os nomes de volta. Dá para acrescentar outros nomes em **Outros nomes para proteger** (irmãos, pets, escola).
 
 Atenção: a **voz de internet** precisa receber o texto para ler — inclusive os nomes. Para nada sair do aparelho, use a voz do celular.
 
@@ -85,7 +85,7 @@ Com o botão **Falar o cumprimento antes da história** ligado, essa frase é di
 
 ## 🔊 Escolhendo a voz
 
-Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar quando quiser.
+Tudo se configura na aba **Configurações**, dentro do próprio site. Dá para trocar quando quiser.
 
 | Opção | Custo | Qualidade | Precisa de chave? |
 |---|---|---|---|
@@ -100,7 +100,7 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 
 > **Se aparecer "o Google está lotado" (erro 503):** não é nada seu. O site já espera e tenta de novo sozinho (três vezes, com pausas crescentes) e, se continuar lotado, tenta um modelo reserva. Se mesmo assim falhar, espere um minuto e toque em gerar de novo. Numa geração de vários capítulos, os que já saíram ficam guardados e **Tentar de novo** continua do capítulo seguinte.
 
-> **Se aparecer "este modelo não está mais disponível":** o Google aposenta modelos de tempos em tempos. Vá em **Ajustes → IA que escreve as histórias** e toque em **🔄 Ver os modelos que a minha chave aceita** — o site pergunta ao Google quais existem hoje e preenche a lista. Escolha um e pronto. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
+> **Se aparecer "este modelo não está mais disponível":** o Google aposenta modelos de tempos em tempos. Vá em **Configurações → IA que escreve as histórias** e toque em **🔄 Ver os modelos que a minha chave aceita** — o site pergunta ao Google quais existem hoje e preenche a lista. Escolha um e pronto. **A mesma chave serve para a voz e para escrever as histórias.** São 30 vozes, e no campo *"Como ela deve ler"* você escreve em português o que quiser — tipo *"sussurre nas partes de suspense"*.
 - **ElevenLabs** → `elevenlabs.io` → conta → *Profile* → *API Key*. Depois, no site, toque em **Carregar minhas vozes** e escolha a que preferir.
 - **OpenAI** → `platform.openai.com` → adicione créditos → *API keys* → *Create new secret key*.
 
@@ -120,7 +120,7 @@ Tudo se configura na aba **Ajustes**, dentro do próprio site. Dá para trocar q
 
 ## 🎤 Comandos de voz (experimental)
 
-Vem **desligado**. Em **Ajustes → 🎤 Comandos de voz**, ligue *Mostrar o botão 🎤*. Aparece um 🎤 no topo e outro nos controles do leitor. Toque e fale:
+Vem **desligado**. Em **Configurações → 🎤 Comandos de voz**, ligue *Mostrar o botão 🎤*. Aparece um 🎤 no topo e outro nos controles do leitor. Toque e fale:
 
 *tocar / continuar · pausar · voltar / repetir · avançar / pular · próximo capítulo · capítulo anterior · do início · mais rápido · mais devagar · favorita · já lida · fechar · história da noite · acervo · criar uma história sobre … · ler a história do …*
 
@@ -133,7 +133,7 @@ Vem **desligado**. Em **Ajustes → 🎤 Comandos de voz**, ligue *Mostrar o bot
 
 ## ✨ Escolhendo quem escreve as histórias
 
-Também na aba **Ajustes**:
+Também na aba **Configurações**:
 
 - **Só eu escrevo** — nenhuma chave, funciona até sem internet.
 - **Gemini** — tem cota **gratuita** por dia. Chave em `aistudio.google.com/apikey`.
@@ -180,9 +180,9 @@ O botão mostra o estado: *"Baixar a voz (9 trechos)"*, *"Continuar baixando (5 
 
 - No acervo, cada história mostra **⚡ voz guardada** (inteira no aparelho) ou **◐ voz em parte**. O selo vale para **qualquer** voz de internet já baixada — mesmo que agora a voz escolhida seja a do celular.
 - **Trocar para a voz do celular não apaga nada.** Se a história já tem voz do Gemini (ou outra) inteira guardada, ela toca com essa voz, sem gastar cota e sem internet. A faixa acima dos controles avisa: *"🟢 Voz guardada (Gemini · Sulafat) — toque para usar a voz do celular"*. Toque de novo para voltar.
-- Para desligar esse comportamento: **Ajustes → Voz guardada no aparelho → Com a voz do celular, usar a voz guardada**.
+- Para desligar esse comportamento: **Configurações → Voz guardada no aparelho → Com a voz do celular, usar a voz guardada**.
 - **Apagar a voz de uma história só:** no leitor, o link *🗑️ apagar a voz guardada desta história* logo abaixo da faixa (ou no menu ⋯ da história).
-- **Ver quanto ocupa:** **Ajustes → Voz guardada no aparelho** mostra o total em MB, a lista história por história (com o tamanho e a voz de cada uma), uma lixeira em cada linha, a limpeza de sobras de histórias apagadas e o botão **Apagar toda a voz guardada**.
+- **Ver quanto ocupa:** **Configurações → Voz guardada no aparelho** mostra o total em MB, a lista história por história (com o tamanho e a voz de cada uma), uma lixeira em cada linha, a limpeza de sobras de histórias apagadas e o botão **Apagar toda a voz guardada**.
 - Apagar uma história do acervo apaga a voz dela junto.
 
 ---
@@ -200,7 +200,7 @@ No **Android** o caminho é outro: o navegador só enxerga o **mecanismo padrão
 | Samsung | grátis, já vem | sim | *Instalar dados de voz* → Português (Brasil) |
 | Acapela TTS Voices | pago por voz | sim | Play Store, com prévia antes de comprar |
 
-Depois de trocar o mecanismo, **feche o navegador de vez** (Configurações → Aplicativos → Chrome/Edge → *Forçar parada*) — ele guarda a lista de vozes antiga até ser fechado. Aí, no site: **Ajustes → 📱 Voz do celular → 🔄 Recarregar vozes**.
+Depois de trocar o mecanismo, **feche o navegador de vez** (Configurações → Aplicativos → Chrome/Edge → *Forçar parada*) — ele guarda a lista de vozes antiga até ser fechado. Aí, no site: **Configurações → 📱 Voz do celular → 🔄 Recarregar vozes**.
 
 Se a voz nova não aparecer na lista mesmo assim, escolha **🔧 Padrão do aparelho**: o site pede "português do Brasil" sem apontar voz nenhuma, e o Android responde com o mecanismo padrão — que agora é o novo. O botão **❓ Instalei uma voz e ela não aparece** repete esse passo a passo dentro do site.
 
@@ -257,7 +257,7 @@ Dentro do texto da história, um marcador sozinho numa linha aciona o som:
 
 E `fim`, que desliga tudo.
 
-Todos são **criados pelo próprio site**, com síntese de som — não existe nenhum arquivo de áudio no repositório. Por isso os bichos soam estilizados, meio de desenho animado, e não como gravação real. Em **Ajustes → Efeitos sonoros** dá para ouvir os 24 antes de usar.
+Todos são **criados pelo próprio site**, com síntese de som — não existe nenhum arquivo de áudio no repositório. Por isso os bichos soam estilizados, meio de desenho animado, e não como gravação real. Em **Configurações → Efeitos sonoros** dá para ouvir os 24 antes de usar.
 
 Os seis primeiros são ambientes — ficam tocando baixinho ao fundo até outro entrar. Os outros tocam uma vez só. A IA já coloca esses marcadores sozinha nas histórias que gera.
 
@@ -271,20 +271,20 @@ As histórias ficam no navegador do aparelho. Para levar para outro:
 
 As chaves ficam guardadas **em cada aparelho separadamente** — é exatamente isso que impede que elas vazem pelo GitHub. Então, num celular novo, elas não aparecem sozinhas.
 
-Para não digitar tudo de novo: **Ajustes → 📱 Levar minha configuração para outro aparelho** → **Copiar o link**. Abra esse link uma vez no outro aparelho, confirme, e pronto. O link carrega as chaves, então mande só para você mesmo (o mais prático é o menu do Chrome → *Enviar para seus dispositivos*). O token do GitHub nunca vai junto.
+Para não digitar tudo de novo: **Configurações → 📱 Levar minha configuração para outro aparelho** → **Copiar o link**. Abra esse link uma vez no outro aparelho, confirme, e pronto. O link carrega as chaves, então mande só para você mesmo (o mais prático é o menu do Chrome → *Enviar para seus dispositivos*). O token do GitHub nunca vai junto.
 
 ---
 
 **Jeito simples (recomendado)**
 
-1. Ajustes → **Exportar**. Baixa o arquivo `historias.json`.
+1. Configurações → **Exportar**. Baixa o arquivo `historias.json`.
 2. No GitHub, abra o repositório → clique em `historias.json` → ícone do **lápis** → apague o conteúdo → cole o conteúdo novo → **Commit changes**.
    *(Ou: Add file → Upload files → arraste o arquivo novo por cima.)*
 3. Qualquer celular que abrir o site pega as histórias automaticamente.
 
 **Jeito automático (avançado)**
 
-Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositório e um token *fine-grained* com permissão **Contents: Read and write** só nesse repositório, e aí um botão envia o acervo direto. O token fica salvo apenas no seu celular.
+Configurações → **Sincronizar direto com o GitHub**. Você cola o nome do repositório e um token *fine-grained* com permissão **Contents: Read and write** só nesse repositório, e aí um botão envia o acervo direto. O token fica salvo apenas no seu celular.
 
 ---
 
@@ -295,7 +295,7 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 | `index.html` | O site inteiro — tudo está aqui dentro. |
 | `historias.json` | As histórias que aparecem para todo mundo que abre o site. |
 | `capa.jpg` | A imagem grande da tela Início (aparece em todos os aparelhos). |
-| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v5`), para os aparelhos buscarem os arquivos novos. |
+| `sw.js` | Faz o site abrir sem internet e virar app. Vem do pacote das diretrizes; a cada versão nova o número `VERSAO` dentro dele sobe (agora `v13`), para os aparelhos buscarem os arquivos novos. |
 | `icone-180.png` | O ícone que aparece quando o site é adicionado à tela inicial do iPhone. (O ícone da aba já vai dentro do `index.html`.) |
 | `ARQUITETURA.md` | O mapa do código: o que cada parte faz, o que não se toca, onde mudar o quê. É o que qualquer IA deve ler antes de mexer. |
 | `TESTE-VOZ-contador-de-historias.html` | Página de teste das vozes do aparelho, independente do app. |
@@ -306,7 +306,7 @@ Ajustes → **Sincronizar direto com o GitHub**. Você cola o nome do repositór
 
 ## ℹ️ Versão e aviso de uso
 
-Em **Ajustes → Sobre** ficam:
+Em **Configurações → Sobre** ficam:
 
 - o **número da versão** instalada no aparelho (útil para conferir se o arquivo novo já chegou — o navegador às vezes guarda o antigo; nesse caso, recarregue com Ctrl+Shift+R no computador ou puxando a tela para baixo no celular);
 - **🆕 Novidades**, com o histórico de todas as versões e o que mudou em cada uma;
