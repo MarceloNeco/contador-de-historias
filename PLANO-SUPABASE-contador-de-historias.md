@@ -1,7 +1,8 @@
 # UM Contador de Histórias na conta e no banco SolverONE (Supabase) — plano
 
-Versão do plano: 1 · 09/Out/2026 · app na v1.17.0. **Esta rodada é só plano e rascunho do SQL**: o app publicado não
-muda e nada foi rodado no Supabase.
+Versão do plano: 2 · 09/Out/2026 · app na v1.18.0 (Etapa 2a feita). A versão 2 acrescenta a **visão do dono** (item 0):
+acervo no servidor com cópia no aparelho, família e **comunidade de histórias**, com as regras ligadas no RootifyONE.
+Nada foi rodado no Supabase.
 
 - Contrato da plataforma: `PLATAFORMA-DADOS.md` (C1 a C10, cópia fiel).
 - Modelo seguido: OmniLifeONE 2.13 a 2.15 (`PLANO-SUPABASE-OmniLifeONE.md` e `supabase/omnilife-one-v1.sql` no repositório
@@ -9,6 +10,29 @@ muda e nada foi rodado no Supabase.
 - Rascunho do SQL: `supabase/contador-de-historias-v1.sql` (**não rodar antes da revisão do Claude do manual e da sua
   autorização**). Teste local: `supabase/teste/`.
 - Lista de pendências: `PENDENCIAS.md`.
+
+## 0. A visão do dono (09/Out/2026)
+
+1. **Um acervo de histórias que já vem com o app**, guardado no servidor **e** no aparelho (no app instalado ou no
+   navegador), para ler e ouvir **sem internet**. Isso é muito importante: tudo o que vem do servidor tem cópia no aparelho.
+2. **Compartilhar com a família** (pai, mãe, quem cuida) — é uma boa ideia.
+3. **Comunidade de histórias:** quem cria uma história pode decidir torná-la **pública**; outras pessoas pesquisam e
+   leem; fica num banco comum de livre acesso. A pessoa pode **revogar** — sabendo que quem já leu pode ter copiado.
+4. **No RootifyONE, sim ou não:** a comunidade pode ser ligada ou desligada; **criar e publicar dependem do plano**. No
+   começo, **liberado para todo mundo**; depois o dono refina quem tem direito por plano.
+
+**Como o plano atende:**
+
+| Visão | Como fica |
+|---|---|
+| 1. Acervo no servidor e no aparelho | As histórias oficiais saem do arquivo `historias.json` e vão para a tabela `conta_publicas` (tipo `oficial`), que **qualquer pessoa lê, até sem conta**. O app baixa tudo para o aparelho (IndexedDB) e, depois, só **o que mudou** (`conta_acervo_mudancas`). Sem internet, lê a cópia. O `historias.json` continua como reserva. |
+| 2. Família | Igual ao plano 1 (etapa da família), depois da chave pessoal comum na base (item 8.1). |
+| 3. Comunidade | A mesma tabela, tipo `comunidade`. **Publicar** (`conta_publicar`) faz uma **cópia em claro** da história, separada da cópia cifrada da pessoa: o que é público é público. Antes, o app confere os nomes das crianças (da lista "Para quem são as histórias" e dos nomes protegidos), oferece **trocar por nomes inventados** e pede a confirmação "não tem nome real de criança, escola nem endereço" (o banco recusa sem ela). Aparece com o nome que a pessoa escolher (ex.: "Família da Bia"), nunca o e-mail. **Pesquisar** (`conta_buscar`) por título, tema, personagens e texto. **Revogar** (`conta_revogar`): some da comunidade, o texto sai do banco e os aparelhos tiram da cópia deles na próxima conferência; o app avisa antes que quem já leu pode ter guardado. **Denunciar** (`conta_denunciar`): com 3 denúncias a história some sozinha até a equipe ver. **Revisão antes de publicar** (ligada no começo, por ser um app para crianças): a história só aparece depois que a equipe aprovar no RootifyONE (`admin_conta_moderar`). |
+| 4. RootifyONE | Tabela `conta_regras`: `comunidade`, `publicar` (e quantas por dia), `criar`, `nuvem`, `familia`, `revisao_previa`, `ocultar_denuncias` — cada uma ligada ou não e para quais planos (`*` = todos). Começam **todas ligadas para todos**. O RootifyONE muda por `admin_conta_salvar_regra` (fica registrado). O app pergunta `conta_minhas_regras()` e esconde ou põe em cinza o que o plano não tem; **o banco recusa** publicar fora da regra. |
+
+**Uma limitação honesta:** "criar história" com a **chave de IA da própria pessoa** acontece no aparelho, sem passar pelo
+servidor; a regra `criar` decide o que a tela mostra, mas quem quiser burlar consegue. A IA paga da plataforma já é
+conferida no servidor (`solverone-ia`).
 
 ## Em uma frase
 
@@ -86,13 +110,14 @@ criança só lê e não compartilha. Mas abrir a história cifrada na família p
 | Fila de voz, Wake Lock | Trabalho deste aparelho. |
 | Sessões, conta "deste aparelho" do módulo comum, cache dos serviços | Ficam por aparelho, como no OmniLifeONE. |
 | Mensagens lidas, AssistONE, anúncios, versão, topo | Jeito de usar o aparelho. |
-| Acervo público (`historias.json`) | Já está no site para todos; não vai para a conta de ninguém. |
+| Acervo público e comunidade | Não vão para a conta de ninguém: ficam em `conta_publicas` (público, item 0) e o aparelho guarda uma cópia para ler sem internet. |
 | Visitante (sem conta) | Tudo continua no aparelho, como hoje. |
 
 ## 4. Rascunho do SQL
 
-`supabase/contador-de-historias-v1.sql` — 5 tabelas `conta_*`, regras de acesso (RLS) em todas, gatilhos (quem/quando,
-versão para conflito, apagar = marcar), `conta_anonimizar(uid)` registrada em `sol_apps` e conferência no fim.
+`supabase/contador-de-historias-v1.sql` — 8 tabelas `conta_*` (5 da pessoa + acervo público, denúncias e regras), regras
+de acesso (RLS) em todas, gatilhos (quem/quando, versão para conflito, apagar = marcar), funções do acervo e da
+comunidade, funções da equipe para o RootifyONE, `conta_anonimizar(uid)` registrada em `sol_apps` e conferência no fim.
 
 **O que o banco garante (não só a tela):**
 
@@ -104,18 +129,25 @@ versão para conflito, apagar = marcar), `conta_anonimizar(uid)` registrada em `
 - Ajuste com chave, senha, token, nome ou instrução em claro é recusado; consentimento dado não some.
 - A chave do acervo não se troca nem se apaga pelo app; menos de 600 mil rodadas é recusado.
 - LGPD: só a plataforma (`admin_anonimizar_usuario`) anonimiza; apaga a chave (o que sobrar cifrado não abre), tira o
-  conteúdo das histórias, zera ajustes, apaga progresso e estatísticas; fica só a data do consentimento, como prova.
+  conteúdo das histórias, zera ajustes, apaga progresso e estatísticas e revoga o que a pessoa publicou na comunidade;
+  fica só a data do consentimento, como prova.
+- Acervo público: qualquer pessoa lê e pesquisa o que está publicado; **ninguém grava direto** (só pelas funções);
+  publicar exige conta ativa, a regra ligada para o plano, o limite do dia e a confirmação de que não há nome real;
+  com a revisão ligada, só aparece depois da equipe; a autora não aprova a própria história; só a autora revoga, e o
+  texto revogado sai do banco; 3 denúncias escondem até a equipe ver; quem denunciou não aparece para a autora;
+  os aparelhos ficam sabendo do que saiu sem receber o texto.
+- Regras: só dono ou admin da equipe muda (fica no registro da plataforma); visitante e app leem.
 
 **Como foi testado (sem tocar no seu Supabase):** num PostgreSQL 16 descartável, com o ambiente de teste do RootifyONE
 (`teste/sql/stub-supabase.sql`) e os SQLs reais da base na ordem do LEIA-ME deles. O arquivo do Contador rodou **duas
-vezes** sem erro; **56 verificações** (`supabase/teste/teste-contador-de-historias.sql`) passaram; o teste da base (87
+vezes** sem erro; **97 verificações** (`supabase/teste/teste-contador-de-historias.sql`) passaram; o teste da base (87
 verificações) continua passando com o Contador junto; e rodou também junto com o `omnilife-one-v1.sql`, com a
 anonimização chamando as funções dos dois apps. O porteiro para sem criar nada quando falta a base ou quando já existe
 outra tabela `conta_*`.
 
 **Para rodar (só depois da revisão e da sua autorização):** Supabase → projeto **solverone-app** → **SQL Editor** →
-**New query** → colar o arquivo inteiro → **Run** → aparece uma tabela com **5 linhas** (`conta_chave` …
-`conta_progresso`), todas com `rls_ligado = true` e `regras` maior que zero. Nada no app muda até a Etapa 2c.
+**New query** → colar o arquivo inteiro → **Run** → aparece uma tabela com **8 linhas** (`conta_chave` …
+`conta_regras`), todas com `rls_ligado = true` e `regras` maior que zero. Nada no app muda até a etapa que usar.
 
 ## 5. Etapas
 
@@ -123,17 +155,18 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
 
 | Etapa | Versão | O que entrega | O que você testa |
 |---|---|---|---|
-| **2a — Conta comum** | 1.18.0 | Sessão em `solverone.sessao.v1` (aproveitando a antiga, sem pedir login de novo); renovação sem derrubar o OmniLifeONE; Sair só neste aparelho; "Foi você?" para link de fora; uso e acessos (C4, C9); conta encerrada; "Encerrar minha conta". Riscos imediatos: R2 conforme a sua decisão e tirar o arquivo `.whl` perdido. **Sem SQL novo.** | 1) Entrar no Contador e abrir o OmniLifeONE no mesmo navegador: já entra. 2) RootifyONE → uso por app e registro de acessos mostram o Contador. 3) Sair no celular **não** desconecta o computador. 4) Recarregar não pede login. |
+| **2a — Conta comum** ✅ | 1.18.0 | Sessão em `solverone.sessao.v1` (aproveitando a antiga, sem pedir login de novo); renovação sem derrubar o OmniLifeONE; Sair só neste aparelho; "Foi você?" para link de fora; uso e acessos (C4, C9); conta encerrada; "Encerrar minha conta". Riscos imediatos: R2 conforme a sua decisão e tirar o arquivo `.whl` perdido. **Sem SQL novo.** | 1) Entrar no Contador e abrir o OmniLifeONE no mesmo navegador: já entra. 2) RootifyONE → uso por app e registro de acessos mostram o Contador. 3) Sair no celular **não** desconecta o computador. 4) Recarregar não pede login. |
 | **2b — Cópia protegida e "antes de apagar"** | 1.19.0 | "Exportar" vira **cópia protegida** (senha + código de recuperação, como no OmniLifeONE); restaurar **sem repetir história** (pelo id e pelo título + texto); a cópia aberta antiga continua sendo aceita; "Apagar tudo" oferece a cópia antes e diz o que acontece com as vozes; histórias saem do `localStorage` (5 MB) para o IndexedDB **sem perder nada** (copiar, conferir, só então apagar a antiga). **Sem SQL.** | Fazer a cópia, apagar tudo num aparelho de teste, restaurar: mesmas histórias, nenhuma repetida, vozes tocando, posição de leitura igual. |
 | **2c — Minhas histórias na nuvem** | 1.20.0 | **Precisa do SQL rodado.** Primeiro uso guiado (4 telas: o que vai, quem vê, o papel com o código, consentimento do responsável); chave do acervo e código de recuperação; "Levar minhas histórias para a nuvem" com prévia e cópia oferecida antes; cópia no aparelho + fila + versão (junta campo a campo, só pergunta o que bateu); selo "⏳ aguardando" e "✓ Tudo sincronizado"; progresso, ajustes e estatísticas. | 1) Criar uma história no celular **sem internet** → aparece no computador depois. 2) Mesma história mudada nos dois → só pergunta o campo que bateu. 3) Computador novo **com** o papel do código → abre tudo; **sem** o papel → explica e não perde o aparelho. 4) Vozes guardadas continuam tocando. 5) No RootifyONE ninguém lê o texto. |
-| **2d — Compartilhar com a família** (a combinar) | 1.21.0 | Depende do ponto 8.1. Escolher a família (a do OmniLifeONE aparece) ou criar uma simples; compartilhar história; membros só leem; criança só lê. | O pai compartilha; a mãe vê e ouve no celular dela; a criança vê; quem saiu da família deixa de ver as novas. |
+| **2d — Acervo no servidor e comunidade** | 1.21.0 | **Precisa do SQL rodado.** Acervo oficial no banco (a equipe traz o `historias.json` pelo RootifyONE) com cópia completa no aparelho e "só o que mudou"; aba **Comunidade** no Acervo: pesquisar, ler, ouvir, guardar para ler sem internet, denunciar; **"Publicar na comunidade"** numa história minha (conferência de nomes, trocar por nomes inventados, nome que aparece, confirmação), "Minhas publicadas" com a situação (em revisão, publicada, escondida) e **Revogar** (com o aviso das cópias); tudo conforme `conta_minhas_regras()`. No **RootifyONE** (repositório `rootify-one`): tela das regras do Contador (ligar, planos, limites) e **fila de revisão** (publicar, esconder, recusar). | 1) Sem internet, o acervo abre inteiro. 2) Publicar uma história com o nome da criança: o app avisa e troca. 3) Aprovar no RootifyONE: aparece para outra conta. 4) Revogar: some no outro aparelho na próxima vez que abrir. 5) Desligar a comunidade no RootifyONE: some do app. 6) Pôr "publicar" só para Premium: o botão fica em cinza para Membro. |
+| **2e — Compartilhar com a família** (a combinar) | 1.22.0 | Depende do ponto 8.1. Escolher a família (a do OmniLifeONE aparece) ou criar uma simples; compartilhar história; membros só leem; criança só lê. | O pai compartilha; a mãe vê e ouve no celular dela; a criança vê; quem saiu da família deixa de ver as novas. |
 
 ## 6. Riscos e como evitar
 
 | # | Risco | Como evitar |
 |---|---|---|
-| R1 | **Nomes que parecem de crianças reais no `historias.json` público** (3 histórias de uma série, duas meninas com nome e apelido) — e o histórico do repositório guarda as versões antigas | Você confirma se são reais. Se forem: trocar por nomes fictícios no arquivo (rápido) e decidir sobre o histórico (limpar exige reescrever o histórico do repositório; o GitHub também guarda cópias). Até lá, não pôr mais nada pessoal no acervo público. |
-| R2 | "Enviar acervo para o GitHub" publica **todas** as histórias do aparelho, com nomes, e todos os aparelhos baixam | Recomendo **tirar** o botão (a nuvem da 2c substitui). Alternativa: só histórias marcadas como "públicas", com conferência de nomes antes de enviar. |
+| R1 | **Nomes que parecem de crianças reais no `historias.json` público** (3 histórias de uma série, duas meninas com nome e apelido) — e o histórico do repositório guarda as versões antigas | ✅ 1.18.0: trocados por nomes inventados no arquivo público (o id das histórias não mudou: quem já tinha continua com a versão dele). Falta decidir sobre o histórico do repositório (limpar exige reescrever o histórico; o GitHub também guarda cópias). Outros nomes do acervo (de outras séries) para você conferir: ver `PENDENCIAS.md`. |
+| R2 | "Enviar acervo para o GitHub" publicava **todas** as histórias do aparelho, com nomes, e todos os aparelhos baixavam | ✅ 1.18.0: o botão saiu e o token guardado foi apagado dos aparelhos. A comunidade (2d) faz isso do jeito certo, uma história por vez, com conferência. |
 | R3 | Dado de criança na nuvem | Texto, título, personagens, nomes e instruções **cifrados no aparelho**; consentimento do responsável registrado (art. 14 §1º); política de privacidade atualizada e validada com advogado antes de abrir para o público; anonimização pela plataforma. |
 | R4 | Perder o código de recuperação | A cópia do aparelho continua; a cópia protegida (2b) continua; o app pede o papel antes de usar outro aparelho ("Pegue o papel com o código", como no OmniLifeONE 2.15.3). Sem código e sem aparelho antigo, a cópia da nuvem não abre — dito com todas as letras na tela. |
 | R5 | **Áudio guardado perdido** ao levar para a nuvem ou restaurar | O id da história nunca muda (o banco não deixa); a chave do áudio (`id|índice|motor|voz|modelo|hash`) não é tocada; ao juntar duas cópias da mesma história, fica o id que tem voz guardada; nada apaga `ch_audio` sem oferecer o `.chvoz` antes. |
@@ -144,6 +177,11 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
 | R10 | Espaço do plano grátis (500 MB de banco para todos os apps) | Só texto cifrado (≈ 7 KB por história); áudio não sobe; limite de 400 KB por história; RootifyONE mostra o uso (`admin_armazenamento`). |
 | R11 | O Contador trocar a chave pública que o OmniLifeONE usa (`sol_chave_publica` é uma por pessoa e é sobrescrita) | O Contador **não** publica chave pública nas etapas 2a a 2c (a chave do acervo é embrulhada pelo código, sem a base). Para a família (2d), combinar o ponto 8.1. |
 | R12 | Chaves de IA no link "Levar a configuração" | Continuam só no aparelho e nunca vão para o banco; avaliar trocar o link pelo cofre comum (pendência). |
+| R13 | **Nome real de criança publicado na comunidade** | Conferência no aparelho com a lista de nomes da família, troca por nomes inventados, confirmação obrigatória (o banco recusa sem), revisão da equipe antes de aparecer (ligada no começo), denúncia "tem nome real" e revogar. |
+| R14 | **Conteúdo impróprio para crianças** na comunidade | Revisão antes de publicar, denúncias que escondem sozinhas, a equipe esconde ou recusa com motivo, registro no log; Termos de uso da comunidade (o que pode e o que não pode) antes de abrir. |
+| R15 | Cópia depois de revogar | Não tem como impedir quem já leu de guardar (nenhum sistema evita). O app avisa isso antes de publicar e antes de revogar; os aparelhos tiram da cópia na próxima conferência. |
+| R16 | Direitos sobre a história publicada | Termos da comunidade: a pessoa continua dona e dá licença para a SolverONE mostrar e para outros lerem e ouvirem no app; não vale publicar personagem protegido de terceiros para fins comerciais (muitas histórias usam personagens de filmes) — validar com advogado. |
+| R17 | Espaço do acervo público no plano grátis | Texto ≈ 7 KB por história; limite por dia (`publicar.por_dia`); o aparelho baixa o acervo oficial inteiro, mas da comunidade só o que a pessoa abrir ou guardar. |
 
 ## 7. Regra zero — o que é novo para o Contador e precisa do seu "sim" antes de cada etapa
 
@@ -151,7 +189,9 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
 2. Cópia protegida e "antes de apagar" (2b) e mudar as histórias para o IndexedDB.
 3. Histórias, progresso, ajustes e estatísticas na nuvem, cifrados, com código de recuperação e consentimento (2c).
 4. Família (2d), depois do ponto 8.1.
-5. Decisões: R1 (acervo público), R2 (botão do GitHub), cifrar tudo (recomendado) ou só trocar os nomes por códigos.
+5. Decidido em 09/Out/2026 ("pode seguir com as recomendações"): R1 e R2 feitos na 1.18.0; cifrar as histórias inteiras.
+6. Acervo no servidor e comunidade (2d), com as regras e a fila de revisão no RootifyONE. A decidir: revisão antes de
+   publicar começa ligada (recomendado) e o texto dos Termos da comunidade.
 
 ## 8. Para combinar com o chat do RootifyONE (contrato)
 

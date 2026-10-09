@@ -141,6 +141,109 @@ select pg_temp.ok((select sum(leituras) from public.conta_estatisticas) = 7, 'ca
 select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false);
 select pg_temp.ok((select count(*) from public.conta_progresso) + (select count(*) from public.conta_estatisticas) = 0, 'Bia não vê progresso nem estatísticas da Ana');
 
+-- ===== acervo público, comunidade e regras =====
+-- visitante (sem conta): lê regras, acervo e busca; não publica nem lê a tabela direto
+reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;
+select pg_temp.ok((select count(*) from public.conta_minhas_regras()) = 7, 'visitante vê as 7 regras do app');
+select pg_temp.ok((select bool_and(posso) from public.conta_minhas_regras()), 'no começo tudo liberado para todo mundo');
+select pg_temp.erro($$select * from public.conta_publicas$$, 'visitante não lê a tabela do acervo direto');
+select pg_temp.erro($$select public.conta_publicar('x1', 'Título', repeat('texto ', 20), p_confirmo => true)$$, 'visitante não publica');
+reset role;
+-- equipe põe as histórias oficiais (o historias.json vai para o banco)
+select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', false); set role authenticated;
+insert into t values ('o1', public.admin_conta_oficial('h_00_oficial', 'O Dragão que Tinha Medo do Escuro', repeat('Era uma vez um dragão. ', 10), 'Dragão, Lua', 'coragem', '6-9')::text);
+select pg_temp.ok(public.admin_conta_oficial('h_00_oficial', 'O Dragão que Tinha Medo do Escuro', repeat('Era uma vez um dragão bem pequeno. ', 10), 'Dragão, Lua', 'coragem', '6-9')::text
+                  = (select v from t where k = 'o1'), 'pôr a mesma oficial de novo atualiza, não repete');
+reset role; select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.erro($$select public.admin_conta_oficial('h_99', 'Falsa', repeat('x ', 40))$$, 'quem não é da equipe não põe história oficial');
+reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;
+insert into t values ('t0', now()::text);
+select pg_temp.ok((select count(*) from public.conta_acervo_mudancas()) = 1, 'visitante baixa o acervo oficial para a cópia do aparelho');
+select pg_temp.ok((select count(*) from public.conta_buscar('dragão')) = 1, 'a busca acha pela palavra (com acento)');
+select pg_temp.ok((select count(*) from public.conta_buscar('((( "')) >= 0, 'busca com texto estranho não dá erro');
+reset role;
+
+-- Bia publica uma história dela
+select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.erro($$select public.conta_publicar('b-h1', 'A Nuvem Viajante', repeat('Uma nuvem viajava pelo céu. ', 6))$$, 'sem confirmar que não tem nome real, não publica');
+insert into t values ('p1', public.conta_publicar('b-h1', 'A Nuvem Viajante', repeat('Uma nuvem viajava pelo céu. ', 6), 'Nuvem', 'amizade', '2-5',
+                      'pt', 'Família da Bia', p_confirmo => true)::text);
+select pg_temp.ok((select estado from public.conta_publicas where id = (select v::uuid from t where k = 'p1')) = 'revisao', 'com a revisão ligada, entra esperando a equipe');
+select pg_temp.erro($$insert into public.conta_publicas (tipo, autor, titulo, texto, estado) values ('comunidade', auth.uid(), 'x', repeat('x', 60), 'publicada')$$,
+  'ninguém grava direto no acervo (só pela função)');
+select pg_temp.erro(format($$update public.conta_publicas set estado = 'publicada' where id = %L$$, (select v from t where k = 'p1')), 'a autora não aprova a própria história');
+reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;
+select pg_temp.ok((select count(*) from public.conta_buscar('nuvem')) = 0, 'em revisão, ninguém de fora vê');
+reset role; select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.ok((select count(*) from public.admin_conta_listar_publicas('revisao')) = 1, 'a equipe vê a fila de revisão');
+select pg_temp.ok(public.admin_conta_moderar((select v::uuid from t where k = 'p1'), 'publicada'), 'a equipe publica');
+reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;
+select pg_temp.ok((select count(*) from public.conta_buscar('nuvem')) = 1, 'depois de aprovada, qualquer pessoa acha');
+select pg_temp.ok((select autor_nome from public.conta_buscar('nuvem')) = 'Família da Bia', 'aparece o nome que a autora escolheu (não o e-mail)');
+reset role;
+-- editar a publicada: mesma história (não repete) e volta para revisão
+select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.ok(public.conta_publicar('b-h1', 'A Nuvem Viajante', repeat('Uma nuvem viajava pelo céu azul. ', 6), p_confirmo => true)::text
+                  = (select v from t where k = 'p1'), 'publicar de novo a mesma história atualiza, não repete');
+select pg_temp.ok((select estado from public.conta_publicas where id = (select v::uuid from t where k = 'p1')) = 'revisao', 'a versão nova volta para a revisão');
+reset role; select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select public.admin_conta_moderar((select v::uuid from t where k = 'p1'), 'publicada');
+-- regras pelo RootifyONE: limite por dia e plano
+select pg_temp.ok(public.admin_conta_salvar_regra('publicar', true, null, '{"por_dia": 2}'), 'a equipe muda o limite por dia');
+reset role; select set_config('request.jwt.claim.sub', 'c1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.erro($$select public.admin_conta_salvar_regra('publicar', false)$$, 'quem não é da equipe não muda regra');
+reset role; select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select public.conta_publicar('b-h2', 'O Sapo Cantor', repeat('Um sapo cantava na lagoa. ', 6), p_confirmo => true);
+select pg_temp.erro($$select public.conta_publicar('b-h3', 'A Formiga Pintora', repeat('Uma formiga pintava folhas. ', 6), p_confirmo => true)$$, 'passou do limite do dia: recusa');
+reset role; select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select public.admin_conta_salvar_regra('publicar', true, '{premium}', '{"por_dia": 10}');
+reset role; select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.ok(not public.conta_posso('publicar'), 'publicar só para Premium: a Bia (Membro) não pode');
+select pg_temp.ok((select not posso from public.conta_minhas_regras() where chave = 'publicar'), 'o app fica sabendo (para pôr o botão em cinza)');
+select pg_temp.erro($$select public.conta_publicar('b-h4', 'A Lua Sonolenta', repeat('A lua bocejava. ', 8), p_confirmo => true)$$, 'fora do plano: o banco recusa');
+reset role; select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select public.admin_conta_salvar_regra('publicar', true, '{*}');
+select public.admin_conta_salvar_regra('comunidade', false);
+reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;
+select pg_temp.ok((select count(*) from public.conta_buscar('')) = 1 and (select tipo from public.conta_buscar('')) = 'oficial', 'comunidade desligada: só as oficiais aparecem');
+reset role; select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select public.admin_conta_salvar_regra('comunidade', true);
+reset role;
+-- denúncias: 3 pessoas diferentes escondem a história até a equipe ver
+select set_config('request.jwt.claim.sub', 'c1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.ok(public.conta_denunciar((select v::uuid from t where k = 'p1'), 'impróprio'), 'Caio denuncia');
+select pg_temp.ok(not public.conta_denunciar((select v::uuid from t where k = 'p1'), 'outro'), 'a mesma pessoa não denuncia duas vezes');
+select set_config('request.jwt.claim.sub', 'e1000000-0000-0000-0000-000000000001', false);
+select public.conta_denunciar((select v::uuid from t where k = 'p1'), 'nome-real', 'tem o nome da minha vizinha');
+select set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000001', false);
+select public.conta_denunciar((select v::uuid from t where k = 'p1'), 'outro');
+reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;
+select pg_temp.ok((select count(*) from public.conta_buscar('nuvem')) = 0, '3 denúncias: some sozinha da busca');
+select pg_temp.ok((select not publicada and texto is null from public.conta_acervo_mudancas((select v::timestamptz from t where k = 't0')) where titulo is null and id = (select v::uuid from t where k = 'p1')),
+  'os aparelhos ficam sabendo que precisam tirar da cópia (sem receber o texto)');
+reset role; select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.ok((select count(*) from public.conta_denuncias) = 0, 'a autora não vê quem denunciou');
+reset role; select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select public.admin_conta_moderar((select v::uuid from t where k = 'p1'), 'publicada', 'revisado: ok');
+reset role;
+-- revogar: só a autora; o texto sai do banco; dá para publicar de novo depois
+select set_config('request.jwt.claim.sub', 'c1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.ok(not public.conta_revogar((select v::uuid from t where k = 'p1')), 'quem não é o autor não revoga');
+select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', false);
+select pg_temp.ok(public.conta_revogar((select v::uuid from t where k = 'p1')), 'a autora revoga');
+select pg_temp.ok((select texto is null and titulo is null and estado = 'revogada' from public.conta_publicas where id = (select v::uuid from t where k = 'p1')),
+  'revogada: o texto sai do banco');
+select pg_temp.ok(public.conta_publicar('b-h1', 'A Nuvem Viajante', repeat('Uma nuvem viajava pelo céu. ', 6), p_confirmo => true)::text <> (select v from t where k = 'p1'),
+  'depois de revogar, dá para publicar de novo (é outra publicação)');
+reset role;
+-- conta encerrada não publica nem denuncia
+select set_config('request.jwt.claim.sub', 'f1000000-0000-0000-0000-000000000001', false); set role authenticated;
+select pg_temp.erro($$select public.conta_publicar('d-h1', 'Título', repeat('texto ', 20), p_confirmo => true)$$, 'conta encerrada não publica');
+reset role;
+-- Ana publica uma (para a LGPD lá embaixo)
+select set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000001', false); set role authenticated;
+insert into t values ('pa', public.conta_publicar('a-h7', 'O Gato Astronauta', repeat('Um gato foi à lua. ', 8), p_autor_nome => 'Mãe da Ana', p_confirmo => true)::text);
+
 -- ===== conta encerrada =====
 select set_config('request.jwt.claim.sub', 'f1000000-0000-0000-0000-000000000001', false);
 select pg_temp.erro($$insert into public.conta_historias (id, dados_cifrado) values ('d1', 'cifrado-d1')$$, 'conta encerrada não grava história');
@@ -165,14 +268,21 @@ select pg_temp.ok((select dados = '{}'::jsonb and dados_cifrado is null and cons
                     where user_id = 'a1000000-0000-0000-0000-000000000001'), 'ajustes da Ana zerados; fica só a data do consentimento');
 select pg_temp.ok((select count(*) from public.conta_historias where user_id = 'e1000000-0000-0000-0000-000000000001' and dados_cifrado is not null) = 1,
   'a história do Zeca não é tocada');
+select pg_temp.ok((select estado = 'revogada' and autor_nome is null and texto is null from public.conta_publicas where id = (select v::uuid from t where k = 'pa')),
+  'o que a Ana publicou na comunidade sai (revogada, sem o nome)');
+select pg_temp.ok((select count(*) from public.conta_denuncias where user_id = 'a1000000-0000-0000-0000-000000000001') = 1, 'a denúncia da Ana continua contando');
 
 -- ===== catálogo =====
 select pg_temp.ok(not has_table_privilege('anon', 'public.conta_historias', 'select'), 'anon sem SELECT em conta_historias');
 select pg_temp.ok(not has_table_privilege('authenticated', 'public.conta_historias', 'delete'), 'app sem DELETE em conta_historias');
-select pg_temp.ok(not has_function_privilege('anon', 'public.conta__ativa()', 'execute'), 'anon não executa funções do Contador');
+select pg_temp.ok(not has_function_privilege('anon', 'public.conta__ativa()', 'execute'), 'anon não executa as funções internas do Contador');
+select pg_temp.ok(not has_function_privilege('anon', 'public.conta_publicar(text, text, text, text, text, text, text, text, text, integer, boolean)', 'execute')
+                  and not has_function_privilege('anon', 'public.admin_conta_moderar(uuid, text, text)', 'execute'), 'anon não publica nem modera');
+select pg_temp.ok(not has_table_privilege('authenticated', 'public.conta_publicas', 'insert') and not has_table_privilege('authenticated', 'public.conta_publicas', 'update'),
+  'app sem INSERT/UPDATE direto no acervo público');
 select pg_temp.ok((select bool_and(p.proconfig @> array['search_path=""'])
                      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                    where n.nspname = 'public' and p.proname like 'conta\_%'), 'todas as funções conta_* com search_path vazio');
+                    where n.nspname = 'public' and (p.proname like 'conta\_%' or p.proname like 'admin\_conta\_%')), 'todas as funções conta_* e admin_conta_* com search_path vazio');
 select pg_temp.ok((select bool_and(p.prosecdef) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                     where n.nspname = 'public' and p.proname in ('conta__ativa', 'conta__posso_compartilhar', 'conta_anonimizar')),
   'funções de regra e de LGPD com SECURITY DEFINER');
