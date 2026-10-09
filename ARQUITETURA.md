@@ -14,6 +14,10 @@ Site estático no GitHub Pages, sem servidor, sem framework e sem passo de build
 | `diretrizes-config.js` | Configuração do módulo para este app. | Sim, é o único arquivo do módulo que muda por app. |
 | `TESTE-VOZ-contador-de-historias.html` | Teste das vozes do aparelho, independente do app. | Sim. |
 | `capa.jpg`, `fundo-historia.jpg`, `icone-180.png` | Imagens. | Trocar por outra com o mesmo nome. |
+| `PLATAFORMA-DADOS.md` | Cópia fiel do contrato de dados da plataforma SolverONE (C1–C10). | Não: muda só por versão nova do contrato. |
+| `PLANO-SUPABASE-contador-de-historias.md` | Plano da ida para a conta e o banco SolverONE: o que fica onde, etapas 2a–2d, riscos. | Sim. |
+| `supabase/contador-de-historias-v1.sql` | Rascunho das tabelas `conta_*` (RLS, LGPD). **Não rodar sem revisão e autorização do dono.** | Sim, com teste em `supabase/teste/`. |
+| `PENDENCIAS.md` | Lista oficial de pendências do app. | Sim, a cada entrega. |
 
 ## Dentro do `index.html` (ordem em que aparecem no script)
 
