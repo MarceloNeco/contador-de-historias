@@ -21,7 +21,7 @@
 (function (raiz) {
   'use strict';
 
-  var VERSAO = '1.0.1';
+  var VERSAO = '1.0.2';
   if (raiz.DGO && raiz.DGO.__carregado) { return; }
 
   /* ------------------------------------------------------------------
@@ -2110,11 +2110,14 @@
 
     function lerFonte(fonte) {
       progresso(0.02, '');
-      OCR.ler(fonte, progresso).then(mostrarResultado).catch(function () {
-        estado.innerHTML = ''; estado.appendChild(aviso(t('semCamera'), 'erro'));
-        barra.style.display = 'none';
-      });
+      var TF = raiz.DGO && raiz.DGO.tarefa; // tarefas.js (diretriz de tarefas longas): tela acesa, pílula, continua ao navegar
+      var rodar = function (andamento) { return OCR.ler(fonte, function (p, st) { if (caixa.isConnected) progresso(p, st); if (andamento) andamento(p); }); };
+      var falhou = function () { if (!caixa.isConnected) return; estado.innerHTML = ''; estado.appendChild(aviso(t('semCamera'), 'erro')); barra.style.display = 'none'; };
+      if (TF) TF.iniciar({ id: 'dgo-ocr', titulo: t('lendo'), executar: rodar, aindaNaTela: function () { return caixa.isConnected; },
+        aoAbrir: function (r) { if (caixa.isConnected) mostrarResultado(r); else abrirOCR(Object.assign({}, opcoes, { resultadoInicial: r })); } }).catch(falhou);
+      else rodar(null).then(mostrarResultado).catch(falhou);
     }
+    if (opcoes.resultadoInicial) setTimeout(function () { mostrarResultado(opcoes.resultadoInicial); }, 0);
 
     function usarCamera() {
       limpar();
