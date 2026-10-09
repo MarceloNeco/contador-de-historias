@@ -19,7 +19,7 @@ psql -d conta -v ON_ERROR_STOP=1 -f supabase/contador-de-historias-v1.sql      #
 psql -d conta -f supabase/teste/teste-contador-de-historias.sql | grep -E "ok:|FALHOU|FIM"
 ```
 
-Resultado em 09/Out/2026 (Postgres 16): o SQL rodou duas vezes sem erro; **56 verificações "ok"**, nenhuma falha, e
+Resultado em 09/Out/2026 (Postgres 16): o SQL rodou duas vezes sem erro; **97 verificações "ok"** (inclusive o acervo público, a comunidade e as regras), nenhuma falha, e
 "FIM: todas as verificações do Contador passaram". Também conferido: o teste da base (`teste-plataforma.sql`, 87
 verificações) continua passando com o Contador junto; o arquivo roda junto com o `omnilife-one-v1.sql` e a anonimização
 chama as funções dos dois apps; sem a base, ou com outra tabela `conta_*` já existente, o arquivo para sem criar nada.

@@ -378,3 +378,21 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Tour | O ☰ abre o menu com todas as telas, a busca e as mensagens. | The ☰ opens the menu with every screen, search and messages. |
 | Tour | O perfil mostra quem está conectado e abre Configurações, tema, som e Sair. | The profile shows who is signed in and opens Settings, theme, sound and Sign out. |
 | Tour | A barra de baixo leva ao Início, ao Acervo, a Criar e às Configurações. | The bottom bar takes you Home, to the Library, Create and Settings. |
+
+
+---
+
+# v1.18.0 — Conta SolverONE no padrão comum
+
+| Onde | PT | EN |
+|---|---|---|
+| Configurações, título | ✨ Conta SolverONE | ✨ SolverONE account |
+| Conta, sem conta | A mesma conta de todos os apps da SolverONE. Dá a voz premium e a IA da plataforma, conforme o seu plano. Sem conta, tudo continua só neste aparelho. · Entrar ou criar conta | The same account for every SolverONE app. It gives the premium voice and the platform AI, depending on your plan. Without an account, everything stays on this device only. · Sign in or create account |
+| Conta, conectado | Conectado como … · desde … · Vale em todos os apps da SolverONE neste aparelho (OmniLifeONE, MoneyTRIO…). · Sair da conta neste aparelho · Encerrar minha conta / pedir exclusão dos meus dados | Signed in as … · since … · Works in every SolverONE app on this device (OmniLifeONE, MoneyTRIO…). · Sign out on this device · Close my account / ask to erase my data |
+| Sair | Conta SolverONE desconectada neste aparelho | SolverONE account disconnected on this device |
+| Link de fora | Conectar uma conta? · Este link quer conectar a conta SolverONE … neste aparelho (vale para todos os apps da SolverONE). Foi você que pediu? · Sim, sou eu · Não fui eu · Tudo bem: nenhuma conta foi conectada. | Connect an account? · This link wants to connect the SolverONE account … on this device (it applies to every SolverONE app). Did you request it? · Yes, it's me · It wasn't me · OK: no account was connected. |
+| Encerrar | Encerrar minha conta SolverONE · Você perde o acesso na hora, em todos os apps da SolverONE, e pede a exclusão dos seus dados pessoais. · Quer contar o motivo? (opcional) · As histórias e as vozes guardadas neste aparelho continuam aqui. Para apagar: Configurações → Zona de perigo → Apagar tudo deste celular. · Continuar · Cancelar | Close my SolverONE account · You lose access right away, in every SolverONE app, and ask for your personal data to be erased. · Would you like to tell us why? (optional) · The stories and saved voices on this device stay here. To erase them: Settings → Danger zone → Erase everything on this phone. · Continue · Cancel |
+| Encerrar, 2ª tela | Última confirmação · Seus dados pessoais serão anonimizados em até 15 dias e isso não dá para desfazer. · Encerrar minha conta · Não deu para registrar o pedido: … Escreva para … | Last confirmation · Your personal data will be anonymised within 15 days and this cannot be undone. · Close my account · Could not register the request: … Write to … |
+| Encerrada | Sua conta SolverONE foi encerrada · Ela não foi excluída: fica encerrada para auditoria e obrigações legais, e os seus dados pessoais são anonimizados quando você pede a exclusão. · As histórias e as vozes deste aparelho continuam aqui. · Dúvidas ou reativação: … | Your SolverONE account has been closed · It was not deleted: it stays closed for audit and legal duties, and your personal data is anonymised when you request erasure. · The stories and voices on this device stay here. · Questions or reactivation: … |
+| Bloqueada | ⛔ Esta conta SolverONE está bloqueada. | ⛔ This SolverONE account is blocked. |
+| Histórias e backup | Trazer as histórias que vêm com o app · Ao abrir, buscar as histórias novas do acervo do app. · Exportar baixa um arquivo com as suas histórias, para guardar ou levar para outro aparelho (lá, use Importar). Ele tem os nomes das crianças: guarde só para você e não publique. | Bring the stories that come with the app · On opening, fetch new stories from the app's library. · Export downloads a file with your stories, to keep or take to another device (there, use Import). It has the children's names: keep it to yourself and do not publish it. |

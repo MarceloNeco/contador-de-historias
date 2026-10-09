@@ -937,7 +937,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
   <div class="tit">💾 Histórias e backup</div>
   <div class="card">
     <div class="sw">
-      <div class="txt"><b>Carregar histórias do GitHub</b><span>Ao abrir o site, buscar o arquivo historias.json do repositório.</span></div>
+      <div class="txt"><b>Trazer as histórias que vêm com o app</b><span>Ao abrir, buscar as histórias novas do acervo do app.</span></div>
       <div class="toggle on" id="tg-github"></div>
     </div>
     <div style="height:12px"></div>
@@ -946,20 +946,9 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <button class="btn sm" id="btn-importar">⬆️ Importar</button>
     </div>
     <input type="file" id="file-importar" accept=".json,application/json" class="oculto">
-    <div class="hint">Exportar gera o arquivo <b>historias.json</b>. Se você subir esse arquivo no repositório do GitHub, as histórias aparecem em qualquer celular que abrir o site.</div>
+    <div class="hint">Exportar baixa um arquivo com as suas histórias, para guardar ou levar para outro aparelho (lá, use Importar). Ele tem os nomes das crianças: guarde só para você e não publique.</div>
     <div style="height:14px"></div>
     <button class="btn sm rox" id="btn-transferir">📱 Levar minha configuração para outro aparelho</button>
-    <div style="height:10px"></div>
-    <button class="btn sm ghost" id="btn-sync-avancado">🔗 Sincronizar direto com o GitHub (avançado)</button>
-    <div id="bloco-sync" class="oculto">
-      <div class="aviso" style="margin-top:12px">Isso salva um <b>token do GitHub</b> neste celular. Use um token <b>fine-grained</b> com permissão de <b>Contents: Read and write</b> apenas neste repositório. Se preferir não mexer nisso, use o Exportar/Importar acima — funciona igual.</div>
-      <label class="f">Repositório (usuário/nome)</label>
-      <input type="text" id="in-gh-repo" placeholder="MarceloNeco/contador-de-historias">
-      <label class="f">Token</label>
-      <input type="password" id="in-gh-token" placeholder="github_pat_...">
-      <div style="height:12px"></div>
-      <button class="btn sm rox" id="btn-enviar-github">☁️ Enviar acervo para o GitHub</button>
-    </div>
   </div>
 
   <div class="tit">⚡ Voz guardada no aparelho</div>
@@ -1038,6 +1027,9 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <div class="toggle on" id="tg-destaque"></div>
     </div>
   </div>
+
+  <div class="tit">✨ Conta SolverONE</div>
+  <div class="card" id="sv-conta" aria-live="polite"></div>
 
   <div class="tit">⚠️ Zona de perigo</div>
   <div class="card">
@@ -1225,7 +1217,7 @@ const configPadrao = {
   motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-3.6-flash',
   anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
   efeitos:true, volEfeitos:35, durEfeitos:'medio', adiantar:true,
-  carregarGithub:true, ghRepo:'', ghToken:'',
+  carregarGithub:true,
   fonte:19, telaAcesa:true, destaque:true, usarVozGuardada:true,
   protegerNomes:true, nomesProtegidos:'', comandosVoz:false, comandosIA:false,
   tema:'escuro', reduzirAnimacoes:false
@@ -1242,6 +1234,12 @@ let cfg = ler(CHAVE_C, configPadrao);
 // modelos que o Google tirou do ar para novas chaves: troca e grava
 if(/^gemini-(1\.|2\.0|2\.5-flash$|2\.5-pro$|2\.5-flash-lite$)/.test(cfg.geminiModel||'')){
   cfg.geminiModel = 'gemini-3.6-flash';
+  try{ localStorage.setItem(CHAVE_C, JSON.stringify(cfg)); }catch(e){}
+}
+// o envio do acervo para o GitHub saiu (v1.18.0: publicava as histórias da família num arquivo público);
+// o token que tinha ficado guardado aqui sai junto — é uma senha e não serve mais para nada
+if('ghToken' in cfg || 'ghRepo' in cfg){
+  delete cfg.ghToken; delete cfg.ghRepo;
   try{ localStorage.setItem(CHAVE_C, JSON.stringify(cfg)); }catch(e){}
 }
 let stats = ler(CHAVE_S, statsPadrao);
@@ -3695,7 +3693,7 @@ $('#sel-publico-tipo').addEventListener('change',()=>{
   cfg.publicoTipo = $('#sel-publico-tipo').value; salvarCfg(); atualizarSaudacao();
 });
 campo('#in-openai-instr','openaiInstr'); campo('#in-gemini-key','geminiKey');
-campo('#in-anthropic-key','anthropicKey'); campo('#in-gh-repo','ghRepo'); campo('#in-gh-token','ghToken');
+campo('#in-anthropic-key','anthropicKey');
 campo('#rng-vel','vel','num'); campo('#rng-tom','tom','num'); campo('#rng-vol','volEfeitos','num');
 campo('#rng-estab','elevenEstab','num'); campo('#rng-fonte','fonte','num');
 
@@ -4013,31 +4011,6 @@ function mesclar(lista){
 }
 
 $('#btn-transferir').addEventListener('click', telaTransferencia);
-$('#btn-sync-avancado').addEventListener('click',()=>{
-  $('#bloco-sync').classList.toggle('oculto');
-});
-$('#btn-enviar-github').addEventListener('click', async ()=>{
-  const b=$('#btn-enviar-github');
-  if(!cfg.ghRepo || !cfg.ghToken){ toast('Preencha o repositório e o token'); return; }
-  b.disabled=true; b.innerHTML='<span class="load"></span> enviando…';
-  try{
-    const url='https://api.github.com/repos/'+cfg.ghRepo.replace(/^\/|\/$/g,'')+'/contents/historias.json';
-    const cab={'Authorization':'Bearer '+cfg.ghToken,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
-    let sha=null;
-    const atual = await fetch(url,{headers:cab});
-    if(atual.ok){ sha = (await atual.json()).sha; }
-    else if(atual.status!==404) throw new Error('GitHub: '+atual.status+' — verifique repositório e token');
-    const conteudo = btoa(unescape(encodeURIComponent(JSON.stringify(pacote(),null,2))));
-    const r = await fetch(url,{ method:'PUT', headers:Object.assign({'Content-Type':'application/json'},cab),
-      body: JSON.stringify({ message:'Atualiza acervo de histórias', content:conteudo, sha:sha||undefined }) });
-    if(!r.ok) throw new Error('GitHub: '+r.status+' — '+(await r.text()).slice(0,160));
-    toast('Acervo enviado para o GitHub ☁️');
-  }catch(e){ modal(`<h3>Não consegui enviar</h3><p class="hint">${esc(e.message||e)}</p>
-    <div class="info" style="margin-top:12px">Confira: o repositório no formato <b>usuario/nome</b>, e um token com permissão <b>Contents: Read and write</b> nesse repositório.</div>
-    <div style="height:14px"></div><button class="btn" onclick="document.getElementById('modal').classList.remove('on')">Fechar</button>`); }
-  finally{ b.disabled=false; b.innerHTML='☁️ Enviar acervo para o GitHub'; }
-});
-
 $('#btn-apagar-tudo').addEventListener('click',()=>{
   if(!confirm('Isso apaga TODAS as histórias e ajustes deste celular. Tem certeza?')) return;
   if(!confirm('Mesmo? Se você não exportou o backup, não tem volta.')) return;
@@ -4114,6 +4087,13 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.18.0','09/10/2026', [
+    'Conta SolverONE igual nos outros apps: entrou num, vale em todos neste aparelho (sem pedir login de novo)',
+    'Sair da conta SolverONE desconecta só este aparelho; os outros continuam conectados',
+    'Link de entrada que este aparelho não pediu agora pergunta antes: "Foi você?"',
+    'Novo cartão Conta SolverONE nas Configurações, com Encerrar minha conta / pedir exclusão dos meus dados',
+    'Saiu o envio das histórias para o GitHub (deixava as histórias da família públicas)'
+  ]],
   ['1.17.1','09/10/2026', [
     'Câmera sem foto embaçada no "Usar a câmera": em celular com várias câmeras atrás, o app abre a lente principal (antes podia abrir a grande-angular, que não foca de perto), liga o foco automático e tocar na imagem foca naquele ponto'
   ]],
@@ -4542,17 +4522,39 @@ Comandos.mostrarBotoes();
 var Plataforma = (function(){   // var: outros trechos perguntam typeof Plataforma antes de ele existir
   // valores PÚBLICOS do projeto (os mesmos do SolverONE Lab); a proteção é o banco, não esconder isto
   const SB = 'https://qvdvkqydhnadhewcidia.supabase.co', CHAVE = 'sb_publishable_oRJmeUwlBbOP_HoOXf0xLw_4O8v43EA';
-  const APP = 'contador-de-historias', CH_SESSAO = 'ch_solverone_sessao', CH_SERV = 'ch_solverone_servicos';
+  const APP = 'contador-de-historias', CH_SERV = 'ch_solverone_servicos';
+  /* UM LOGIN PARA TODOS (diretriz "Conta SolverONE"): a sessão fica na chave COMUM da plataforma, a mesma do
+     OmniLifeONE e dos outros apps deste endereço, e é lida de novo antes de cada renovação (outro app ou outra aba
+     pode ter renovado). A chave antiga do Contador (ch_solverone_sessao) é aproveitada e, enquanto existir, fica
+     igual à comum: se cada um renovasse com o mesmo token, o servidor derrubaria os dois. */
+  const K_SESSAO = 'solverone.sessao.v1', K_ANTIGA = 'ch_solverone_sessao';
+  const K_PEDIDO = 'ch_conta_pedido', K_ACESSOS = 'ch_acessos_pendentes', K_ABERTO = 'ch_conta_acesso';
+  const PRIV = 'privacidade@solverone.com.br';
   const PLANOS = {membro:['Membro','Member'], premium:['Premium','Premium'], familia:['Família','Family'], profissional:['Profissional','Professional']};
-  let sessao = null, servicos = [], ultimoErro = '';
-  try{ sessao = JSON.parse(localStorage.getItem(CH_SESSAO)||'null'); }catch(e){ sessao = null; }
+  const lerJSON = k => { try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
+  function lerSessao(){
+    const s = lerJSON(K_SESSAO); if(s && s.refresh_token) return s;
+    const a = lerJSON(K_ANTIGA);
+    if(a && a.refresh_token && a.access_token){ try{ localStorage.setItem(K_SESSAO, JSON.stringify(a)); }catch(e){} return a; }
+    return null;
+  }
+  let sessao = lerSessao(), servicos = [], ultimoErro = '';
   try{ servicos = JSON.parse(localStorage.getItem(CH_SERV)||'[]') || []; }catch(e){ servicos = []; }
-  const gravarSessao = ()=>{ try{ sessao ? localStorage.setItem(CH_SESSAO, JSON.stringify(sessao)) : localStorage.removeItem(CH_SESSAO); }catch(e){} };
+  function gravarSessao(nova, antiga){
+    try{
+      if(nova) localStorage.setItem(K_SESSAO, JSON.stringify(nova)); else localStorage.removeItem(K_SESSAO);
+      const a = lerJSON(K_ANTIGA);   // a antiga só acompanha se ainda era a mesma sessão
+      if(a && (!nova || !antiga || a.refresh_token===antiga.refresh_token)){ if(nova) localStorage.setItem(K_ANTIGA, JSON.stringify(nova)); else localStorage.removeItem(K_ANTIGA); }
+    }catch(e){}
+    sessao = nova || null;
+  }
   const voltarPara = ()=> location.origin + location.pathname;
   const nomePlano = p => p ? T((PLANOS[p]||[p,p])[0], (PLANOS[p]||[p,p])[1]) : '';
   const txt = v => v && typeof v==='object' ? (idiomaEN() ? (v.en||v.pt) : (v.pt||v.en)) || '' : (v||'');
   const servico = tipo => servicos.find(s=>s.tipo===tipo) || null;
   const fmtN = n => Number(n||0).toLocaleString(idiomaEN()?'en-US':'pt-BR');
+  // data no padrão das diretrizes (14/Nov/2023 · Nov/14/2023), pelo módulo comum
+  const dataCurta = ms => { const d = new Date(ms); try{ return (window.DGO && DGO.formatarData) ? DGO.formatarData(d) : d.toISOString().slice(0,10); }catch(e){ return d.toISOString().slice(0,10); } };
 
   // ---------- conta ----------
   async function auth(caminho, corpo, metodo, token){
@@ -4563,20 +4565,126 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     if(!r.ok){ const e = new Error((j && (j.msg || j.error_description || j.message || j.error)) || ('HTTP '+r.status)); e.status = r.status; e.codigo = j && (j.error_code || j.error); throw e; }
     return j;
   }
+  function dadosToken(t){
+    try{ const b = atob(String(t).split('.')[1].replace(/-/g,'+').replace(/_/g,'/')); return JSON.parse(new TextDecoder().decode(Uint8Array.from(b, c=>c.charCodeAt(0)))); }
+    catch(e){ return {}; }
+  }
+  // formato comum da sessão: {access_token, refresh_token, expira, em, email, nome, desde}
   function guardarTokens(j){
-    const email = (j.user && j.user.email) || (()=>{ try{ return JSON.parse(atob(j.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).email; }catch(e){ return ''; } })();
-    sessao = { access_token:j.access_token, refresh_token:j.refresh_token, expira: Date.now() + (Number(j.expires_in)||3600)*1000, email,
-               desde: (sessao && sessao.desde) || Date.now() };   // "conectado desde": a renovação do token não zera
-    gravarSessao();
+    const antiga = lerSessao(), d = dadosToken(j.access_token);
+    const meta = (j.user && j.user.user_metadata) || d.user_metadata || {};
+    const email = (j.user && j.user.email) || d.email || '';
+    const mesma = !!(antiga && antiga.email===email);
+    gravarSessao({ access_token:j.access_token, refresh_token:j.refresh_token, expira: Date.now() + (Number(j.expires_in)||3600)*1000, em: Date.now(), email,
+                   nome: meta.full_name || meta.name || (mesma && antiga.nome) || '',
+                   desde: (mesma && antiga.desde) || Date.now() }, antiga);   // "conectado desde": a renovação do token não zera
   }
-  async function token(){
-    if(!sessao) return null;
-    if(Date.now() > sessao.expira - 60000){
-      try{ guardarTokens(await auth('token?grant_type=refresh_token', {refresh_token:sessao.refresh_token})); }
-      catch(e){ if(e.status===400 || e.status===401){ sessao = null; gravarSessao(); atualizar(); } return null; }
-    }
-    return sessao.access_token;
+  /* token válido (renova perto de vencer; forcar = renova já, para o servidor conferir a conta). Uma renovação por vez.
+     Sessão recusada: confere antes se outro app já renovou (aí vale a nova); senão sai da conta neste aparelho. */
+  let renovando = null;
+  async function token(forcar){
+    const s = lerSessao(); sessao = s;
+    if(!s) return null;
+    if(!forcar && Date.now() < s.expira - 60000) return s.access_token;
+    if(!renovando) renovando = auth('token?grant_type=refresh_token', {refresh_token:s.refresh_token})
+      .then(j=>{ guardarTokens(j); return sessao && sessao.access_token; })
+      .catch(e=>{
+        if([400,401,403].includes(e.status)){
+          const agora = lerSessao();
+          if(agora && agora.refresh_token!==s.refresh_token){ sessao = agora; return agora.access_token; }
+          if(/banned/i.test((e.codigo||'')+' '+(e.message||''))) setTimeout(()=>toast('⛔ '+T('Esta conta SolverONE está bloqueada.','This SolverONE account is blocked.'), 6000), 300);
+          gravarSessao(null, s); mudou();
+        }
+        return null;
+      })
+      .finally(()=>{ renovando = null; });
+    return renovando;
   }
+  // tabelas e funções do banco (PostgREST). Erro sem "status" = sem internet ou sem conta: quem chama tenta depois
+  async function rpc(nome, args){
+    const t = await token(); if(!t) throw new Error(T('Entre na sua conta SolverONE.','Sign in to your SolverONE account.'));
+    const r = await fetch(SB+'/rest/v1/rpc/'+nome, {method:'POST', headers:{apikey:CHAVE, Authorization:'Bearer '+t, 'Content-Type':'application/json'}, body:JSON.stringify(args||{})});
+    const txt = await r.text(); let j = null; try{ j = txt ? JSON.parse(txt) : null; }catch(e){}
+    if(!r.ok){ const e = new Error((j && (j.message||j.msg)) || ('HTTP '+r.status)); e.status = r.status; throw e; }
+    return j;
+  }
+  /* Edge Function da plataforma (registro de acessos com o IP visto pelo servidor). keepalive: a chamada termina mesmo
+     se a página trocar ou fechar no meio. Navegador que recusa keepalive com pré-verificação (CORS) recusa NA HORA:
+     só nesse caso vai de novo sem keepalive (e avisa por semKeepalive). */
+  async function chamarAdmin(t, corpo, semKeepalive){
+    const url = SB+'/functions/v1/solverone-admin';
+    const op = {method:'POST', headers:{apikey:CHAVE, Authorization:'Bearer '+t, 'Content-Type':'application/json'}, body:JSON.stringify(corpo)};
+    const t0 = Date.now();
+    try{ return await fetch(url, Object.assign({keepalive:true}, op)); }
+    catch(e){ if(Date.now()-t0 > 150) throw e; if(semKeepalive) semKeepalive(); return fetch(url, op); }
+  }
+
+  /* ---------- registro de acesso (C9) que não se perde e não duplica ----------
+     Cada evento entra numa fila do aparelho ANTES de sair. Respondeu → sai da fila. Falhou com a página aberta →
+     tenta de novo (ao abrir, ao voltar a internet, em 1 min; até 6 vezes em 2 dias). A página fechou no meio: com
+     keepalive o navegador termina sozinho, então não manda de novo; sem keepalive, manda. */
+  const PAGINA = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  let enviandoAcessos = false, saindo = false, tAcessos = 0, registrado = null, revalidando = false;
+  const uid = ()=>{ const s = lerSessao(); return (s && dadosToken(s.access_token).sub) || ''; };
+  const filaAcessos = ()=>{ const f = lerJSON(K_ACESSOS); return Array.isArray(f) ? f : []; };
+  const guardarAcessos = f=>{ try{ f.length ? localStorage.setItem(K_ACESSOS, JSON.stringify(f.slice(-10))) : localStorage.removeItem(K_ACESSOS); }catch(e){} };
+  const mudarAcesso = x=>{ const g = filaAcessos(), i = g.findIndex(y=>y.id===x.id); if(i>=0){ g[i] = x; guardarAcessos(g); } };
+  function registrarAcesso(evento){
+    const u = uid(); if(!u) return Promise.resolve();
+    const f = filaAcessos(); f.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), uid:u, evento, t:Date.now(), n:0, estado:'novo' });
+    guardarAcessos(f); return retomarAcessos();
+  }
+  async function retomarAcessos(){
+    if(enviandoAcessos) return; enviandoAcessos = true;
+    const falhouAgora = new Set();
+    try{
+      for(;;){
+        let f = filaAcessos();
+        f = f.filter(x=>!(x.estado==='enviando' && x.pg!==PAGINA && x.ka) && x.n < 6 && Date.now()-x.t < 2*864e5);
+        f.forEach(x=>{ if(x.estado==='enviando' && x.pg!==PAGINA) x.estado = 'falhou'; });
+        guardarAcessos(f);
+        const x = f.find(y=>(y.estado==='novo' || y.estado==='falhou') && y.uid===uid() && !falhouAgora.has(y.id));
+        if(!x || !navigator.onLine) break;
+        const t = await token(); if(!t) break;
+        Object.assign(x, {estado:'enviando', pg:PAGINA, ka:true}); mudarAcesso(x);
+        let r = null;
+        try{ r = await chamarAdmin(t, {acao:'registrar-acesso', evento:x.evento, app:APP}, ()=>{ x.ka = false; mudarAcesso(x); }); }catch(e){}
+        // a página está saindo: o keepalive entrega o pedido; marcar como falha aqui faria reenviar e duplicar
+        if(saindo) return;
+        if(r && (r.ok || (r.status>=400 && r.status<500 && ![401,408,429].includes(r.status)))) guardarAcessos(filaAcessos().filter(y=>y.id!==x.id));
+        else { Object.assign(x, {estado:'falhou', n:x.n+1}); mudarAcesso(x); falhouAgora.add(x.id); }
+      }
+    }finally{ enviandoAcessos = false; }
+    if(falhouAgora.size){ clearTimeout(tAcessos); tAcessos = setTimeout(retomarAcessos, 60000); }
+  }
+  /* ao abrir e quando a internet volta: o servidor confere a sessão (conta bloqueada falha na renovação) e se a
+     conta foi encerrada. Sessão que o servidor acabou de dar (menos de 30 s) já foi conferida: não renova de novo. */
+  async function revalidar(){
+    if(!lerSessao() || !navigator.onLine || revalidando) return;
+    revalidando = true;
+    try{
+      const s = lerSessao(), recente = s && s.em && Date.now()-s.em < 30000;
+      const t = await token(!recente); if(!t) return;
+      if((await rpc('minha_conta_encerrada')) === true) encerrada();
+    }catch(e){} finally{ revalidando = false; }
+  }
+  /* ao entrar e ao abrir já conectado: conta encerrada? uso (C4) e acesso (C9) — uma vez por abertura e por conta.
+     Recarregar a aba não conta de novo; entrar conta sempre. */
+  async function aoAbrir(evento){
+    const u = uid(); if(!u) return;
+    if(registrado===u && evento!=='login') return;
+    registrado = u;
+    let aberto = ''; try{ aberto = sessionStorage.getItem(K_ABERTO)||''; }catch(e){}
+    if(evento!=='login' && aberto===u) return;
+    try{ sessionStorage.setItem(K_ABERTO, u); }catch(e){}
+    registrarAcesso(evento);   // entra na fila já: não depende das outras chamadas nem de a página continuar aberta
+    await revalidar(); if(!lerSessao()) return;
+    rpc('sol_registrar_uso', {p_app:APP}).catch(()=>{});
+  }
+  // a conta mudou (entrou, saiu, sessão vencida): topo, menus e serviços se atualizam
+  function mudou(){ document.dispatchEvent(new CustomEvent('ch:conta')); atualizar(); }
+  // marca que ESTE aparelho pediu a volta (Google, confirmação de e-mail, nova senha): só essa entra sem perguntar
+  const marcarPedido = ()=>{ try{ localStorage.setItem(K_PEDIDO, String(Date.now())); }catch(e){} };
   function explicarAuth(e){
     const m = String(e && (e.codigo||'')+' '+(e.message||''));
     if(/invalid_credentials|invalid login/i.test(m)) return T('E-mail ou senha incorretos.','Wrong e-mail or password.');
@@ -4610,28 +4718,75 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     $('#sv-entrar').onclick = ()=>ocupar($('#sv-entrar'), async ()=>{
       const d = dados(); if(!d.email || !d.senha) return erro(T('Preencha e-mail e senha.','Fill in e-mail and password.'));
       guardarTokens(await auth('token?grant_type=password', {email:d.email, password:d.senha}));
-      fecharModal(); toast(T('✨ Conta SolverONE conectada','✨ SolverONE account connected')); atualizar();
+      fecharModal(); toast(T('✨ Conta SolverONE conectada','✨ SolverONE account connected')); aoAbrir('login'); mudou();
     });
-    $('#sv-google').onclick = ()=>{ location.href = SB+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(voltarPara()); };
+    $('#sv-google').onclick = ()=>{ marcarPedido(); location.href = SB+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(voltarPara()); };
     $('#sv-criar').onclick = ()=>ocupar($('#sv-criar'), async ()=>{
       const d = dados(); if(!d.email || d.senha.length < 8) return erro(T('Para criar a conta: e-mail e uma senha de pelo menos 8 caracteres.','To create the account: e-mail and a password of at least 8 characters.'));
+      marcarPedido();
       const j = await auth('signup?redirect_to='+encodeURIComponent(voltarPara()), {email:d.email, password:d.senha});
-      if(j && j.access_token){ guardarTokens(j); fecharModal(); toast(T('✨ Conta criada','✨ Account created')); atualizar(); }
+      if(j && j.access_token){ guardarTokens(j); fecharModal(); toast(T('✨ Conta criada','✨ Account created')); aoAbrir('login'); mudou(); }
       else ok(T('Enviamos um e-mail de confirmação para ','We sent a confirmation e-mail to ')+d.email+T('. Abra o link nele neste mesmo aparelho.','. Open its link on this same device.'));
     });
     $('#sv-esqueci').onclick = ()=>ocupar($('#sv-esqueci'), async ()=>{
       const d = dados(); if(!d.email) return erro(T('Escreva o seu e-mail.','Write your e-mail.'));
+      marcarPedido();
       await auth('recover?redirect_to='+encodeURIComponent(voltarPara()), {email:d.email});
       ok(T('Se houver conta com este e-mail, chegou um link para criar uma senha nova.','If there is an account with this e-mail, a link to set a new password has arrived.'));
     });
   }
-  async function sair(){
-    const t = sessao && sessao.access_token;
-    sessao = null; gravarSessao();
-    document.dispatchEvent(new CustomEvent('ch:conta'));
-    if(t) auth('logout', null, 'POST', t).catch(()=>{});
-    toast(T('Conta SolverONE desconectada','SolverONE account disconnected'));
-    atualizar();
+  // só desconecta a conta NESTE aparelho (scope=local): os outros aparelhos e apps continuam conectados
+  async function sair(quieto){
+    const s = lerSessao();
+    if(s){
+      const t = await token();
+      if(t){
+        try{ await chamarAdmin(t, {acao:'registrar-acesso', evento:'logout', app:APP}); }catch(e){}
+        auth('logout?scope=local', null, 'POST', t).catch(()=>{});
+      }
+    }
+    gravarSessao(null, s);
+    try{ localStorage.removeItem(K_ANTIGA); sessionStorage.removeItem(K_ABERTO); }catch(e){}
+    registrado = null;
+    if(!quieto) toast(T('Conta SolverONE desconectada neste aparelho','SolverONE account disconnected on this device'));
+    mudou();
+  }
+  /* LGPD, como no Lab e no OmniLifeONE: encerra a conta na hora e abre o pedido de exclusão dos dados pessoais.
+     As histórias e as vozes guardadas só neste aparelho continuam aqui até a pessoa apagar. */
+  function encerrar(){
+    if(!lerSessao()) return;
+    modal(`<h3>${T('Encerrar minha conta SolverONE','Close my SolverONE account')}</h3>
+      <p class="hint">${T('Você perde o acesso na hora, em todos os apps da SolverONE, e pede a exclusão dos seus dados pessoais.','You lose access right away, in every SolverONE app, and ask for your personal data to be erased.')}</p>
+      <label class="f" for="sv-motivo">${T('Quer contar o motivo? (opcional)','Would you like to tell us why? (optional)')}</label>
+      <textarea id="sv-motivo" maxlength="500" style="min-height:70px"></textarea>
+      <div class="aviso" style="margin-top:12px">${T('As histórias e as vozes guardadas neste aparelho continuam aqui. Para apagar: Configurações → Zona de perigo → Apagar tudo deste celular.','The stories and saved voices on this device stay here. To erase them: Settings → Danger zone → Erase everything on this phone.')}</div>
+      <div style="height:12px"></div>
+      <button class="btn" id="sv-enc-1" style="color:var(--vermelho)">${T('Continuar','Continue')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="sv-enc-nao">${T('Cancelar','Cancel')}</button>`);
+    $('#sv-enc-nao').onclick = fecharModal;
+    $('#sv-enc-1').onclick = ()=>{
+      const motivo = ($('#sv-motivo').value||'').trim();
+      modal(`<h3>${T('Última confirmação','Last confirmation')}</h3>
+        <p class="hint">${T('Seus dados pessoais serão anonimizados em até 15 dias e isso não dá para desfazer.','Your personal data will be anonymised within 15 days and this cannot be undone.')}</p>
+        <div class="aviso oculto" id="sv-enc-erro" style="margin-top:10px"></div>
+        <div style="height:12px"></div>
+        <button class="btn" id="sv-enc-2" style="color:var(--vermelho)">${T('Encerrar minha conta','Close my account')}</button>
+        <div style="height:10px"></div><button class="btn sm ghost" id="sv-enc-nao2">${T('Cancelar','Cancel')}</button>`);
+      $('#sv-enc-nao2').onclick = fecharModal;
+      $('#sv-enc-2').onclick = async ()=>{
+        const b = $('#sv-enc-2'); b.disabled = true;
+        try{ await rpc('minha_solicitacao_exclusao', {p_motivo: motivo || null}); encerrada(); }
+        catch(e){ b.disabled = false; const x = $('#sv-enc-erro'); x.innerHTML = esc(T('Não deu para registrar o pedido: ','Could not register the request: ')+(e.message||''))+'<br>'+T('Escreva para ','Write to ')+`<a href="mailto:${PRIV}">${PRIV}</a>.`; x.classList.remove('oculto'); }
+      };
+    };
+  }
+  function encerrada(){
+    modal(`<h3>${T('Sua conta SolverONE foi encerrada','Your SolverONE account has been closed')}</h3>
+      <p class="hint">${T('Ela não foi excluída: fica encerrada para auditoria e obrigações legais, e os seus dados pessoais são anonimizados quando você pede a exclusão.','It was not deleted: it stays closed for audit and legal duties, and your personal data is anonymised when you request erasure.')}</p>
+      <p class="hint">${T('As histórias e as vozes deste aparelho continuam aqui.','The stories and voices on this device stay here.')} ${T('Dúvidas ou reativação: ','Questions or reactivation: ')}<a href="mailto:${PRIV}">${PRIV}</a>.</p>
+      <div style="height:12px"></div><button class="btn sm" id="sv-enc-ok">${T('Entendi','Got it')}</button>`);
+    $('#sv-enc-ok').onclick = fecharModal;
+    sair(true);
   }
   // volta do Google, da confirmação de e-mail ou do "esqueci a senha": os tokens chegam no endereço (#access_token=…)
   function lerRetorno(){
@@ -4640,8 +4795,24 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     const p = new URLSearchParams(h.slice(1));
     try{ history.replaceState(history.state, '', location.pathname + location.search); }catch(e){}   // mantém o marcador do Voltar
     if(p.get('error_description')){ setTimeout(()=>toast(T('Não deu para entrar: ','Could not sign in: ')+p.get('error_description'), 5000), 800); return; }
-    guardarTokens({ access_token:p.get('access_token'), refresh_token:p.get('refresh_token'), expires_in:p.get('expires_in') });
-    if(p.get('type')==='recovery') setTimeout(janelaNovaSenha, 900);
+    const tok = { access_token:p.get('access_token'), refresh_token:p.get('refresh_token'), expires_in:p.get('expires_in') }, tipo = p.get('type') || 'login';
+    const pedido = Number(localStorage.getItem(K_PEDIDO)||0); try{ localStorage.removeItem(K_PEDIDO); }catch(e){}
+    if(pedido && Date.now()-pedido < 2*864e5){ entrarComRetorno(tok, tipo); return 'login'; }
+    // link que este aparelho não pediu (pode ser alguém tentando conectar a conta DELE aqui): pergunta antes
+    setTimeout(()=>{
+      const email = dadosToken(tok.access_token).email || '?';
+      modal(`<h3>✨ ${T('Conectar uma conta?','Connect an account?')}</h3>
+        <p class="hint">${T('Este link quer conectar a conta SolverONE','This link wants to connect the SolverONE account')} <b>${esc(email)}</b> ${T('neste aparelho (vale para todos os apps da SolverONE). Foi você que pediu?','on this device (it applies to every SolverONE app). Did you request it?')}</p>
+        <div style="height:12px"></div><button class="btn pri" id="sv-ret-sim">${T('Sim, sou eu','Yes, it\'s me')}</button>
+        <div style="height:10px"></div><button class="btn sm ghost" id="sv-ret-nao">${T('Não fui eu','It wasn\'t me')}</button>`);
+      $('#sv-ret-sim').onclick = ()=>{ fecharModal(); entrarComRetorno(tok, tipo); aoAbrir('login'); };
+      $('#sv-ret-nao').onclick = ()=>{ fecharModal(); toast(T('Tudo bem: nenhuma conta foi conectada.','OK: no account was connected.'), 3500); };
+    }, 700);
+    return 'confirmar';
+  }
+  function entrarComRetorno(tok, tipo){
+    guardarTokens(tok); mudou();
+    if(tipo==='recovery') setTimeout(janelaNovaSenha, 900);
     else setTimeout(()=>toast(T('✨ Conta SolverONE conectada','✨ SolverONE account connected')), 900);
   }
   function janelaNovaSenha(){
@@ -4665,7 +4836,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
       const cab = {apikey:CHAVE, 'Content-Type':'application/json'};
       if(t) cab.Authorization = 'Bearer '+t;
       const r = await fetch(SB+'/rest/v1/rpc/servicos_plataforma_app', {method:'POST', headers:cab, body:JSON.stringify({p_app:APP})});
-      if(r.status===401 && t){ sessao = null; gravarSessao(); return atualizar(); }
+      if(r.status===401 && t){ const v = await token(true); if(!v) return; return atualizar(); }   // renova uma vez; recusou = já saiu
       // sem o SQL rodado (404) ou sem internet: nada aparece, o app segue como antes
       servicos = r.ok ? ((await r.json()) || []) : [];
       ultimoErro = '';
@@ -4702,7 +4873,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     else if(Number(s.limite)===-1) corpo = `${conta}<br>${T('Sem limite no seu plano','No limit on your plan')} · ${T('usado este mês','used this month')}: ${fmtN(s.usado)}${unid}`;
     else corpo = `${conta}<br>${T('Usado este mês','Used this month')}: <b>${fmtN(s.usado)}</b> ${T('de','of')} ${fmtN(s.limite)}${unid}${minutos}
       <div class="sv-uso"><i style="width:${Math.min(100, (s.usado||0)/(s.limite||1)*100)}%"></i></div>`;
-    const rodape = sessao ? `<div style="height:8px"></div><button class="linkzinho" style="margin:0" data-sv="sair">${T('Sair da conta SolverONE','Sign out of SolverONE')}</button>` : '';
+    const rodape = '';   // sair e encerrar ficam no cartão "Conta SolverONE" das Configurações
     return (ultimoErro ? `<div class="hint" style="color:var(--vermelho)">${esc(ultimoErro)}</div>` : '') + corpo + rodape;
   }
   function pintar(){
@@ -4727,8 +4898,17 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
       sel.value = cfg.solveroneVoz || '';
       $('#sv-voz-escolha').classList.toggle('oculto', !(vozes.length > 1 && v && v.disponivel));
     }
+    const cc = $('#sv-conta');
+    if(cc) cc.innerHTML = sessao
+      ? `<p class="hint" style="margin:0">${T('Conectado como','Signed in as')} <b>${esc(sessao.email||'')}</b>${sessao.desde ? ' · '+T('desde','since')+' '+esc(dataCurta(sessao.desde)) : ''}</p>
+         <p class="hint">${T('Vale em todos os apps da SolverONE neste aparelho (OmniLifeONE, MoneyTRIO…).','Works in every SolverONE app on this device (OmniLifeONE, MoneyTRIO…).')}</p>
+         <div class="linha"><button class="btn sm" data-sv="sair">${T('Sair da conta neste aparelho','Sign out on this device')}</button></div>
+         <div style="height:10px"></div><button class="linkzinho" style="margin:0" data-sv="encerrar">${T('Encerrar minha conta / pedir exclusão dos meus dados','Close my account / ask to erase my data')}</button>`
+      : `<p class="hint" style="margin:0">${T('A mesma conta de todos os apps da SolverONE. Dá a voz premium e a IA da plataforma, conforme o seu plano. Sem conta, tudo continua só neste aparelho.','The same account for every SolverONE app. It gives the premium voice and the platform AI, depending on your plan. Without an account, everything stays on this device only.')}</p>
+         <div style="height:10px"></div><button class="btn sm pri" data-sv="entrar">${T('Entrar ou criar conta','Sign in or create account')}</button>`;
     $$('[data-sv="entrar"]').forEach(b=>b.onclick = janelaEntrar);
-    $$('[data-sv="sair"]').forEach(b=>b.onclick = sair);
+    $$('[data-sv="sair"]').forEach(b=>b.onclick = ()=>sair());
+    $$('[data-sv="encerrar"]').forEach(b=>b.onclick = encerrar);
     if(typeof pintarCofre==='function') pintarCofre();
   }
   /* ---------- convite: o que é, como está para mim, amostra ----------
@@ -4860,7 +5040,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
   function nomeVoz(id){ const v = servico('voz'); const o = v && (v.vozes||[]).find(x=>x.id===id); return o ? txt(o.nome) : ''; }
 
   function iniciar(){
-    lerRetorno();
+    const retorno = lerRetorno();
     // tocar no botão em cinza abre o convite em vez de trocar o motor (a escolha antiga continua como estava)
     [['#sel-motor-voz','voz'],['#sel-motor-texto','texto']].forEach(([sel,tipo])=>{
       const b = $(sel+' [data-motor="solverone"]'); if(!b) return;
@@ -4873,9 +5053,16 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     const sel = $('#sel-voz-solverone');
     if(sel) sel.addEventListener('change', ()=>{ cfg.solveroneVoz = sel.value; salvarCfg(); });
     document.addEventListener('dgo:idioma', pintar);
-    window.addEventListener('online', atualizar);
+    window.addEventListener('online', ()=>{ atualizar(); retomarAcessos(); revalidar(); });
+    window.addEventListener('pagehide', ()=>{ saindo = true; });
+    window.addEventListener('pageshow', ()=>{ saindo = false; });
+    // outro app ou outra aba entrou, saiu ou renovou: a tela acompanha
+    window.addEventListener('storage', e=>{ if(e.key===K_SESSAO || e.key===null){ const antes = sessao && sessao.email; sessao = lerSessao(); if((sessao && sessao.email)!==antes) mudou(); } });
     pintar();
     atualizar();
+    if(retorno==='login') aoAbrir('login');
+    else if(retorno!=='confirmar' && sessao) aoAbrir('refresh');
+    setTimeout(retomarAcessos, 3000);
   }
   // resumo da conta para o topo e o menu do 👤 (identidade conectada)
   function conta(){
@@ -4883,7 +5070,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     const s = servicos.find(x=>x && x.plano) || {};
     return { email: sessao.email||'', plano: s.plano||'', planoNome: nomePlano(s.plano||''), desde: sessao.desde||0 };
   }
-  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, convite, entrar: janelaEntrar, sair, conectado:()=>!!sessao, conta };
+  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, convite, entrar: janelaEntrar, sair, encerrar, conectado:()=>!!lerSessao(), conta };
 })();
 Plataforma.iniciar();
 

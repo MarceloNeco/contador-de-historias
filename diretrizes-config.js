@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.17.1',
+  versaoApp: '1.18.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -56,7 +56,8 @@ DGO.iniciar({
     '#sugestao-conteudo',
     '#chips-tema',
     '#chips-personagem',
-    '[data-motor="solverone"]'   /* botões da SolverONE: o app escreve o texto em PT/EN (muda com o plano) */
+    '[data-motor="solverone"]',  /* botões da SolverONE: o app escreve o texto em PT/EN (muda com o plano) */
+    '#sv-conta'                  /* cartão da conta SolverONE: o app escreve em PT/EN (muda ao entrar e sair) */
   ],
 
   /* ---------- barras que ficam grudadas no topo ----------
@@ -122,6 +123,10 @@ DGO.iniciar({
 
   /* ---------- palavras deste app para o tradutor ---------- */
   traducoes: {
+    '✨ Conta SolverONE': '✨ SolverONE account',
+    'Trazer as histórias que vêm com o app': 'Bring the stories that come with the app',
+    'Ao abrir, buscar as histórias novas do acervo do app.': 'On opening, fetch new stories from the app\'s library.',
+    'Exportar baixa um arquivo com as suas histórias, para guardar ou levar para outro aparelho (lá, use Importar). Ele tem os nomes das crianças: guarde só para você e não publique.': 'Export downloads a file with your stories, to keep or take to another device (there, use Import). It has the children\'s names: keep it to yourself and do not publish it.',
     'Nova história': 'New story',
     'Contar história': 'Tell a story',
     'Acervo': 'Library',
