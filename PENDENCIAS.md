@@ -21,9 +21,9 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 | 8 | Registrar uso e acesso do app (`sol_registrar_uso`, `solverone-admin` → `registrar-acesso` com `app`) | idem | ✅ 1.18.0 |
 | 9 | Conta encerrada (`minha_conta_encerrada`) e "Encerrar minha conta / pedir exclusão dos meus dados" | idem | ✅ 1.18.0 |
 | 10 | Arquivo `pglast-…whl` esquecido na raiz do repositório (entrou junto num commit meu da v1.16) | idem | ✅ 1.18.0 |
-| 11 | "⬇️ Exportar" baixa as histórias **abertas** (com nomes) na pasta Downloads; trocar por cópia protegida (senha + código) que restaura sem repetir história | idem | 🟡 aberta — Etapa 2b |
-| 12 | "Apagar tudo" apaga histórias e ajustes sem oferecer a cópia antes, e deixa as vozes guardadas para trás | idem | 🟡 aberta — Etapa 2b |
-| 13 | Histórias no `localStorage` (limite de uns 5 MB); passar para o IndexedDB sem perder nada | idem | 🟡 aberta — Etapa 2b |
+| 11 | "⬇️ Exportar" baixa as histórias **abertas** (com nomes) na pasta Downloads; trocar por cópia protegida (senha + código) que restaura sem repetir história | idem | ✅ 1.19.0 |
+| 12 | "Apagar tudo" apaga histórias e ajustes sem oferecer a cópia antes, e deixa as vozes guardadas para trás | idem | ✅ 1.19.0 |
+| 13 | Histórias no `localStorage` (limite de uns 5 MB); passar para o IndexedDB sem perder nada | idem | ✅ 1.19.0 |
 | 14 | Minhas histórias, onde parei, ajustes e estatísticas na nuvem, cifrados no aparelho, com código de recuperação e consentimento do responsável | idem | 🟡 aberta — Etapa 2c (depende do #2) |
 | 15 | Cifrar as histórias inteiras (recomendado) ou só trocar os nomes por códigos antes de subir | idem | ✅ decidido em 09/Out/2026: cifrar inteiras (vale na Etapa 2c) |
 | 16 | Compartilhar histórias com a família (pai e mãe) | idem | ⏸ Etapa 2e — depende da chave pessoal comum na base (`sol_chave_privada`, combinar com o chat do RootifyONE) |
@@ -35,7 +35,7 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 | 22 | Revisão da equipe antes de a história aparecer na comunidade: começa ligada? | idem (app para crianças) | ⏸ recomendação: ligada no começo (`revisao_previa`); dá para desligar no RootifyONE |
 | 23 | Termos de uso da comunidade (o que pode publicar, direitos sobre a história, personagens de filmes, denúncias) | idem | ⏸ texto legal antes de abrir a comunidade |
 | 24 | Outros nomes do acervo público para o dono conferir se são de gente de verdade (ex.: personagens de outras séries com nome e sobrenome ou "seu"/"vovó") | Revisão da 1.18.0 | ⏸ o dono confere a lista de personagens; o que for real vira nome inventado |
-| 25 | Trabalho demorado das etapas da nuvem (cópia protegida, levar e trazer histórias, baixar o acervo) pelo `tarefas.js`: tela acesa, pílula, aviso ao fechar, continuar de onde parou | Diretriz de trabalho demorado, 10/Out/2026 | 🟡 aberta — entra em cada etapa (2b, 2c, 2d); plano, item 7b |
+| 25 | Trabalho demorado das etapas da nuvem (cópia protegida, levar e trazer histórias, baixar o acervo) pelo `tarefas.js`: tela acesa, pílula, aviso ao fechar, continuar de onde parou | Diretriz de trabalho demorado, 10/Out/2026 | 🔵 em andamento — 2b feita na 1.19.0 (guardar e trazer a cópia pela pílula); faltam 2c e 2d |
 | 26 | Obedecer aos interruptores do RootifyONE ("Controle dos apps", como o OmniLifeONE 2.16) e combinar com `conta_regras` para o dono mexer num lugar só | OmniLifeONE 2.16, 10/Out/2026 | 🟡 aberta — junto com a etapa 2d (ou antes, se o dono pedir); combinar com o chat do RootifyONE |
 
 ## Histórico das entregas
@@ -47,3 +47,5 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
   revisão); novos #20 a #24.
 - **Plano, complemento (10/Out/2026, sem mudança no app):** item 7b do plano (trabalho demorado e interruptores do
   RootifyONE); novos #25 e #26.
+- **1.19.0 (10/Out/2026) — Etapa 2b:** fecharam #11 (cópia protegida que restaura sem repetir), #12 (apagar tudo oferece a
+  cópia antes e pergunta pelas vozes) e #13 (histórias no IndexedDB); #25 avançou.
