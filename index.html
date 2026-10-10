@@ -487,7 +487,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 </div>
 
 <!-- faixa do topo: só anúncio. O × fecha a faixa inteira até o fim da sessão (volta ao entrar de novo). -->
-<div class="ad-faixa" id="ad-faixa" role="complementary" aria-label="Anúncios" hidden>
+<div class="ad-faixa" id="ad-faixa" data-recurso="anuncios" role="complementary" aria-label="Anúncios" hidden>
   <div class="ad-in">
     <span class="ad-tag" id="ad-tag">ANÚNCIO</span>
     <div class="ad-janela" id="ad-janela"><div class="ad-trilho" id="ad-trilho"></div></div>
@@ -572,12 +572,12 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <section class="tela" id="tela-nova">
 
   <div class="seg" id="modo-nova">
-    <button class="on" data-modo="ia">✨ A IA escreve</button>
+    <button class="on" data-modo="ia" data-recurso="criar-com-ia">✨ A IA escreve</button>
     <button data-modo="manual">✍️ Eu escrevo</button>
   </div>
 
   <!-- --- modo IA --- -->
-  <div id="bloco-ia">
+  <div id="bloco-ia" data-recurso="criar-com-ia">
     <div class="card" style="margin-top:14px">
       <label class="f">Para quem é a história?</label>
       <div class="seg" id="sel-idade">
@@ -1003,12 +1003,13 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 
   <div class="tit">💛 AssistONE</div>
   <div class="card">
-    <div class="sw">
+    <p class="hint" id="assist-admin" style="margin:0" hidden></p>
+    <div class="sw" data-recurso="assistone">
       <div class="txt"><b>AssistONE ativado</b><span>O ajudante do canto: ajuda da tela, tour rápido e busca.</span></div>
       <div class="toggle on" id="tg-assist"></div>
     </div>
-    <div style="height:12px"></div>
-    <div class="linha">
+    <div style="height:12px" data-recurso="assistone"></div>
+    <div class="linha" data-recurso="assistone">
       <button class="btn sm" id="btn-assist-abrir">💬 Abrir o AssistONE</button>
       <button class="btn sm ghost" id="btn-assist-reset">↺ Recomeçar dicas</button>
     </div>
@@ -1104,11 +1105,11 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <div class="toast" id="toast"></div>
 
 <!-- AssistONE: o ajudante, sempre no mesmo canto -->
-<button class="assist" id="assist-btn" type="button" aria-label="AssistONE — ajuda e assistente" aria-haspopup="dialog" aria-expanded="false">
+<button class="assist" id="assist-btn" data-recurso="assistone" type="button" aria-label="AssistONE — ajuda e assistente" aria-haspopup="dialog" aria-expanded="false">
   <img src="ajuda-botao.png" alt="" width="58" height="58">
 </button>
-<div class="assist-balao" id="assist-balao" role="dialog" aria-label="AssistONE" hidden></div>
-<div class="assist-dica" id="assist-dica" hidden></div>
+<div class="assist-balao" id="assist-balao" data-recurso="assistone" role="dialog" aria-label="AssistONE" hidden></div>
+<div class="assist-dica" id="assist-dica" data-recurso="assistone" hidden></div>
 
 <nav class="tabs">
   <div class="inner">
@@ -1121,6 +1122,8 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 
 <!-- diretrizes globais (idioma, datas, avisos). Se os arquivos ainda não
      estiverem no repositório, o site funciona igual — só ignora estas linhas. -->
+<!-- interruptores do RootifyONE → Controle dos apps (o que o dono liga e desliga). Antes do código do app. -->
+<script src="recursos.js" data-app="contador-de-historias"></script>
 <script src="diretrizes.js"></script>
 <script src="diretrizes-config.js"></script>
 <script src="tarefas.js"></script>
@@ -1149,6 +1152,8 @@ function toast(msg, ms){
 // texto curto nos dois idiomas, seguindo o PT | EN do módulo de diretrizes (para textos montados na hora)
 function idiomaEN(){ try{ return !!(window.DGO && DGO.idioma && DGO.idioma()==='en'); }catch(e){ return false; } }
 function T(pt, en){ return idiomaEN() ? en : pt; }
+// interruptores do RootifyONE (recursos.js). Sem o arquivo, vale o padrão do código: tudo ligado.
+const Rec = window.SolverRecursos || { ligado:(id,p)=>p!==false, valor:(id,p)=>p, aoMudar:()=>{} };
 /* ---------- botão Voltar do celular: navega dentro do app ----------
    Cada camada aberta (outra aba, o leitor, uma janela) ganha uma entrada no histórico do
    navegador. O Voltar fecha a camada de cima; só sai do app quando já está no Início sem
@@ -3055,6 +3060,7 @@ function avisoGeracaoPasso(k, n, txt){
 }
 
 async function gerarHistoria(){
+  if(!Rec.ligado('criar-com-ia', true)){ toast(T('Criar com IA foi desligado pela administração da SolverONE.','Create with AI was turned off by the SolverONE administration.'), 4000); return; }
   const o = dadosDoFormulario();
   let anterior = null;
   if(o.serie){
@@ -3600,6 +3606,12 @@ function atualizarCriar(){
                             : (n>1 ? `✨ Gerar os ${n} capítulos` : '✨ Gerar história');
 }
 segmento('#man-idade');
+// "A IA escreve" desligado no RootifyONE: a tela Criar fica no "Eu escrevo"
+function criarSemIA(){
+  if(Rec.ligado('criar-com-ia', true) || $('#bloco-ia').classList.contains('oculto')) return;
+  $('#modo-nova [data-modo=manual]').click();
+}
+criarSemIA();
 $('#btn-mais-temas').addEventListener('click', novosTemas);
 $('#btn-mais-personagens').addEventListener('click', novosPersonagens);
 $('#btn-mais-ambientes').addEventListener('click', novosAmbientes);
@@ -4088,6 +4100,9 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.19.0','10/10/2026', [
+    'Obedece aos interruptores do RootifyONE → Controle dos apps (arquivo recursos.js): o dono da SolverONE pode desligar o AssistONE, as dicas do AssistONE, a faixa de anúncios e o "A IA escreve" (criar com IA); o que for desligado some do app. Sem internet, vale a última escolha recebida (ou tudo ligado)'
+  ]],
   ['1.18.1','09/10/2026', [
     'Leitura de foto (Usar a câmera) que não some: a tela fica acesa, uma pílula embaixo avisa "não feche o app" com progresso, dá para usar outras telas e, ao terminar, "✅ Pronto · toque para ver" reabre a leitura (diretriz SolverONE de tarefas longas, arquivo tarefas.js)'
   ]],
@@ -5380,7 +5395,7 @@ const Anuncios = (function(){
   function pintar(){
     const faixa = $('#ad-faixa'); if(!faixa) return;
     const ads = daFaixa();
-    const mostrar = ads.length && !fechado() && !semAnuncio();
+    const mostrar = ads.length && !fechado() && !semAnuncio() && Rec.ligado('anuncios', true);
     faixa.hidden = !mostrar;
     $('#ad-tag').textContent = T('ANÚNCIO','AD');
     $('#ad-fechar').setAttribute('aria-label', T('Fechar anúncios','Close ads'));
@@ -5516,8 +5531,9 @@ var Assist = (function(){
   }
 
   function aberto(){ return !balao.hidden; }
+  const ativo = ()=>cfg.assistOne && Rec.ligado('assistone', true);
   function abrir(modo){
-    if(!cfg.assistOne) return;
+    if(!ativo()) return;
     esconderDica();
     const tela = TELAS[telaAtual] || TELAS.inicio;
     const boasVindas = modo==='boasvindas';
@@ -5579,7 +5595,7 @@ var Assist = (function(){
   function esconderDica(){ dica.hidden = true; clearTimeout(dicaTimer); }
   function aoTrocarTela(nome){
     esconderDica();
-    if(!cfg.assistOne || aberto() || mem.dicas[nome] || !TELAS[nome]) return;
+    if(!ativo() || Rec.valor('assistone.dicas', true)===false || aberto() || mem.dicas[nome] || !TELAS[nome]) return;
     dicaTimer = setTimeout(()=>{
       if(aberto() || document.body.classList.contains('com-modal') || document.body.classList.contains('com-leitor') || telaAtual!==nome) return;
       mem.dicas[nome] = 1; gravar();
@@ -5591,16 +5607,20 @@ var Assist = (function(){
     }, 2500);
   }
 
-  function aplicar(){ document.body.classList.toggle('sem-assist', !cfg.assistOne); if(!cfg.assistOne){ fechar(); esconderDica(); } }
+  function aplicar(){
+    document.body.classList.toggle('sem-assist', !ativo()); if(!ativo()){ fechar(); esconderDica(); }
+    const adm = $('#assist-admin');
+    if(adm){ adm.hidden = Rec.ligado('assistone', true); adm.textContent = T('Desligado pela administração da SolverONE.','Turned off by the SolverONE administration.'); }
+  }
   function recomecar(){ mem = {dicas:{}}; gravar(); toast(T('Dicas e passo a passo recomeçados','Tips and tour reset')); abrir('boasvindas'); }
   function iniciar(){
     aplicar();
     btn.addEventListener('click', ()=>{ if(aberto()) fechar(); else abrir(); });
     document.addEventListener('click', e=>{ if(aberto() && tour<0 && !balao.contains(e.target) && !btn.contains(e.target)) fechar(); });
     document.addEventListener('keydown', e=>{ if(e.key==='Escape' && aberto()){ $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo')); tour=-1; fechar(); } });
-    document.addEventListener('dgo:idioma', ()=>{ if(aberto() && tour<0) abrir(); });
+    document.addEventListener('dgo:idioma', ()=>{ aplicar(); if(aberto() && tour<0) abrir(); });
     // primeira visita: apresenta-se, mas só quando nenhuma janela estiver aberta
-    if(cfg.assistOne && !mem.visto){
+    if(ativo() && !mem.visto){
       let tentativas = 0;
       const tentar = ()=>{ if(document.body.classList.contains('com-modal') || document.body.classList.contains('com-leitor')){ if(++tentativas<12) setTimeout(tentar, 2000); return; } abrir('boasvindas'); };
       setTimeout(tentar, 1500);
@@ -5866,6 +5886,8 @@ atualizarVozGuardada(true);   // selos "voz guardada" dos cartões
 aplicarConfigDaUrl();
 carregarDoGithub();
 Assist.iniciar();
+// chegou arquivo novo do RootifyONE: redesenha o que depende dos interruptores
+Rec.aoMudar(()=>{ Assist.aplicar(); Anuncios.pintar(); criarSemIA(); });
 
 // desbloqueia o áudio no primeiro toque (regra dos celulares)
 ['touchend','click'].forEach(ev=>document.addEventListener(ev, function um(){

@@ -396,3 +396,12 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Encerrada | Sua conta SolverONE foi encerrada · Ela não foi excluída: fica encerrada para auditoria e obrigações legais, e os seus dados pessoais são anonimizados quando você pede a exclusão. · As histórias e as vozes deste aparelho continuam aqui. · Dúvidas ou reativação: … | Your SolverONE account has been closed · It was not deleted: it stays closed for audit and legal duties, and your personal data is anonymised when you request erasure. · The stories and voices on this device stay here. · Questions or reactivation: … |
 | Bloqueada | ⛔ Esta conta SolverONE está bloqueada. | ⛔ This SolverONE account is blocked. |
 | Histórias e backup | Trazer as histórias que vêm com o app · Ao abrir, buscar as histórias novas do acervo do app. · Exportar baixa um arquivo com as suas histórias, para guardar ou levar para outro aparelho (lá, use Importar). Ele tem os nomes das crianças: guarde só para você e não publique. | Bring the stories that come with the app · On opening, fetch new stories from the app's library. · Export downloads a file with your stories, to keep or take to another device (there, use Import). It has the children's names: keep it to yourself and do not publish it. |
+
+---
+
+# v1.19.0 — Interruptores do RootifyONE
+
+| Onde | PT | EN |
+|---|---|---|
+| Configurações → AssistONE | Desligado pela administração da SolverONE. | Turned off by the SolverONE administration. |
+| Criar, ao tentar gerar | Criar com IA foi desligado pela administração da SolverONE. | Create with AI was turned off by the SolverONE administration. |

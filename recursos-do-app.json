@@ -1,0 +1,18 @@
+{
+  "formato": 1,
+  "app": "contador-de-historias",
+  "versao": "1.19.0",
+  "atualizado": "2026-10-10",
+  "nota": {
+    "pt": "O UM Contador de Histórias lê os interruptores pelo recursos.js. Desligado, o item some do app; sem internet vale a última escolha recebida (ou ligado).",
+    "en": "ONE Storyteller reads the switches through recursos.js. When turned off, the item disappears from the app; offline, the last received choice applies (or on)."
+  },
+  "recursos": [
+    { "id": "assistone", "nome": { "pt": "AssistONE (ajudante do canto)", "en": "AssistONE (corner helper)" }, "efeito": { "pt": "Some o botão, o balão e as dicas; em Configurações aparece \"Desligado pela administração da SolverONE.\"", "en": "Hides the button, balloon and tips; Settings shows \"Turned off by the SolverONE administration.\"" } },
+    { "id": "anuncios", "nome": { "pt": "Faixa de anúncios", "en": "Ads strip" }, "efeito": { "pt": "Some a faixa de anúncios do topo (o app não tem pop-up de anúncio).", "en": "Hides the top ads strip (the app has no ad pop-up)." } },
+    { "id": "criar-com-ia", "nome": { "pt": "Criar história com IA", "en": "Create story with AI" }, "efeito": { "pt": "Some o \"A IA escreve\" na tela Criar; fica só o \"Eu escrevo\".", "en": "Hides \"The AI writes\" on the Create screen; only \"I write\" remains." } }
+  ],
+  "comportamentos": [
+    { "id": "assistone.dicas", "tipo": "sim-nao", "padrao": true, "nome": { "pt": "Dicas por tela do AssistONE", "en": "AssistONE per-screen tips" }, "efeito": { "pt": "Não: o AssistONE não mostra a dica curta ao entrar numa tela.", "en": "No: AssistONE doesn't show the short tip when entering a screen." } }
+  ]
+}

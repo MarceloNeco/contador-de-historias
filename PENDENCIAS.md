@@ -35,6 +35,7 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 | 22 | Revisão da equipe antes de a história aparecer na comunidade: começa ligada? | idem (app para crianças) | ⏸ recomendação: ligada no começo (`revisao_previa`); dá para desligar no RootifyONE |
 | 23 | Termos de uso da comunidade (o que pode publicar, direitos sobre a história, personagens de filmes, denúncias) | idem | ⏸ texto legal antes de abrir a comunidade |
 | 24 | Outros nomes do acervo público para o dono conferir se são de gente de verdade (ex.: personagens de outras séries com nome e sobrenome ou "seu"/"vovó") | Revisão da 1.18.0 | ⏸ o dono confere a lista de personagens; o que for real vira nome inventado |
+| 25 | Obedecer aos interruptores do RootifyONE → Controle dos apps (`assistone`, `assistone.dicas`, `anuncios`, `criar-com-ia`) e declarar em `recursos-do-app.json` | Pedido do dono, 10/Out/2026 | ✅ 1.19.0 — ficaram de fora `voz` (é o coração do app: ler em voz alta), `ocr` e `telemetria`/`offline` (ficam no `diretrizes.js` 1.0.x, que não foi trocado) e `ia` geral (a IA de comandos de voz e a voz premium seguem as chaves e o plano) |
 
 ## Histórico das entregas
 
@@ -43,3 +44,4 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 - **1.18.0 (09/Out/2026) — Etapa 2a, conta comum:** fecharam #1, #4, #5, #6, #7, #8, #9, #10 e #15; #3 avançou (nomes trocados;
   falta o histórico). Plano v2 com a visão do dono e SQL com acervo público, comunidade e regras (#2 continua aguardando
   revisão); novos #20 a #24.
+- **1.19.0 (10/Out/2026) — interruptores do RootifyONE:** fechou #25 (`recursos.js` + `recursos-do-app.json`).
