@@ -1,7 +1,7 @@
 {
   "formato": 1,
   "app": "contador-de-historias",
-  "versao": "1.19.0",
+  "versao": "1.21.0",
   "atualizado": "2026-10-10",
   "nota": {
     "pt": "O UM Contador de Histórias lê os interruptores pelo recursos.js. Desligado, o item some do app; sem internet vale a última escolha recebida (ou ligado).",

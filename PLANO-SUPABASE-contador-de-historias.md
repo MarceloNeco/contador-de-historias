@@ -156,8 +156,8 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
 | Etapa | Versão | O que entrega | O que você testa |
 |---|---|---|---|
 | **2a — Conta comum** ✅ | 1.18.0 | Sessão em `solverone.sessao.v1` (aproveitando a antiga, sem pedir login de novo); renovação sem derrubar o OmniLifeONE; Sair só neste aparelho; "Foi você?" para link de fora; uso e acessos (C4, C9); conta encerrada; "Encerrar minha conta". Riscos imediatos: R2 conforme a sua decisão e tirar o arquivo `.whl` perdido. **Sem SQL novo.** | 1) Entrar no Contador e abrir o OmniLifeONE no mesmo navegador: já entra. 2) RootifyONE → uso por app e registro de acessos mostram o Contador. 3) Sair no celular **não** desconecta o computador. 4) Recarregar não pede login. |
-| **2b — Cópia protegida e "antes de apagar"** | 1.19.0 | "Exportar" vira **cópia protegida** (senha + código de recuperação, como no OmniLifeONE); restaurar **sem repetir história** (pelo id e pelo título + texto); a cópia aberta antiga continua sendo aceita; "Apagar tudo" oferece a cópia antes e diz o que acontece com as vozes; histórias saem do `localStorage` (5 MB) para o IndexedDB **sem perder nada** (copiar, conferir, só então apagar a antiga). **Sem SQL.** | Fazer a cópia, apagar tudo num aparelho de teste, restaurar: mesmas histórias, nenhuma repetida, vozes tocando, posição de leitura igual. |
-| **2c — Minhas histórias na nuvem** | 1.20.0 | **Precisa do SQL rodado.** Primeiro uso guiado (4 telas: o que vai, quem vê, o papel com o código, consentimento do responsável); chave do acervo e código de recuperação; "Levar minhas histórias para a nuvem" com prévia e cópia oferecida antes; cópia no aparelho + fila + versão (junta campo a campo, só pergunta o que bateu); selo "⏳ aguardando" e "✓ Tudo sincronizado"; progresso, ajustes e estatísticas. | 1) Criar uma história no celular **sem internet** → aparece no computador depois. 2) Mesma história mudada nos dois → só pergunta o campo que bateu. 3) Computador novo **com** o papel do código → abre tudo; **sem** o papel → explica e não perde o aparelho. 4) Vozes guardadas continuam tocando. 5) No RootifyONE ninguém lê o texto. |
+| **2b — Cópia protegida e "antes de apagar"** ✅ | 1.19.0 | "Exportar" vira **cópia protegida** (senha + código de recuperação, como no OmniLifeONE); restaurar **sem repetir história** (pelo id e pelo título + texto); a cópia aberta antiga continua sendo aceita; "Apagar tudo" oferece a cópia antes e diz o que acontece com as vozes; histórias saem do `localStorage` (5 MB) para o IndexedDB **sem perder nada** (copiar, conferir, só então apagar a antiga). **Sem SQL.** | Fazer a cópia, apagar tudo num aparelho de teste, restaurar: mesmas histórias, nenhuma repetida, vozes tocando, posição de leitura igual. |
+| **2c — Minhas histórias na nuvem** ✅ no app (fica em "em preparação" até o SQL rodar) | 1.20.0 | **Precisa do SQL rodado.** Primeiro uso guiado (4 telas: o que vai, quem vê, o papel com o código, consentimento do responsável); chave do acervo e código de recuperação; "Levar minhas histórias para a nuvem" com prévia e cópia oferecida antes; cópia no aparelho + fila + versão (junta campo a campo, só pergunta o que bateu); selo "⏳ aguardando" e "✓ Tudo sincronizado"; progresso, ajustes e estatísticas. | 1) Criar uma história no celular **sem internet** → aparece no computador depois. 2) Mesma história mudada nos dois → só pergunta o campo que bateu. 3) Computador novo **com** o papel do código → abre tudo; **sem** o papel → explica e não perde o aparelho. 4) Vozes guardadas continuam tocando. 5) No RootifyONE ninguém lê o texto. |
 | **2d — Acervo no servidor e comunidade** | 1.21.0 | **Precisa do SQL rodado.** Acervo oficial no banco (a equipe traz o `historias.json` pelo RootifyONE) com cópia completa no aparelho e "só o que mudou"; aba **Comunidade** no Acervo: pesquisar, ler, ouvir, guardar para ler sem internet, denunciar; **"Publicar na comunidade"** numa história minha (conferência de nomes, trocar por nomes inventados, nome que aparece, confirmação), "Minhas publicadas" com a situação (em revisão, publicada, escondida) e **Revogar** (com o aviso das cópias); tudo conforme `conta_minhas_regras()`. No **RootifyONE** (repositório `rootify-one`): tela das regras do Contador (ligar, planos, limites) e **fila de revisão** (publicar, esconder, recusar). | 1) Sem internet, o acervo abre inteiro. 2) Publicar uma história com o nome da criança: o app avisa e troca. 3) Aprovar no RootifyONE: aparece para outra conta. 4) Revogar: some no outro aparelho na próxima vez que abrir. 5) Desligar a comunidade no RootifyONE: some do app. 6) Pôr "publicar" só para Premium: o botão fica em cinza para Membro. |
 | **2e — Compartilhar com a família** (a combinar) | 1.22.0 | Depende do ponto 8.1. Escolher a família (a do OmniLifeONE aparece) ou criar uma simples; compartilhar história; membros só leem; criança só lê. | O pai compartilha; a mãe vê e ouve no celular dela; a criança vê; quem saiu da família deixa de ver as novas. |
 
@@ -193,6 +193,39 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
 6. Acervo no servidor e comunidade (2d), com as regras e a fila de revisão no RootifyONE. A decidir: revisão antes de
    publicar começa ligada (recomendado) e o texto dos Termos da comunidade.
 
+## 7b. Complementos de 10/Out/2026 (diretriz de trabalho demorado e interruptores do RootifyONE)
+
+**Trabalho demorado nas etapas da nuvem** (skill `trabalho-em-fundo-solverone`). O app já tem o `tarefas.js` (desde a
+leitura de foto: tela acesa, pílula "não feche o app", dá para usar outras telas, "✅ Pronto · toque para ver"). Nas
+etapas abaixo, tudo o que pode passar de 2 segundos vai por ele (`DGO.tarefa.iniciar`), nunca por uma barra própria da tela:
+
+| Etapa | Trabalho demorado | Como fica |
+|---|---|---|
+| 2b | Fazer e restaurar a cópia protegida; mudar as histórias para o IndexedDB | Pílula com andamento; a mudança só apaga a cópia antiga depois de conferir tudo; se a página fechar no meio, ao abrir avisa "foi interrompido" e refaz do começo (nada se perde, porque a antiga ainda está lá). |
+| 2c | "Levar minhas histórias para a nuvem" (embaralhar e enviar uma por uma) e "trazer tudo" num aparelho novo | Retomável: cada história é um item da fila de envio; fechar no meio só para o envio, e ao abrir continua de onde parou ("Continuar de onde parou?"). Sem internet, a pílula diz "esperando a internet". |
+| 2d | Baixar o acervo inteiro na primeira vez; publicar (conferência de nomes) | Pílula com "Baixando o acervo… 12 de 36"; publicar é rápido, mas a conferência de nomes de uma história longa também vai pela pílula. |
+
+**Como a 2c ficou na 1.20.0 (diferenças do texto acima):** em vez de uma fila de envio, o app compara cada história com a
+última versão que subiu ou desceu (guardada no aparelho): fechar no meio não perde nada, e a próxima ida e volta leva só o
+que falta. Ligar e destrancar vão pela pílula; sem internet, a pílula termina em "Não deu agora" e o cartão diz quando voltar
+(não fica uma pílula esperando). A cópia protegida **não** é oferecida antes de levar: levar e trazer nunca troca uma história
+deste aparelho sem perguntar (o mesmo campo mudado nos dois lados → a pessoa escolhe; muitas saindo de uma vez → pergunta).
+Testado com dois aparelhos num banco local com o SQL deste repositório (47 conferências), e sem o SQL ("em preparação").
+
+A fila de voz (`FilaVoz`) já trabalha sozinha com tela acesa; continua como está.
+
+**Interruptores do RootifyONE** (o OmniLifeONE 2.16 passou a obedecer ao "Controle dos apps": `recursos.js`, arquivos
+`recursos/global.json` e `recursos/<app>.json` no `solverone-dados`, e `recursos-do-app.json` na raiz do app). Para não ter
+dois lugares mandando na mesma coisa:
+
+- **O que é só mostrar ou esconder na tela** (AssistONE, anúncios, a aba Comunidade, o botão Publicar, a seção Nuvem) obedece
+  aos interruptores do RootifyONE, como no OmniLifeONE.
+- **O que o banco precisa garantir** (publicar só para os planos certos, limite por dia, revisão antes de aparecer,
+  esconder por denúncias) fica em `conta_regras`, porque o arquivo de interruptores é público e não protege nada.
+- Para combinar com o chat do RootifyONE: a tela de "Controle dos apps" do Contador grava as duas coisas (o interruptor e,
+  quando for de banco, a `conta_regras` por `admin_conta_salvar_regra`), para o dono mexer num lugar só.
+- Ligar os interruptores no Contador é uma mudança no app (regra zero): entra junto com a etapa 2d, ou antes, se você pedir.
+
 ## 8. Para combinar com o chat do RootifyONE (contrato)
 
 1. **Chave pessoal comum entre os apps.** `sol_chave_publica` guarda **uma** chave por pessoa e
@@ -201,4 +234,5 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
    (cópia cifrada da chave privada, só a própria pessoa lê) usada por todos os apps — o próprio plano do OmniLifeONE já
    sugere isso (item 9.4).
 2. **Áudio na nuvem** (Storage `sol-arquivos`): fora deste plano; se um dia entrar, só cifrado e com cota por plano.
-3. Nada mais: `sol_apps` já tem o Contador (`conta`), e o registro de acessos já aceita `app`.
+3. **Interruptores × `conta_regras`** (item 7b): a tela "Controle dos apps" grava as duas, para o dono mexer num lugar só.
+4. Nada mais: `sol_apps` já tem o Contador (`conta`), e o registro de acessos já aceita `app`.

@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.19.0',
+  versaoApp: '1.21.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -58,6 +58,7 @@ DGO.iniciar({
     '#chips-personagem',
     '[data-motor="solverone"]',  /* botões da SolverONE: o app escreve o texto em PT/EN (muda com o plano) */
     '#sv-conta',                 /* cartão da conta SolverONE: o app escreve em PT/EN (muda ao entrar e sair) */
+    '#nv-conta', '#nv-selo',     /* nuvem (v1.20.0): o app escreve em PT/EN */
     '#assist-admin'              /* aviso "Desligado pela administração": o app escreve em PT/EN */
   ],
 
@@ -125,9 +126,13 @@ DGO.iniciar({
   /* ---------- palavras deste app para o tradutor ---------- */
   traducoes: {
     '✨ Conta SolverONE': '✨ SolverONE account',
+    '☁️ Minhas histórias na conta': '☁️ My stories in the account',
     'Trazer as histórias que vêm com o app': 'Bring the stories that come with the app',
     'Ao abrir, buscar as histórias novas do acervo do app.': 'On opening, fetch new stories from the app\'s library.',
-    'Exportar baixa um arquivo com as suas histórias, para guardar ou levar para outro aparelho (lá, use Importar). Ele tem os nomes das crianças: guarde só para você e não publique.': 'Export downloads a file with your stories, to keep or take to another device (there, use Import). It has the children\'s names: keep it to yourself and do not publish it.',
+    'A cópia sai protegida por uma senha sua e por um código para anotar num papel. Para trazer de volta, aqui ou em outro aparelho, use Trazer uma cópia: nada se repete.': 'The copy comes out protected by your password and by a code to write down on paper. To bring it back, here or on another device, use Restore a copy: nothing is repeated.',
+    '🔒 Guardar uma cópia': '🔒 Save a copy',
+    '💾 Histórias e cópia de segurança': '💾 Stories and safety copy',
+    '📂 Trazer uma cópia': '📂 Restore a copy',
     'Nova história': 'New story',
     'Contar história': 'Tell a story',
     'Acervo': 'Library',

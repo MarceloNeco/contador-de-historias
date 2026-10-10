@@ -21,10 +21,10 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 | 8 | Registrar uso e acesso do app (`sol_registrar_uso`, `solverone-admin` → `registrar-acesso` com `app`) | idem | ✅ 1.18.0 |
 | 9 | Conta encerrada (`minha_conta_encerrada`) e "Encerrar minha conta / pedir exclusão dos meus dados" | idem | ✅ 1.18.0 |
 | 10 | Arquivo `pglast-…whl` esquecido na raiz do repositório (entrou junto num commit meu da v1.16) | idem | ✅ 1.18.0 |
-| 11 | "⬇️ Exportar" baixa as histórias **abertas** (com nomes) na pasta Downloads; trocar por cópia protegida (senha + código) que restaura sem repetir história | idem | 🟡 aberta — Etapa 2b |
-| 12 | "Apagar tudo" apaga histórias e ajustes sem oferecer a cópia antes, e deixa as vozes guardadas para trás | idem | 🟡 aberta — Etapa 2b |
-| 13 | Histórias no `localStorage` (limite de uns 5 MB); passar para o IndexedDB sem perder nada | idem | 🟡 aberta — Etapa 2b |
-| 14 | Minhas histórias, onde parei, ajustes e estatísticas na nuvem, cifrados no aparelho, com código de recuperação e consentimento do responsável | idem | 🟡 aberta — Etapa 2c (depende do #2) |
+| 11 | "⬇️ Exportar" baixa as histórias **abertas** (com nomes) na pasta Downloads; trocar por cópia protegida (senha + código) que restaura sem repetir história | idem | ✅ 1.19.0 |
+| 12 | "Apagar tudo" apaga histórias e ajustes sem oferecer a cópia antes, e deixa as vozes guardadas para trás | idem | ✅ 1.19.0 |
+| 13 | Histórias no `localStorage` (limite de uns 5 MB); passar para o IndexedDB sem perder nada | idem | ✅ 1.19.0 |
+| 14 | Minhas histórias, onde parei, ajustes e estatísticas na nuvem, cifrados no aparelho, com código de recuperação e consentimento do responsável | idem | 🔵 1.20.0: pronto no app e testado num banco local; aparece "em preparação" até o SQL rodar (#2) — fecha quando o dono testar com o banco de verdade |
 | 15 | Cifrar as histórias inteiras (recomendado) ou só trocar os nomes por códigos antes de subir | idem | ✅ decidido em 09/Out/2026: cifrar inteiras (vale na Etapa 2c) |
 | 16 | Compartilhar histórias com a família (pai e mãe) | idem | ⏸ Etapa 2e — depende da chave pessoal comum na base (`sol_chave_privada`, combinar com o chat do RootifyONE) |
 | 17 | Vozes guardadas na nuvem (Storage) | idem | 🟡 aberta — fora deste plano (peso e cota do plano grátis); hoje o arquivo `.chvoz` leva para outro aparelho |
@@ -35,7 +35,10 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 | 22 | Revisão da equipe antes de a história aparecer na comunidade: começa ligada? | idem (app para crianças) | ⏸ recomendação: ligada no começo (`revisao_previa`); dá para desligar no RootifyONE |
 | 23 | Termos de uso da comunidade (o que pode publicar, direitos sobre a história, personagens de filmes, denúncias) | idem | ⏸ texto legal antes de abrir a comunidade |
 | 24 | Outros nomes do acervo público para o dono conferir se são de gente de verdade (ex.: personagens de outras séries com nome e sobrenome ou "seu"/"vovó") | Revisão da 1.18.0 | ⏸ o dono confere a lista de personagens; o que for real vira nome inventado |
-| 25 | Obedecer aos interruptores do RootifyONE → Controle dos apps (`assistone`, `assistone.dicas`, `anuncios`, `criar-com-ia`) e declarar em `recursos-do-app.json` | Pedido do dono, 10/Out/2026 | ✅ 1.19.0 — ficaram de fora `voz` (é o coração do app: ler em voz alta), `ocr` e `telemetria`/`offline` (ficam no `diretrizes.js` 1.0.x, que não foi trocado) e `ia` geral (a IA de comandos de voz e a voz premium seguem as chaves e o plano) |
+| 25 | Trabalho demorado das etapas da nuvem (cópia protegida, levar e trazer histórias, baixar o acervo) pelo `tarefas.js`: tela acesa, pílula, aviso ao fechar, continuar de onde parou | Diretriz de trabalho demorado, 10/Out/2026 | 🔵 em andamento — 2b na 1.19.0 (cópia pela pílula); 2c na 1.20.0 (ligar e trazer da conta pela pílula); falta a 2d |
+| 26 | Obedecer aos interruptores do RootifyONE ("Controle dos apps", como o OmniLifeONE 2.16) e combinar com `conta_regras` para o dono mexer num lugar só | OmniLifeONE 2.16, 10/Out/2026 | ✅ 1.21.0 — obedece a `assistone`, `assistone.dicas`, `anuncios` e `criar-com-ia` (`recursos.js` + `recursos-do-app.json`); ficaram de fora `voz` (é o coração do app), `ocr`/`telemetria`/`offline` (no `diretrizes.js` 1.0.x, não trocado) e `ia` geral. Falta combinar com `conta_regras` (chat do RootifyONE) |
+| 27 | Perdeu o código de recuperação: hoje um aparelho que ainda está ligado continua funcionando, mas não dá para gerar um código novo nem recomeçar a nuvem da conta | Etapa 2c, 10/Out/2026 | 🟡 aberta — precisa de uma versão nova da chave (`conta_chave` versão 2) e de decidir o que acontece com as histórias cifradas com a antiga |
+| 28 | Testar a nuvem com o banco de verdade, depois de o SQL rodar: dois aparelhos, sem internet, o código num aparelho novo, a escolha quando muda nos dois | Etapa 2c, 10/Out/2026 | ⏸ depende do #2 |
 
 ## Histórico das entregas
 
@@ -44,4 +47,11 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 - **1.18.0 (09/Out/2026) — Etapa 2a, conta comum:** fecharam #1, #4, #5, #6, #7, #8, #9, #10 e #15; #3 avançou (nomes trocados;
   falta o histórico). Plano v2 com a visão do dono e SQL com acervo público, comunidade e regras (#2 continua aguardando
   revisão); novos #20 a #24.
-- **1.19.0 (10/Out/2026) — interruptores do RootifyONE:** fechou #25 (`recursos.js` + `recursos-do-app.json`).
+- **Plano, complemento (10/Out/2026, sem mudança no app):** item 7b do plano (trabalho demorado e interruptores do
+  RootifyONE); novos #25 e #26.
+- **1.19.0 (10/Out/2026) — Etapa 2b:** fecharam #11 (cópia protegida que restaura sem repetir), #12 (apagar tudo oferece a
+  cópia antes e pergunta pelas vozes) e #13 (histórias no IndexedDB); #25 avançou.
+- **1.20.0 (10/Out/2026) — Etapa 2c:** minhas histórias na conta pronta no app (cifrada, código de recuperação,
+  consentimento do responsável, sem internet, juntar e escolher), em "em preparação" até o SQL rodar; #14 e #25 avançaram;
+  novos #27 e #28.
+- **1.21.0 (10/Out/2026) — interruptores do RootifyONE:** fechou #26 (`recursos.js` + `recursos-do-app.json`).

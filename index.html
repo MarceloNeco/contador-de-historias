@@ -934,7 +934,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     </div>
   </div>
 
-  <div class="tit">💾 Histórias e backup</div>
+  <div class="tit">💾 Histórias e cópia de segurança</div>
   <div class="card">
     <div class="sw">
       <div class="txt"><b>Trazer as histórias que vêm com o app</b><span>Ao abrir, buscar as histórias novas do acervo do app.</span></div>
@@ -942,11 +942,11 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     </div>
     <div style="height:12px"></div>
     <div class="linha">
-      <button class="btn sm" id="btn-exportar">⬇️ Exportar</button>
-      <button class="btn sm" id="btn-importar">⬆️ Importar</button>
+      <button class="btn sm" id="btn-exportar">🔒 Guardar uma cópia</button>
+      <button class="btn sm" id="btn-importar">📂 Trazer uma cópia</button>
     </div>
     <input type="file" id="file-importar" accept=".json,application/json" class="oculto">
-    <div class="hint">Exportar baixa um arquivo com as suas histórias, para guardar ou levar para outro aparelho (lá, use Importar). Ele tem os nomes das crianças: guarde só para você e não publique.</div>
+    <div class="hint">A cópia sai protegida por uma senha sua e por um código para anotar num papel. Para trazer de volta, aqui ou em outro aparelho, use Trazer uma cópia: nada se repete.</div>
     <div style="height:14px"></div>
     <button class="btn sm rox" id="btn-transferir">📱 Levar minha configuração para outro aparelho</button>
   </div>
@@ -1031,6 +1031,8 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 
   <div class="tit">✨ Conta SolverONE</div>
   <div class="card" id="sv-conta" aria-live="polite"></div>
+  <div class="tit">☁️ Minhas histórias na conta</div>
+  <div class="card" id="nv-conta" aria-live="polite"></div>
 
   <div class="tit">⚠️ Zona de perigo</div>
   <div class="card">
@@ -1253,9 +1255,63 @@ let historias = [];
 try{ historias = JSON.parse(localStorage.getItem(CHAVE_H)||'[]'); }catch(e){ historias=[]; }
 if(!Array.isArray(historias)) historias=[];
 
-const salvarCfg = ()=> salvar(CHAVE_C,cfg);
-const salvarStats = ()=> salvar(CHAVE_S,stats);
-const salvarHistorias = ()=>{ try{ localStorage.setItem(CHAVE_H, JSON.stringify(historias)); }catch(e){ toast('Sem espaço no celular 😕'); } };
+// toda mudança daqui avisa a nuvem (v1.20.0), que sobe junto daqui a pouco; antes de a nuvem existir, não faz nada
+function avisarNuvem(){ try{ Nuvem.mudou(); }catch(e){} }
+const salvarCfg = ()=>{ salvar(CHAVE_C,cfg); avisarNuvem(); };
+const salvarStats = ()=>{ salvar(CHAVE_S,stats); avisarNuvem(); };
+/* ---------- onde ficam as histórias (v1.19.0) ----------
+   Antes: localStorage (uns 5 MB; com muitas histórias o app parava de salvar). Agora: IndexedDB (banco ch_dados, loja
+   kv, chave 'historias', o mesmo JSON de antes). Na primeira abertura COPIA, CONFERE e só então apaga a lista antiga do
+   localStorage. Sem IndexedDB (navegador antigo ou janela anônima que bloqueia), continua no localStorage como antes.
+   O id das histórias nunca muda aqui: é ele que liga cada história à voz guardada. */
+const Dados = (function(){
+  let db = null, carregado = false, pendente = false, usaIDB = false;
+  const esperando = [];
+  const abrir = ()=> new Promise((ok, falha)=>{
+    if(!('indexedDB' in window)) return falha(new Error('sem IndexedDB'));
+    let r; try{ r = indexedDB.open('ch_dados', 1); }catch(e){ return falha(e); }
+    r.onupgradeneeded = ()=>{ r.result.createObjectStore('kv'); };
+    r.onsuccess = ()=>ok(r.result); r.onerror = ()=>falha(r.error); r.onblocked = ()=>falha(new Error('bloqueado'));
+  });
+  const ler = k => new Promise((ok, falha)=>{ const q = db.transaction('kv','readonly').objectStore('kv').get(k); q.onsuccess = ()=>ok(q.result); q.onerror = ()=>falha(q.error); });
+  const gravar = (k, v) => new Promise((ok, falha)=>{ const tx = db.transaction('kv','readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = ()=>ok(); tx.onerror = ()=>falha(tx.error); tx.onabort = ()=>falha(tx.error); });
+  const lista = txt => { try{ const v = JSON.parse(txt||'[]'); return Array.isArray(v) ? v : []; }catch(e){ return []; } };
+  // junta duas listas sem repetir (pelo id); em caso de id igual, vale a primeira
+  const juntar = (a, b) => { const ids = new Set(a.map(h=>h && h.id)); return a.concat(b.filter(h=>h && !ids.has(h.id))); };
+  function pronto(){ carregado = true; while(esperando.length) esperando.shift()(); if(pendente){ pendente = false; salvar(); } }
+  async function iniciar(){
+    try{ db = await abrir(); usaIDB = true; }catch(e){ usaIDB = false; pronto(); return; }
+    try{
+      let guardadas = lista(await ler('historias'));
+      const antiga = localStorage.getItem(CHAVE_H);
+      if(antiga !== null){
+        const juntas = juntar(guardadas, lista(antiga));
+        const txt = JSON.stringify(juntas);
+        await gravar('historias', txt);
+        if((await ler('historias')) === txt) localStorage.removeItem(CHAVE_H);   // conferido: só agora a antiga sai
+        guardadas = juntas;
+      }
+      historias = juntar(historias, guardadas);   // o que mudou na memória enquanto carregava vence
+    }catch(e){ usaIDB = false; }                 // deu errado no meio: continua no localStorage, que ainda está lá
+    pronto();
+  }
+  function salvar(){
+    if(!carregado){ pendente = true; return; }
+    const txt = JSON.stringify(historias);
+    if(!usaIDB){ try{ localStorage.setItem(CHAVE_H, txt); }catch(e){ toast(T('Sem espaço no celular 😕','No space left on the phone 😕')); } return; }
+    gravar('historias', txt).catch(()=>toast(T('Sem espaço no aparelho para salvar 😕','No space on the device to save 😕')));
+  }
+  async function apagar(){
+    try{ localStorage.removeItem(CHAVE_H); }catch(e){}
+    if(usaIDB) await gravar('historias', '[]').catch(()=>{});
+  }
+  // outras coisas deste aparelho na mesma loja (a nuvem guarda aqui a chave e o que já subiu); só com IndexedDB
+  const lerKV = k => usaIDB ? ler(k) : Promise.resolve(undefined);
+  const gravarKV = (k, v) => usaIDB ? gravar(k, v) : Promise.reject(new Error('sem IndexedDB'));
+  const apagarKV = k => !usaIDB ? Promise.resolve() : new Promise((ok, falha)=>{ const tx = db.transaction('kv','readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = ()=>ok(); tx.onerror = ()=>falha(tx.error); });
+  return { iniciar, salvar, apagar, lerKV, gravarKV, apagarKV, carregou: ()=>carregado, esperar: ()=> carregado ? Promise.resolve() : new Promise(r=>esperando.push(r)), noIndexedDB: ()=>usaIDB };
+})();
+const salvarHistorias = ()=>{ Dados.salvar(); avisarNuvem(); };
 
 /* ----------------------------- texto / marcadores ----------------------------- */
 // quanto tempo cada ambiente fica tocando antes de sumir devagar
@@ -3328,9 +3384,11 @@ function atualizarHintContinuar(){
 }
 function pintarStats(){
   $('#s-total').textContent = historias.length;
-  $('#s-leituras').textContent = stats.leituras||0;
-  $('#s-minutos').textContent = Math.round((stats.segundos||0)/60);
-  $('#s-noites').textContent = stats.sequencia||0;
+  // com a nuvem ligada, somam os outros aparelhos da conta
+  let o = {leituras:0, segundos:0, sequencia:0}; try{ o = Nuvem.outros(); }catch(e){}
+  $('#s-leituras').textContent = (stats.leituras||0) + o.leituras;
+  $('#s-minutos').textContent = Math.round(((stats.segundos||0) + o.segundos)/60);
+  $('#s-noites').textContent = Math.max(stats.sequencia||0, o.sequencia);
 }
 
 function pctDe(h){
@@ -3977,18 +4035,153 @@ $$('#sons-teste button').forEach(b=>b.addEventListener('click',()=>{
   b._t = setTimeout(()=>{ b.classList.remove('on'); b._t=null; }, seg*1000);
 }));
 
-/* ----------------------------- backup / GitHub ----------------------------- */
-function pacote(){
-  return { versao:1, atualizadoEm:new Date().toISOString(), historias };
-}
-$('#btn-exportar').addEventListener('click',()=>{
-  const blob=new Blob([JSON.stringify(pacote(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='historias.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-  toast('Arquivo historias.json baixado');
-});
+/* ----------------------------- cópia (backup) ----------------------------- */
+/* ---------- cópia protegida (v1.19.0; diretriz "Cópia (backup) e restauração sem duplicar") ----------
+   O conteúdo sai embaralhado (AES-GCM 256) com uma chave aleatória, guardada duas vezes: pela SENHA da cópia e por um
+   CÓDIGO de recuperação mostrado uma vez só (PBKDF2-SHA256, 600 mil rodadas). Em claro, só o app, a versão e a data.
+   As chaves de IA nunca entram. Restaurar JUNTA sem repetir: mesmo id ou mesmo título + texto = a mesma história, e a
+   do aparelho vence; ajustes só preenchem o que está vazio aqui. Embaralhar e abrir vão pela pílula (tarefas.js). */
+const Copia = (function(){
+  const FORMATO = 'contador-copia-protegida', RODADAS = 600000, ALFA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const b64 = u8 => { let x = ''; for(let i=0; i<u8.length; i+=0x8000) x += String.fromCharCode.apply(null, u8.subarray(i, i+0x8000)); return btoa(x); };
+  const deB64 = x => Uint8Array.from(atob(x), c=>c.charCodeAt(0));
+  const aleatorio = n => crypto.getRandomValues(new Uint8Array(n));
+  // 20 letras/números sem os que confundem (0/O, 1/I/L): ~99 bits; sorteio sem viés
+  function codigoNovo(){
+    let c = '';
+    while(c.length < 20){ for(const b of aleatorio(32)){ if(b < 248 && c.length < 20) c += ALFA[b % 31]; } }
+    return c.match(/.{5}/g).join('-');
+  }
+  const soCodigo = x => String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const segredo = k => /key$|token$/i.test(k) || k==='ghRepo';
+  async function chaveDe(texto, sal, rodadas){
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(texto), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2', hash:'SHA-256', salt:sal, iterations:rodadas}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  }
+  async function fechar(bytes, texto){
+    const sal = aleatorio(16), iv = aleatorio(12);
+    const k = await chaveDe(texto, sal, RODADAS);
+    return { sal:b64(sal), iv:b64(iv), chave:b64(new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, k, bytes))) };
+  }
+  async function abrirEmbrulho(e, texto, rodadas){
+    const k = await chaveDe(texto, deB64(e.sal), rodadas);
+    return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:deB64(e.iv)}, k, deB64(e.chave)));
+  }
+  async function criar(senha, andamento){
+    const ajustes = {}; Object.keys(cfg).forEach(k=>{ if(!segredo(k)) ajustes[k] = cfg[k]; });
+    const conteudo = new TextEncoder().encode(JSON.stringify({ app:'contador-de-historias', versao:VERSAO, em:new Date().toISOString(), historias, cfg:ajustes, stats }));
+    const bruta = aleatorio(32), codigo = codigoNovo(), iv = aleatorio(12);
+    const chave = await crypto.subtle.importKey('raw', bruta, 'AES-GCM', false, ['encrypt']);
+    const dados = b64(new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, chave, conteudo)));
+    if(andamento) andamento(0.3, T('protegendo com a senha…','protecting with the password…'));
+    const pelaSenha = await fechar(bruta, senha);
+    if(andamento) andamento(0.65, T('protegendo com o código…','protecting with the code…'));
+    const peloCodigo = await fechar(bruta, soCodigo(codigo));
+    bruta.fill(0);
+    const arquivo = JSON.stringify({ formato:FORMATO, v:1, app:'contador-de-historias', versao:VERSAO, criadaEm:new Date().toISOString(),
+      kdf:{ nome:'PBKDF2-SHA256', rodadas:RODADAS }, senha:pelaSenha, codigo:peloCodigo, iv:b64(iv), dados });
+    return { arquivo, codigo };
+  }
+  async function abrir(obj, texto){
+    const rodadas = Number(obj.kdf && obj.kdf.rodadas) || RODADAS;
+    let bruta = null;
+    try{ bruta = await abrirEmbrulho(obj.senha, texto, rodadas); }
+    catch(e){ try{ bruta = await abrirEmbrulho(obj.codigo, soCodigo(texto), rodadas); }catch(e2){ throw new Error('senha'); } }
+    const chave = await crypto.subtle.importKey('raw', bruta, 'AES-GCM', false, ['decrypt']); bruta.fill(0);
+    return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM', iv:deB64(obj.iv)}, chave, deB64(obj.dados))));
+  }
+  function baixar(arquivo){
+    const nome = 'UM-Contador-copia-protegida-' + new Date().toISOString().slice(0,10) + '.json';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([arquivo], {type:'application/json'})); a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    return nome;
+  }
+  // 1) senha → 2) pílula enquanto embaralha → 3) o código para anotar → 4) baixar
+  function fazer(depois){
+    modal(`<h3>🔒 ${T('Guardar uma cópia protegida','Save a protected copy')}</h3>
+      <p class="hint">${T('A cópia leva as suas histórias, onde você parou e os ajustes (as chaves de IA não vão). Ela sai embaralhada: só abre com a senha que você escolher agora ou com um código que vou mostrar para você anotar.','The copy takes your stories, where you stopped and your settings (AI keys are left out). It comes out scrambled: it only opens with the password you choose now or with a code I will show you to write down.')}</p>
+      <label class="f" for="cp-senha">${T('Senha da cópia (pelo menos 6 letras ou números; 8 ou mais é melhor)','Copy password (at least 6 letters or numbers; 8 or more is better)')}</label>
+      <input type="password" id="cp-senha" autocomplete="new-password" placeholder="${T('Ex.: estrela-do-mar-27','E.g.: starfish-27')}">
+      <label class="f" for="cp-senha2">${T('Repita a senha','Repeat the password')}</label>
+      <input type="password" id="cp-senha2" autocomplete="new-password">
+      <div class="aviso oculto" id="cp-erro" style="margin-top:10px"></div>
+      <div style="height:12px"></div><button class="btn pri" id="cp-fazer">${T('Fazer a cópia','Make the copy')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="cp-nao">${T('Cancelar','Cancel')}</button>`);
+    $('#cp-nao').onclick = fecharModal;
+    $('#cp-fazer').onclick = ()=>{
+      const a = $('#cp-senha').value, b = $('#cp-senha2').value, erro = $('#cp-erro');
+      const mostrar = t=>{ erro.textContent = t; erro.classList.remove('oculto'); };
+      if(a.length < 6) return mostrar(T('A senha precisa ter pelo menos 6 letras ou números.','The password needs at least 6 letters or numbers.'));
+      if(a !== b) return mostrar(T('As duas senhas não são iguais. Digite de novo.','The two passwords are not the same. Type them again.'));
+      fecharModal();
+      DGO.tarefa.iniciar({ id:'copia-fazer', titulo:T('Fazendo a cópia protegida','Making the protected copy'),
+        executar: andamento => criar(a, andamento), aoAbrir: r => mostrarCodigo(r, depois) })
+        .catch(()=>toast(T('Não deu para fazer a cópia agora. Tente de novo.','Could not make the copy now. Try again.'), 5000));
+    };
+  }
+  function mostrarCodigo(r, depois){
+    modal(`<h3>📝 ${T('Anote este código num papel','Write this code down on paper')}</h3>
+      <p class="hint">${T('Se esquecer a senha, é com este código que a cópia abre. Ele aparece só agora: guarde o papel junto com os documentos da casa (não deixe salvo no celular).','If you forget the password, this code opens the copy. It shows up only now: keep the paper with the household documents (do not leave it saved on the phone).')}</p>
+      <div class="cp-codigo" id="cp-codigo" style="font:700 1.15rem/1.6 ui-monospace,monospace;letter-spacing:.06em;text-align:center;padding:14px;border-radius:12px;border:1px dashed var(--borda,#555);margin:12px 0;word-break:break-all">${esc(r.codigo)}</div>
+      <button class="btn sm" id="cp-copiar">📋 ${T('Copiar o código','Copy the code')}</button>
+      <label style="display:flex;gap:10px;align-items:center;margin:14px 0 6px"><input type="checkbox" id="cp-anotei" style="width:auto"> ${T('Anotei o código num papel','I wrote the code down on paper')}</label>
+      <button class="btn pri" id="cp-baixar" disabled>⬇️ ${T('Baixar a cópia','Download the copy')}</button>`);
+    $('#cp-copiar').onclick = ()=>{ try{ navigator.clipboard.writeText(r.codigo).then(()=>toast(T('Código copiado. Anote no papel também.','Code copied. Write it on paper too.'))); }catch(e){} };
+    $('#cp-anotei').onchange = e=>{ $('#cp-baixar').disabled = !e.target.checked; };
+    $('#cp-baixar').onclick = ()=>{
+      const nome = baixar(r.arquivo); r.arquivo = null;
+      fecharModal(); toast(T('Cópia guardada: ','Copy saved: ')+nome, 5000);
+      if(typeof depois === 'function') setTimeout(depois, 400);
+    };
+  }
+  // junta a cópia com o que já está aqui, sem repetir; o aparelho vence
+  function aplicar(c){
+    const lista = (c && Array.isArray(c.historias)) ? c.historias : [];
+    const validas = lista.filter(h=>h && h.texto).length;
+    const novas = mesclar(lista);
+    let ajustes = 0;
+    if(c && c.cfg) Object.keys(c.cfg).forEach(k=>{ if(!segredo(k) && (cfg[k]===undefined || cfg[k]==='') && c.cfg[k]!=='' && c.cfg[k]!==undefined){ cfg[k] = c.cfg[k]; ajustes++; } });
+    if(c && c.stats){
+      ['leituras','segundos','sequencia'].forEach(k=>{ stats[k] = Math.max(Number(stats[k])||0, Number(c.stats[k])||0); });
+      if(String(c.stats.ultimaNoite||'') > String(stats.ultimaNoite||'')) stats.ultimaNoite = c.stats.ultimaNoite;
+    }
+    salvarHistorias(); salvarCfg(); salvarStats(); aplicarCfgNaTela(); pintarTudo(); atualizarVozGuardada(true);
+    return { novas, jaEstavam: Math.max(0, validas - novas), ajustes };
+  }
+  function resumo(r){
+    modal(`<h3>✅ ${T('Cópia trazida','Copy restored')}</h3>
+      <p class="hint" style="font-size:15px">${r.novas} ${T('história(s) nova(s) entraram.','new story(ies) came in.')}<br>
+      ${r.jaEstavam} ${T('já estavam aqui e não foram repetidas.','were already here and were not repeated.')}${r.ajustes ? '<br>'+r.ajustes+' '+T('ajuste(s) que estavam vazios foram preenchidos.','empty setting(s) were filled in.') : ''}</p>
+      <div style="height:12px"></div><button class="btn sm" id="cp-ok">${T('Entendi','Got it')}</button>`);
+    $('#cp-ok').onclick = fecharModal;
+  }
+  function restaurar(obj){
+    modal(`<h3>🔓 ${T('Trazer uma cópia protegida','Restore a protected copy')}</h3>
+      <p class="hint">${T('Digite a senha desta cópia ou o código anotado no papel. Nada do que já está aqui se repete nem se perde.','Type this copy\'s password or the code written on paper. Nothing already here is repeated or lost.')}</p>
+      <input type="password" id="cp-abrir" autocomplete="off" placeholder="${T('Senha ou código (ex.: ABCDE-…)','Password or code (e.g. ABCDE-…)')}" aria-label="${T('Senha ou código','Password or code')}">
+      <div class="aviso oculto" id="cp-erro2" style="margin-top:10px"></div>
+      <div style="height:12px"></div><button class="btn pri" id="cp-trazer">${T('Abrir e trazer','Open and restore')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="cp-nao2">${T('Cancelar','Cancel')}</button>`);
+    $('#cp-nao2').onclick = fecharModal;
+    $('#cp-trazer').onclick = ()=>{
+      const texto = $('#cp-abrir').value; if(!texto) return;
+      fecharModal();
+      // senha errada não é "erro" da tarefa: volta como resposta, para a pílula sumir e a janela mostrar o aviso
+      DGO.tarefa.iniciar({ id:'copia-abrir', titulo:T('Abrindo a cópia protegida','Opening the protected copy'),
+        executar: ()=>abrir(obj, texto).then(c=>({ ok:aplicar(c) }), e=>({ erro: e && e.message==='senha' ? 'senha' : 'arquivo' })),
+        aoAbrir: r=>{
+          if(r.ok) return resumo(r.ok);
+          restaurar(obj);
+          const x = $('#cp-erro2');
+          x.textContent = r.erro==='senha' ? T('A senha ou o código não confere. Confira as letras e tente de novo.','The password or code does not match. Check the letters and try again.')
+                                           : T('Não deu para abrir este arquivo. Ele pode estar incompleto.','Could not open this file. It may be incomplete.');
+          x.classList.remove('oculto');
+        } });
+    };
+  }
+  return { fazer, restaurar, aplicar, FORMATO, util:{ b64, deB64, aleatorio, codigoNovo, soCodigo } };
+})();
+$('#btn-exportar').addEventListener('click', ()=>Copia.fazer());
 $('#btn-importar').addEventListener('click',()=>$('#file-importar').click());
 $('#file-importar').addEventListener('change', e=>{
   const f=e.target.files[0]; if(!f) return;
@@ -3996,10 +4189,10 @@ $('#file-importar').addEventListener('change', e=>{
   fr.onload=()=>{
     try{
       const j=JSON.parse(fr.result);
-      const lista = Array.isArray(j)? j : (j.historias||[]);
-      const n = mesclar(lista);
-      salvarHistorias(); pintarTudo();
-      toast(n? n+' história(s) novas importadas' : 'Nada novo para importar');
+      if(j && j.formato===Copia.FORMATO){ Copia.restaurar(j); e.target.value=''; return; }
+      // arquivo antigo, sem proteção (historias.json): continua aceito, juntando sem repetir
+      const r = Copia.aplicar({ historias: Array.isArray(j)? j : (j.historias||[]) });
+      toast(r.novas ? r.novas+T(' história(s) novas · ',' new story(ies) · ')+r.jaEstavam+T(' já estavam',' already here') : T('Nada novo: tudo já estava aqui','Nothing new: everything was already here'), 4500);
     }catch(err){ toast('Arquivo inválido 😕'); }
     e.target.value='';
   };
@@ -4024,12 +4217,36 @@ function mesclar(lista){
 }
 
 $('#btn-transferir').addEventListener('click', telaTransferencia);
-$('#btn-apagar-tudo').addEventListener('click',()=>{
-  if(!confirm('Isso apaga TODAS as histórias e ajustes deste celular. Tem certeza?')) return;
-  if(!confirm('Mesmo? Se você não exportou o backup, não tem volta.')) return;
-  localStorage.removeItem(CHAVE_H); localStorage.removeItem(CHAVE_C); localStorage.removeItem(CHAVE_S);
-  location.reload();
+// diretriz: antes de apagar qualquer dado do navegador, oferecer a cópia protegida
+$('#btn-apagar-tudo').addEventListener('click', ()=>{
+  modal(`<h3>🗑️ ${T('Apagar tudo deste aparelho','Erase everything on this device')}</h3>
+    <p class="hint">${T('Apaga as histórias, os ajustes e as contas de leitura deste aparelho. Não dá para desfazer.','Erases the stories, settings and reading counts on this device. It cannot be undone.')}</p>
+    <div class="aviso" style="margin-top:10px">${T('Antes, guarde uma cópia protegida: com ela você traz tudo de volta, aqui ou em outro aparelho.','First, save a protected copy: with it you bring everything back, here or on another device.')}</div>
+    <div style="height:12px"></div><button class="btn pri" id="ap-copia">🔒 ${T('Guardar a cópia agora','Save the copy now')}</button>
+    <div style="height:10px"></div><button class="btn sm ghost" id="ap-ja">${T('Já tenho uma cópia · continuar','I already have a copy · continue')}</button>
+    <div style="height:6px"></div><button class="btn sm ghost" id="ap-nao">${T('Cancelar','Cancel')}</button>`);
+  $('#ap-nao').onclick = fecharModal;
+  $('#ap-copia').onclick = ()=>Copia.fazer(apagarPasso2);
+  $('#ap-ja').onclick = apagarPasso2;
 });
+async function apagarPasso2(){
+  let mb = 0; try{ mb = ((await Guarda.resumo()).total.bytes||0)/1048576; }catch(e){}
+  modal(`<h3>🗑️ ${T('Última confirmação','Last confirmation')}</h3>
+    <p class="hint">${T('Vai sair deste aparelho: todas as histórias, os ajustes e as contas de leitura.','This will leave this device: all stories, settings and reading counts.')}</p>
+    <label style="display:flex;gap:10px;align-items:center;margin:12px 0"><input type="checkbox" id="ap-vozes" style="width:auto"> ${T('Apagar também as vozes guardadas','Also erase the saved voices')} (${mb.toFixed(1).replace('.', idiomaEN() ? '.' : ',')} MB)</label>
+    <p class="hint">${T('A conta SolverONE continua conectada (para sair, use o cartão Conta SolverONE). As histórias guardadas na conta continuam lá.','The SolverONE account stays connected (to sign out, use the SolverONE account card). The stories kept in the account stay there.')}</p>
+    <div style="height:12px"></div><button class="btn" id="ap-sim" style="color:var(--vermelho)">${T('Apagar tudo','Erase everything')}</button>
+    <div style="height:10px"></div><button class="btn sm ghost" id="ap-nao2">${T('Cancelar','Cancel')}</button>`);
+  $('#ap-nao2').onclick = fecharModal;
+  $('#ap-sim').onclick = async ()=>{
+    const vozes = $('#ap-vozes').checked;
+    await Nuvem.desligarAqui();   // antes: senão a próxima ida e volta apagaria as histórias da conta também
+    await Dados.apagar();
+    if(vozes){ try{ await Guarda.limpar(); }catch(e){} }
+    localStorage.removeItem(CHAVE_C); localStorage.removeItem(CHAVE_S);
+    location.reload();
+  };
+}
 
 /* ---------- levar a configuração para outro aparelho ---------- */
 // Viaja só o necessário para ler e escrever histórias. O token do GitHub NUNCA vai junto.
@@ -4100,8 +4317,21 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
-  ['1.19.0','10/10/2026', [
+  ['1.21.0','10/10/2026', [
     'Obedece aos interruptores do RootifyONE → Controle dos apps (arquivo recursos.js): o dono da SolverONE pode desligar o AssistONE, as dicas do AssistONE, a faixa de anúncios e o "A IA escreve" (criar com IA); o que for desligado some do app. Sem internet, vale a última escolha recebida (ou tudo ligado)'
+  ]],
+  ['1.20.0','10/10/2026', [
+    'Minhas histórias na conta: com a conta SolverONE, as suas histórias, onde parou, as favoritas e os ajustes vão para a conta e aparecem nos seus outros aparelhos',
+    'Tudo sai embaralhado do aparelho (nem a equipe da SolverONE lê) e só abre num aparelho seu ou com o código de recuperação que você anota',
+    'Sem internet continua funcionando: o que mudar fica guardado e sobe quando a internet voltar',
+    'Se a mesma história mudar em dois aparelhos, o app junta o que dá e pergunta qual fica no que mudou dos dois lados',
+    'Ainda em preparação: aparece ligada assim que a SolverONE liberar na sua conta'
+  ]],
+  ['1.19.0','10/10/2026', [
+    'Cópia protegida: a cópia das histórias sai embaralhada, com uma senha sua e um código para anotar num papel',
+    'Trazer uma cópia junta sem repetir: história que já está aqui não entra de novo, e nada se perde',
+    'Apagar tudo agora oferece guardar a cópia antes e deixa escolher se as vozes guardadas saem junto',
+    'As histórias passaram para um espaço maior do aparelho: com muitas histórias, o app não para mais de salvar'
   ]],
   ['1.18.1','09/10/2026', [
     'Leitura de foto (Usar a câmera) que não some: a tela fica acesa, uma pílula embaixo avisa "não feche o app" com progresso, dá para usar outras telas e, ao terminar, "✅ Pronto · toque para ver" reabre a leitura (diretriz SolverONE de tarefas longas, arquivo tarefas.js)'
@@ -4624,7 +4854,17 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     const t = await token(); if(!t) throw new Error(T('Entre na sua conta SolverONE.','Sign in to your SolverONE account.'));
     const r = await fetch(SB+'/rest/v1/rpc/'+nome, {method:'POST', headers:{apikey:CHAVE, Authorization:'Bearer '+t, 'Content-Type':'application/json'}, body:JSON.stringify(args||{})});
     const txt = await r.text(); let j = null; try{ j = txt ? JSON.parse(txt) : null; }catch(e){}
-    if(!r.ok){ const e = new Error((j && (j.message||j.msg)) || ('HTTP '+r.status)); e.status = r.status; throw e; }
+    if(!r.ok){ const e = new Error((j && (j.message||j.msg)) || ('HTTP '+r.status)); e.status = r.status; e.codigo = j && j.code; throw e; }
+    return j;
+  }
+  // tabelas (PostgREST): o RLS do banco só deixa ler e gravar as linhas da própria pessoa
+  async function rest(metodo, caminho, corpo, prefer){
+    const t = await token(); if(!t){ const e = new Error(T('Entre na sua conta SolverONE.','Sign in to your SolverONE account.')); e.semConta = true; throw e; }
+    const cab = {apikey:CHAVE, Authorization:'Bearer '+t, 'Content-Type':'application/json'};
+    if(prefer) cab.Prefer = prefer;
+    const r = await fetch(SB+'/rest/v1/'+caminho, {method:metodo, headers:cab, body: corpo===undefined ? undefined : JSON.stringify(corpo)});
+    const txt = await r.text(); let j = null; try{ j = txt ? JSON.parse(txt) : null; }catch(e){}
+    if(!r.ok){ const e = new Error((j && (j.message||j.msg)) || ('HTTP '+r.status)); e.status = r.status; e.codigo = j && j.code; throw e; }
     return j;
   }
   /* Edge Function da plataforma (registro de acessos com o IP visto pelo servidor). keepalive: a chamada termina mesmo
@@ -5089,9 +5329,518 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
     const s = servicos.find(x=>x && x.plano) || {};
     return { email: sessao.email||'', plano: s.plano||'', planoNome: nomePlano(s.plano||''), desde: sessao.desde||0 };
   }
-  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, convite, entrar: janelaEntrar, sair, encerrar, conectado:()=>!!lerSessao(), conta };
+  return { iniciar, atualizar, disponivel, voz, texto, nomeVoz, resumoCofre, convite, entrar: janelaEntrar, sair, encerrar, conectado:()=>!!lerSessao(), conta, rpc, rest, uid };
 })();
 Plataforma.iniciar();
+
+/* ---------- minhas histórias na conta (v1.20.0, Etapa 2c do plano da nuvem) ----------
+   As histórias da pessoa (não as do acervo do app, que já vêm no site), onde parou, favoritas, ajustes (sem chaves de
+   IA nem escolhas deste aparelho) e as contas de leitura sobem para a conta SolverONE e aparecem nos outros aparelhos.
+   TUDO sai cifrado daqui (AES-GCM 256): nem o banco nem a equipe leem. A chave nasce neste aparelho e vai para a conta
+   embrulhada pelo código de recuperação (20 letras, PBKDF2 600 mil rodadas) que a pessoa anota no papel: aparelho novo
+   só abre com o código. A cópia do aparelho continua sendo a principal (funciona sem internet); a nuvem é o espelho.
+   Como sabe o que mudou: guarda (IndexedDB, por conta) a última versão de cada história que subiu ou desceu e compara.
+   Mudou dos dois lados: junta campo a campo; o MESMO campo mudado nos dois lados → a pessoa escolhe. Trava otimista
+   pela coluna versao do banco (PATCH ... versao=eq.N). O id da história não muda nunca (é ele que liga à voz guardada).
+   Enquanto o SQL do Contador não estiver no banco, o cartão diz "em preparação" e nada é chamado de novo. */
+const Nuvem = (function(){
+  const CAMPOS = ['titulo','texto','idade','tema','personagens','serie','ordem','criadaEm','origem'];
+  // ajustes que valem para a pessoa em qualquer aparelho (motor, voz, modelo e chaves são de cada aparelho)
+  const PREFS = ['publicoNomes','publicoTipo','publicoNaHistoria','saudarAntes','vel','tom','openaiInstr','geminiInstr',
+    'efeitos','volEfeitos','durEfeitos','adiantar','fonte','telaAcesa','destaque','usarVozGuardada','protegerNomes',
+    'nomesProtegidos','tema','reduzirAnimacoes'];
+  const RODADAS = 600000, CONSENTIMENTO = 'v1-2026-10', ID_OK = /^[A-Za-z0-9_.:@-]{1,80}$/, PAGINA = 500;
+  const {b64, deB64, aleatorio, codigoNovo, soCodigo} = Copia.util;
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const igual = (a, b) => JSON.stringify(a)===JSON.stringify(b);
+  const q = encodeURIComponent;
+  const iso = x => { const d = new Date(x); return isNaN(d) ? '' : d.toISOString(); };
+  const doAcervo = h => /^h_/.test(h.id);          // as do acervo do app (historias.json) já estão no site para todos
+  const nid = h => h.nuvemId || h.id;               // id na conta (o do aparelho, salvo quando o banco não aceita)
+  const cont = h => ({ titulo:h.titulo||'', texto:h.texto||'', idade:h.idade||'', tema:h.tema||'', personagens:h.personagens||'',
+    serie:h.serie||'', ordem:Number(h.ordem)||0, criadaEm:h.criadaEm||'', origem:h.origem||'' });
+  const prog = h => ({ favorita:!!h.favorita, lida:!!h.lida, posFrase:Math.min(100000, Number(h.posFrase)||0),
+    frasesTotal:Math.min(100000, Number(h.frasesTotal)||0), leituras:Math.min(1000000, Number(h.leituras)||0), ouvidaEm: h.ouvidaEm ? iso(h.ouvidaEm) : '' });
+  const prefs = ()=>{ const o = {}; PREFS.forEach(k=>{ o[k] = cfg[k]===undefined ? null : cfg[k]; }); return o; };
+  let APARELHO = ''; try{ APARELHO = localStorage.getItem('ch_aparelho') || ''; if(!/^[A-Za-z0-9_-]{8,64}$/.test(APARELHO)){ APARELHO = 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); localStorage.setItem('ch_aparelho', APARELHO); } }catch(e){ APARELHO = 'a'+Date.now().toString(36)+'semlocal'; }
+
+  // estado: sem-conta · indisponivel (motivo: preparo | desligado | navegador) · sem-internet · nova · trancada · ligada
+  let estado = 'sem-conta', motivo = '', U = '', chaves = null, st = null;
+  let rodando = null, tEspera = 0, erro = '', mostrarSelo = 0, segurando = [], aplicando = false;
+  // grava as histórias sem contar como "mudou aqui" (senão cada ida e volta chamaria outra)
+  const salvarAqui = ()=>{ aplicando = true; try{ salvarHistorias(); }finally{ aplicando = false; } };
+  const rest = (m, c, b, p) => Plataforma.rest(m, c, b, p);
+  const guardar = ()=> st && U ? Dados.gravarKV('nuvem|'+U, st).catch(()=>{}) : Promise.resolve();
+  const estadoNovo = ()=>({ h:{}, p:{}, fora:{}, conflitos:{}, dup:{}, desdeH:'', desdeP:'', pref:null, s:null, outros:null, liberado:[] });
+
+  // ---------- chaves ----------
+  async function chaveDoCodigo(codigo, sal, rodadas){
+    const base = await crypto.subtle.importKey('raw', enc.encode(soCodigo(codigo)), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2', hash:'SHA-256', salt:sal, iterations:rodadas||RODADAS}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  }
+  // da chave-mestra saem duas, que ficam guardadas neste aparelho sem poder ser copiadas (não exportáveis)
+  async function derivar(bruta){
+    const mestra = await crypto.subtle.importKey('raw', bruta, 'HKDF', false, ['deriveKey']);
+    const de = info => ({name:'HKDF', hash:'SHA-256', salt:new Uint8Array(32), info:enc.encode(info)});
+    return { aes: await crypto.subtle.deriveKey(de('contador/historias/cifra'), mestra, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']),
+             hmac: await crypto.subtle.deriveKey(de('contador/historias/marca'), mestra, {name:'HMAC', hash:'SHA-256', length:256}, false, ['sign']) };
+  }
+  // o conteúdo fica preso ao dono e ao id (additionalData): trocar de linha no banco não abre
+  async function cifrar(obj, onde){
+    const iv = aleatorio(12);
+    const c = await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:enc.encode(U+'|'+onde)}, chaves.aes, enc.encode(JSON.stringify(obj)));
+    return b64(iv)+'.'+b64(new Uint8Array(c));
+  }
+  async function decifrar(txt, onde){
+    const [iv, c] = String(txt||'').split('.');
+    return JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM', iv:deB64(iv), additionalData:enc.encode(U+'|'+onde)}, chaves.aes, deB64(c))));
+  }
+  // impressão digital (o banco recusa a mesma história duas vezes sem conseguir ler o texto)
+  async function marcar(c){
+    const m = new Uint8Array(await crypto.subtle.sign('HMAC', chaves.hmac, enc.encode(c.titulo+'\n'+c.texto)));
+    return Array.from(m, b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  async function guardarChaves(bruta){
+    chaves = await derivar(bruta); bruta.fill(0);
+    await Dados.gravarKV('nuvemchave|'+U, chaves);
+    st = estadoNovo(); await guardar();
+  }
+
+  // ---------- como está ----------
+  async function avaliar(){
+    if(rodando) await rodando.catch(()=>{});     // termina a ida e volta em andamento antes de trocar de conta
+    U = Plataforma.uid(); chaves = null; st = null; segurando = []; erro = '';
+    if(!U){ estado = 'sem-conta'; pintar(); return; }
+    await Dados.esperar();
+    if(!Dados.noIndexedDB()){ estado = 'indisponivel'; motivo = 'navegador'; pintar(); return; }
+    const eu = U;
+    try{ chaves = (await Dados.lerKV('nuvemchave|'+U)) || null; st = (await Dados.lerKV('nuvem|'+U)) || null; }catch(e){}
+    if(chaves && !st) st = estadoNovo();
+    if(chaves && st){ st = Object.assign(estadoNovo(), st); estado = 'ligada'; pintar(); }
+    try{
+      const pode = await Plataforma.rpc('conta_posso', {p_regra:'nuvem'});
+      if(eu!==U) return;
+      if(pode!==true){ estado = 'indisponivel'; motivo = 'desligado'; pintar(); return; }
+      if(estado==='ligada'){ sincronizar(); return; }
+      const l = await rest('GET', 'conta_chave?select=versao&user_id=eq.'+U+'&limit=1');
+      estado = l && l.length ? 'trancada' : 'nova';
+    }catch(e){
+      if(eu!==U) return;
+      if(e.status===404 || /^(PGRST20[25]|42P01|42883)$/.test(e.codigo||'')){ estado = 'indisponivel'; motivo = 'preparo'; }   // o SQL ainda não rodou
+      else if(estado!=='ligada') estado = 'sem-internet';
+    }
+    pintar();
+  }
+
+  // ---------- ligar (primeiro aparelho) e destrancar (aparelho novo, com o código) ----------
+  async function ligar(codigo, andamento){
+    const bruta = aleatorio(32), sal = aleatorio(16), iv = aleatorio(12);
+    andamento(0.05, T('protegendo a chave com o código…','protecting the key with the code…'));
+    const k = await chaveDoCodigo(codigo, sal);
+    const emb = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:enc.encode('conta_chave|'+U+'|1')}, k, bruta));
+    try{ await rest('POST', 'conta_chave', {versao:1, iteracoes:RODADAS, sal:b64(sal), chave_embrulhada:b64(iv)+'.'+b64(emb)}, 'return=minimal'); }
+    catch(e){ if(e.status===409 || e.codigo==='23505'){ estado = 'trancada'; pintar(); return {erro:'outro'}; } throw e; }
+    await guardarChaves(bruta);
+    // consentimento do responsável (LGPD art. 14 §1º): fica registrado na conta com a data e a versão do texto
+    await rest('POST', 'conta_preferencias?on_conflict=user_id', {user_id:U, consentimento_em:new Date().toISOString(), consentimento_versao:CONSENTIMENTO}, 'resolution=merge-duplicates,return=minimal');
+    estado = 'ligada';
+    await sincronizar(andamento, true);
+    return {ok:true};
+  }
+  async function destrancar(codigo, andamento){
+    andamento(0.05, T('conferindo o código…','checking the code…'));
+    const linhas = await rest('GET', 'conta_chave?select=versao,iteracoes,sal,chave_embrulhada&user_id=eq.'+U+'&order=versao.desc') || [];
+    let bruta = null;
+    for(const l of linhas){
+      try{
+        const k = await chaveDoCodigo(codigo, deB64(l.sal), l.iteracoes);
+        const [iv, c] = l.chave_embrulhada.split('.');
+        bruta = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:deB64(iv), additionalData:enc.encode('conta_chave|'+U+'|'+l.versao)}, k, deB64(c)));
+        break;
+      }catch(e){}
+    }
+    if(!bruta) return {erro:'codigo'};
+    await guardarChaves(bruta);
+    estado = 'ligada';
+    await sincronizar(andamento, true);
+    return {ok:true};
+  }
+
+  // ---------- trazer da conta ----------
+  async function paginas(tabela, campos, ordem, desde, cada){
+    let pulo = 0, maior = desde;
+    // 2 minutos de folga: uma gravação que terminou depois de eu ler não escapa (o que já tenho é pulado pela versão)
+    const filtro = desde ? '&atualizado_em=gt.'+q(new Date(Date.parse(desde)-120000).toISOString()) : '';
+    for(;;){
+      const l = await rest('GET', tabela+'?select='+campos+'&user_id=eq.'+U+filtro+'&order=atualizado_em.asc,'+ordem+'.asc&limit='+PAGINA+'&offset='+pulo) || [];
+      for(const x of l){ await cada(x); if(!maior || Date.parse(x.atualizado_em) > Date.parse(maior)) maior = x.atualizado_em; }
+      if(l.length < PAGINA) return maior;
+      pulo += l.length;
+    }
+  }
+  // história que chega da conta (ou volta): já com o onde parei que a conta tem, para não subir zerada por cima
+  const novaDe = (id, c) => Object.assign({ id, leituras:0, favorita:false, lida:false, posFrase:0, frasesTotal:0, ouvidaEm:'' },
+    (st.p[id] && st.p[id].c) || {}, c, { idade:c.idade||'6-9', titulo:c.titulo||T('Sem título','Untitled') });
+  async function puxarHistorias(mudou){
+    st.desdeH = await paginas('conta_historias', 'id,versao,dados_cifrado,apagado_em,atualizado_em', 'id', st.desdeH, async x=>{
+      const k = st.h[x.id];
+      if(k && k.v >= x.versao) return;
+      const L = historias.find(h=>nid(h)===x.id);
+      if(x.apagado_em){
+        // apagada em outro aparelho: sai daqui também, a não ser que tenha mudado aqui depois (aí fica e sobe de novo)
+        if(L && k && k.c && igual(cont(L), k.c)){
+          historias = historias.filter(h=>h!==L); Guarda.limparHistoria(L.id).catch(()=>{}); mudou.n++;
+          st.h[x.id] = {v:x.versao, apagada:true};
+        } else st.h[x.id] = L ? {v:x.versao} : {v:x.versao, apagada:true};
+        delete st.conflitos[x.id];
+        return;
+      }
+      let R; try{ R = Object.assign(cont({}), await decifrar(x.dados_cifrado, x.id)); }catch(e){ return; }   // não abriu: fica para depois
+      if(!L){ historias.push(novaDe(x.id, R)); st.h[x.id] = {v:x.versao, c:R}; mudou.n++; return; }
+      // junta campo a campo: o que só mudou de um lado fica; o mesmo campo mudado dos dois lados → a pessoa escolhe
+      const local = cont(L), base = k && k.c, junto = {}, briga = [];
+      CAMPOS.forEach(f=>{
+        if(igual(local[f], R[f]) || (base && igual(local[f], base[f]))) junto[f] = R[f];
+        else if(base && igual(R[f], base[f])) junto[f] = local[f];
+        else briga.push(f);
+      });
+      if(briga.length){ st.conflitos[x.id] = {v:x.versao, c:R}; return; }
+      if(!igual(local, junto)){ Object.assign(L, junto); mudou.n++; }
+      st.h[x.id] = {v:x.versao, c:R};          // o que mudou só aqui continua diferente da conta: sobe em seguida
+      delete st.conflitos[x.id];
+    });
+    if(mudou.n) historias.sort((a,b)=> (b.criadaEm||'').localeCompare(a.criadaEm||''));
+  }
+  function aplicarProg(L, R, base){
+    const local = prog(L);
+    if(base && igual(local, base)){ Object.assign(L, R); return; }
+    if(!base){   // primeira vez neste aparelho: soma os dois (nada se perde)
+      L.favorita = local.favorita || R.favorita; L.lida = local.lida || R.lida;
+      // onde parei: o mais recente; empate (ou sem data) e aqui ainda no começo → o de lá
+      if(R.ouvidaEm > local.ouvidaEm || (R.ouvidaEm===local.ouvidaEm && !local.posFrase)){ L.posFrase = R.posFrase; L.frasesTotal = R.frasesTotal; L.ouvidaEm = R.ouvidaEm; }
+    }
+    // mudou aqui também: fica a daqui (sobe em seguida); as leituras ficam com a maior conta
+    L.leituras = Math.max(local.leituras, R.leituras);
+  }
+  async function puxarProgresso(mudou){
+    st.desdeP = await paginas('conta_progresso', 'historia_id,versao,favorita,lida,pos_frase,frases_total,leituras,ouvida_em,atualizado_em', 'historia_id', st.desdeP, async x=>{
+      const k = st.p[x.historia_id];
+      if(k && k.v >= x.versao) return;
+      const R = { favorita:!!x.favorita, lida:!!x.lida, posFrase:x.pos_frase||0, frasesTotal:x.frases_total||0, leituras:x.leituras||0, ouvidaEm: x.ouvida_em ? iso(x.ouvida_em) : '' };
+      const L = historias.find(h=>nid(h)===x.historia_id);
+      if(!L){ st.fora[x.historia_id] = {v:x.versao, c:R}; return; }   // a história ainda não chegou aqui (ex.: acervo baixando)
+      const antes = prog(L); aplicarProg(L, R, k && k.c); if(!igual(antes, prog(L))) mudou.n++;
+      st.p[x.historia_id] = {v:x.versao, c:R};
+    });
+    Object.keys(st.fora).forEach(id=>{
+      const L = historias.find(h=>nid(h)===id); if(!L) return;
+      const f = st.fora[id]; delete st.fora[id];
+      if(st.p[id] && st.p[id].v >= f.v) return;
+      aplicarProg(L, f.c, st.p[id] && st.p[id].c); st.p[id] = f; mudou.n++;
+    });
+  }
+  async function puxarPreferencias(){
+    const x = (await rest('GET', 'conta_preferencias?select=versao,dados_cifrado&user_id=eq.'+U) || [])[0];
+    if(!x || !x.dados_cifrado || (st.pref && st.pref.v >= x.versao)) return;
+    let R; try{ R = await decifrar(x.dados_cifrado, 'preferencias'); }catch(e){ return; }
+    const local = prefs(), base = st.pref && st.pref.c; let mudou = false;
+    PREFS.forEach(k=>{
+      if(!(k in R) || igual(local[k], R[k])) return;
+      if(!base || igual(local[k], base[k])){ cfg[k] = R[k]; mudou = true; }
+    });
+    st.pref = {v:x.versao, c:R};
+    if(mudou){ salvar(CHAVE_C, cfg); aplicarCfgNaTela(); if(typeof Topo!=='undefined') Topo.aplicarTema(); }
+  }
+  async function puxarEstatisticas(){
+    const l = await rest('GET', 'conta_estatisticas?select=leituras,segundos,sequencia&user_id=eq.'+U+'&aparelho=neq.'+q(APARELHO)) || [];
+    st.outros = l.reduce((a, x)=>({ leituras:a.leituras+(x.leituras||0), segundos:a.segundos+Number(x.segundos||0), sequencia:Math.max(a.sequencia, x.sequencia||0) }), {leituras:0, segundos:0, sequencia:0});
+  }
+
+  // ---------- levar para a conta ----------
+  const pendentesHist = ()=> historias.filter(h=>!doAcervo(h) && h.texto && !st.conflitos[nid(h)]
+    && !(st.h[nid(h)] && st.h[nid(h)].c && igual(st.h[nid(h)].c, cont(h))) && st.dup[nid(h)]!==JSON.stringify(cont(h)));
+  const sumidas = ()=>{ const aqui = new Set(historias.map(nid)); return Object.keys(st.h).filter(id=>!st.h[id].apagada && !aqui.has(id) && !st.conflitos[id]); };
+  function quantasPendentes(){
+    if(estado!=='ligada' || !st) return 0;
+    return pendentesHist().length + sumidas().length - segurando.length;
+  }
+  const existe = async id => ((await rest('GET', 'conta_historias?select=versao&user_id=eq.'+U+'&id=eq.'+q(id))) || []).length > 0;
+  async function levarHistorias(passo, de){
+    let trocou = false;
+    historias.forEach(h=>{ if(!doAcervo(h) && !ID_OK.test(nid(h))){ h.nuvemId = uid(); trocou = true; } });
+    if(trocou) salvarAqui();
+    const fila = pendentesHist(), sumiram = sumidas();
+    // muitas saíram de uma vez: pergunta antes de apagar da conta (pode ter sido engano)
+    const vivas = Object.keys(st.h).filter(id=>!st.h[id].apagada).length;
+    const liberadas = sumiram.every(id=>st.liberado.includes(id));
+    segurando = (sumiram.length > 3 && sumiram.length > vivas*0.3 && !liberadas) ? sumiram : [];
+    const apagar = segurando.length ? [] : sumiram;
+    let feitas = 0, denovo = false; const total = fila.length + apagar.length;
+    for(const h of fila){
+      passo(de + (0.95-de)*(feitas++/Math.max(1,total)), T('levando as histórias','taking the stories')+` (${feitas}/${total})`);
+      const id = nid(h), c = cont(h), k = st.h[id];
+      const corpo = { chave_versao:1, dados_cifrado: await cifrar(c, id), marca: await marcar(c), apagado_em:null };
+      try{
+        let l = null;
+        if(k) l = await rest('PATCH', 'conta_historias?user_id=eq.'+U+'&id=eq.'+q(id)+'&versao=eq.'+k.v, corpo, 'return=representation');
+        if(k && !(l && l.length)){
+          if(await existe(id)){ denovo = true; continue; }    // mudou em outro aparelho: traz primeiro e tenta de novo
+          delete st.h[id];
+        }
+        if(!st.h[id]) l = await rest('POST', 'conta_historias', Object.assign({id}, corpo), 'return=representation');
+        st.h[id] = {v:l[0].versao, c};
+      }catch(e){
+        if(e.codigo==='23505' && /marca|sem_repetir/.test(e.message||'')){
+          // a mesma história (título e texto) já está na conta com outro id: passa a usar aquela; repetida aqui fica só aqui
+          const o = (await rest('GET', 'conta_historias?select=id,versao&user_id=eq.'+U+'&marca=eq.'+corpo.marca+'&apagado_em=is.null') || [])[0];
+          if(!k && o && !historias.some(x=>nid(x)===o.id)){ h.nuvemId = o.id; st.h[o.id] = {v:o.versao, c}; salvarAqui(); }
+          else st.dup[id] = JSON.stringify(c);
+          continue;
+        }
+        if(e.codigo==='23505' || e.status===409){ denovo = true; continue; }   // outro aparelho criou antes: traz primeiro
+        throw e;
+      }
+    }
+    for(const id of apagar){
+      passo(de + (0.95-de)*(feitas++/Math.max(1,total)), T('tirando da conta as que você apagou','removing the ones you deleted'));
+      const l = await rest('PATCH', 'conta_historias?user_id=eq.'+U+'&id=eq.'+q(id)+'&versao=eq.'+st.h[id].v, {apagado_em:new Date().toISOString()}, 'return=representation');
+      if(l && l.length) st.h[id] = {v:l[0].versao, apagada:true};
+      else if(await existe(id)) denovo = true;      // mudou em outro aparelho depois: volta para cá em vez de sumir
+      else delete st.h[id];
+    }
+    if(!segurando.length) st.liberado = [];
+    return denovo;
+  }
+  async function levarProgresso(){
+    const linhas = [], valores = {};
+    historias.forEach(h=>{
+      const id = nid(h); if(!ID_OK.test(id) || st.conflitos[id]) return;
+      const p = prog(h), k = st.p[id];
+      if(k ? igual(k.c, p) : igual(p, prog({}))) return;
+      valores[id] = p;
+      linhas.push({ user_id:U, historia_id:id, favorita:p.favorita, lida:p.lida, pos_frase:p.posFrase, frases_total:p.frasesTotal, leituras:p.leituras, ouvida_em:p.ouvidaEm||null });
+    });
+    for(let i=0; i<linhas.length; i+=200){
+      const r = await rest('POST', 'conta_progresso?on_conflict=user_id,historia_id', linhas.slice(i, i+200), 'resolution=merge-duplicates,return=representation') || [];
+      r.forEach(x=>{ if(valores[x.historia_id]) st.p[x.historia_id] = {v:x.versao, c:valores[x.historia_id]}; });
+    }
+  }
+  async function levarPreferencias(){
+    const p = prefs(); if(st.pref && igual(st.pref.c, p)) return;
+    const r = await rest('POST', 'conta_preferencias?on_conflict=user_id', {user_id:U, dados_cifrado: await cifrar(p, 'preferencias'), chave_versao:1}, 'resolution=merge-duplicates,return=representation') || [];
+    if(r[0]) st.pref = {v:r[0].versao, c:p};
+  }
+  async function levarEstatisticas(){
+    const s = { leituras:stats.leituras||0, segundos:stats.segundos||0, ultima_noite: /^\d{4}-\d\d-\d\d$/.test(stats.ultimaNoite||'') ? stats.ultimaNoite : null, sequencia:stats.sequencia||0 };
+    if(igual(st.s, s)) return;
+    await rest('POST', 'conta_estatisticas?on_conflict=user_id,aparelho', Object.assign({user_id:U, aparelho:APARELHO}, s), 'resolution=merge-duplicates,return=minimal');
+    st.s = s;
+  }
+
+  // ---------- uma ida e volta completa ----------
+  async function rodada(andamento){
+    const passo = andamento || (()=>{});
+    const mudou = {n:0};
+    let denovo = false, vez = 0;
+    do{
+      passo(0.15, T('trazendo o que já está na conta…','bringing what is already in the account…'));
+      await puxarHistorias(mudou); await puxarProgresso(mudou); await puxarPreferencias(); await puxarEstatisticas();
+      if(mudou.n){ salvarAqui(); pintarTudo(); mudou.n = 0; }
+      await guardar();
+      denovo = await levarHistorias(passo, 0.35);
+      await guardar();
+      await levarProgresso(); await levarPreferencias(); await levarEstatisticas();
+      await guardar();
+    }while(denovo && ++vez < 3);
+    pintarStats();
+  }
+  function sincronizar(andamento, avisarErro){
+    if(estado!=='ligada' || !chaves || !st) return Promise.resolve();
+    if(rodando){ if(!andamento) return rodando; return rodando.then(()=>sincronizar(andamento, avisarErro)); }
+    clearTimeout(tEspera); tEspera = 0;
+    const eu = U, antes = quantasPendentes();
+    rodando = rodada(andamento)
+      .then(()=>{ erro = ''; if(antes && !quantasPendentes() && !andamento) mostrarSelo = Date.now(); })
+      .catch(e=>{
+        if(eu!==U) return;
+        erro = e.semConta ? '' : (e.status ? T('A conta não aceitou agora','The account did not accept it now')+' ('+(e.codigo||e.status)+')' : T('Sem internet: guardo quando voltar.','No internet: I will save when it is back.'));
+        if(e.status===404 || /^(PGRST20[25]|42P01)$/.test(e.codigo||'')){ estado = 'indisponivel'; motivo = 'preparo'; }
+        if(avisarErro) throw e;
+      })
+      .finally(()=>{ rodando = null; pintar(); });
+    return rodando;
+  }
+  // algo mudou neste aparelho: sobe daqui a pouco (junta várias mudanças seguidas numa ida só)
+  function mudou(){
+    if(aplicando || estado!=='ligada' || tEspera) return;
+    tEspera = setTimeout(()=>{ tEspera = 0; sincronizar(); }, 15000);
+    pintarSelo();
+  }
+
+  // ---------- telas ----------
+  function primeiraVez(){
+    const passos = [
+      ['☁️', T('O que vai para a conta','What goes to the account'),
+        T('As histórias que você criou ou trouxe, onde parou em cada uma, as favoritas, os seus ajustes de leitura e as contas de leitura. As do acervo do app não sobem: elas já vêm com o app. As chaves de IA e as vozes guardadas ficam só neste aparelho.',
+          'The stories you created or brought in, where you stopped in each one, favorites, your reading settings and reading counts. The app\'s own stories do not go up: they already come with the app. AI keys and saved voices stay on this device only.')],
+      ['🔒', T('Quem consegue ler','Who can read it'),
+        T('Tudo sai embaralhado deste aparelho, inclusive os nomes das crianças. Nem a equipe da SolverONE consegue ler. Só abre num aparelho seu: neste, ou num novo com o código que vou mostrar agora.',
+          'Everything leaves this device scrambled, including the children\'s names. Not even the SolverONE team can read it. It only opens on a device of yours: this one, or a new one with the code I will show you now.')]
+    ];
+    const codigo = codigoNovo();
+    let i = 0;
+    const mostrar = ()=>{
+      if(i < passos.length){
+        const [ic, tit, txt] = passos[i];
+        modal(`<p class="hint" style="margin:0">${T('Passo','Step')} ${i+1} ${T('de','of')} 4</p><h3>${ic} ${tit}</h3><p class="hint" style="font-size:14px">${txt}</p>
+          <div style="height:12px"></div><button class="btn pri" id="nv-seguir">${T('Continuar','Continue')}</button>
+          <div style="height:10px"></div><button class="btn sm ghost" id="nv-nao">${T('Agora não','Not now')}</button>`);
+        $('#nv-seguir').onclick = ()=>{ i++; mostrar(); };
+      } else if(i===2){
+        modal(`<p class="hint" style="margin:0">${T('Passo','Step')} 3 ${T('de','of')} 4</p><h3>📝 ${T('Anote o código de recuperação','Write down the recovery code')}</h3>
+          <p class="hint">${T('Escreva num papel e guarde junto com os seus documentos. Num aparelho novo, as histórias só abrem com ele. Se perder o código e este aparelho, nem a SolverONE consegue abrir.','Write it on paper and keep it with your documents. On a new device, the stories only open with it. If you lose the code and this device, not even SolverONE can open them.')}</p>
+          <div class="codigo-rec" style="font:700 20px/1.5 ui-monospace,monospace;letter-spacing:1px;text-align:center;padding:14px;border-radius:12px;background:rgba(255,255,255,.06);user-select:all">${esc(codigo)}</div>
+          <label style="display:flex;gap:10px;align-items:center;margin:12px 0"><input type="checkbox" id="nv-anotei" style="width:auto"> ${T('Anotei o código num papel','I wrote the code on paper')}</label>
+          <button class="btn pri" id="nv-seguir" disabled>${T('Continuar','Continue')}</button>
+          <div style="height:10px"></div><button class="btn sm ghost" id="nv-nao">${T('Agora não','Not now')}</button>`);
+        $('#nv-anotei').onchange = e=>{ $('#nv-seguir').disabled = !e.target.checked; };
+        $('#nv-seguir').onclick = ()=>{ i++; mostrar(); };
+      } else {
+        const n = historias.filter(h=>!doAcervo(h) && h.texto).length;
+        modal(`<p class="hint" style="margin:0">${T('Passo','Step')} 4 ${T('de','of')} 4</p><h3>👨‍👩‍👧 ${T('Autorização do responsável','Guardian\'s permission')}</h3>
+          <p class="hint">${T('As histórias podem ter o nome e o jeito das crianças. Pela lei (LGPD), quem autoriza guardar isso na conta é o pai, a mãe ou o responsável.','Stories may have the children\'s names and traits. By law (LGPD), the parent or guardian is who allows keeping this in the account.')}</p>
+          <label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0"><input type="checkbox" id="nv-autorizo" style="width:auto;margin-top:3px"> <span>${T('Sou o responsável pelas crianças das histórias e autorizo guardar estas histórias, cifradas, na minha conta SolverONE. Posso desligar ou pedir a exclusão quando quiser.','I am the guardian of the children in the stories and I allow these stories to be kept, encrypted, in my SolverONE account. I can switch it off or ask for erasure whenever I want.')}</span></label>
+          <p class="hint">${T('Dúvidas sobre os seus dados:','Questions about your data:')} privacidade@solverone.com.br</p>
+          <p class="hint">${n ? T(`Vão para a conta ${n} história(s) deste aparelho.`, `${n} story(ies) from this device will go to the account.`) : T('Ainda não há histórias suas neste aparelho; as próximas vão sozinhas.','There are no stories of yours on this device yet; the next ones go automatically.')}</p>
+          <button class="btn pri" id="nv-seguir" disabled>☁️ ${T('Ligar e levar as histórias','Switch on and take the stories')}</button>
+          <div style="height:10px"></div><button class="btn sm ghost" id="nv-nao">${T('Agora não','Not now')}</button>`);
+        $('#nv-autorizo').onchange = e=>{ $('#nv-seguir').disabled = !e.target.checked; };
+        $('#nv-seguir').onclick = ()=>{ fecharModal(); emTarefa(T('Levando suas histórias para a conta','Taking your stories to the account'), a=>ligar(codigo, a)); };
+      }
+      $('#nv-nao').onclick = fecharModal;
+    };
+    mostrar();
+  }
+  function pedirCodigo(){
+    modal(`<h3>🔑 ${T('Abrir as histórias da conta neste aparelho','Open the account stories on this device')}</h3>
+      <p class="hint">${T('A sua conta já guarda histórias. Para abrir aqui, digite o código de recuperação que você anotou quando ligou no primeiro aparelho.','Your account already keeps stories. To open them here, type the recovery code you wrote down when you switched it on on the first device.')}</p>
+      <label class="f" for="nv-codigo">${T('Código de recuperação','Recovery code')}</label>
+      <input id="nv-codigo" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCDE-FGHJK-MNPQR-STUVW">
+      <div class="aviso oculto" id="nv-erro" style="margin-top:10px"></div>
+      <div style="height:12px"></div><button class="btn pri" id="nv-abrir">${T('Abrir e trazer as histórias','Open and bring the stories')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="nv-nao">${T('Agora não','Not now')}</button>`);
+    $('#nv-nao').onclick = fecharModal;
+    $('#nv-abrir').onclick = ()=>{
+      const c = $('#nv-codigo').value;
+      if(soCodigo(c).length !== 20){ const e = $('#nv-erro'); e.textContent = T('O código tem 20 letras e números (os tracinhos não contam).','The code has 20 letters and numbers (dashes do not count).'); e.classList.remove('oculto'); return; }
+      fecharModal();
+      emTarefa(T('Trazendo as histórias da conta','Bringing the account stories'), a=>destrancar(c, a));
+    };
+  }
+  function emTarefa(titulo, fazer){
+    DGO.tarefa.iniciar({ id:'nuvem', titulo, executar: fazer,
+      aoAbrir: r=>{
+        if(r && r.erro==='codigo'){ pedirCodigo(); const e = $('#nv-erro'); if(e){ e.textContent = T('Esse código não abriu. Confira as letras e tente de novo.','That code did not open it. Check the letters and try again.'); e.classList.remove('oculto'); } return; }
+        if(r && r.erro==='outro'){ toast(T('Outro aparelho seu acabou de ligar: use o código que apareceu nele.','Another device of yours just switched it on: use the code shown there.'), 6000); pedirCodigo(); return; }
+        toast('✓ '+T('Tudo salvo na sua conta','Everything saved in your account'), 4000);
+        if(Object.keys(st.conflitos).length) escolher();
+      } })
+      .catch(()=>toast(T('Não deu agora. Confira a internet e tente de novo.','It did not work now. Check the internet and try again.'), 5000));
+  }
+  // a mesma história mudou nos dois aparelhos: a pessoa escolhe (ou fica com as duas)
+  function escolher(){
+    const id = Object.keys(st.conflitos)[0]; if(!id) return;
+    const R = st.conflitos[id].c, v = st.conflitos[id].v, L = historias.find(h=>nid(h)===id);
+    const fim = ()=>{ delete st.conflitos[id]; salvarAqui(); pintarTudo(); guardar().then(()=>{ fecharModal(); if(Object.keys(st.conflitos).length) escolher(); else sincronizar(); }); };
+    if(!L){ st.h[id] = {v, c:R}; historias.push(novaDe(id, R)); return fim(); }
+    const resumo = h => esc((h.titulo||'')+' — '+String(h.texto||'').slice(0, 110))+'…';
+    modal(`<h3>✋ ${T('Esta história mudou em dois aparelhos','This story changed on two devices')}</h3>
+      <p class="hint">${T('Qual fica?','Which one stays?')}</p>
+      <div class="info" style="margin-top:8px"><b>${T('Deste aparelho','This device')}:</b> ${resumo(L)}</div>
+      <div class="info" style="margin-top:8px"><b>${T('Do outro aparelho','Other device')}:</b> ${resumo(R)}</div>
+      <div style="height:12px"></div><button class="btn" id="nv-deste">${T('A deste aparelho','This device\'s')}</button>
+      <div style="height:8px"></div><button class="btn" id="nv-outro">${T('A do outro aparelho','The other device\'s')}</button>
+      <div style="height:8px"></div><button class="btn" id="nv-duas">${T('Ficar com as duas','Keep both')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="nv-depois">${T('Escolher depois','Choose later')}</button>`);
+    $('#nv-depois').onclick = fecharModal;
+    $('#nv-deste').onclick = ()=>{ st.h[id] = {v, c:R}; fim(); };
+    $('#nv-outro').onclick = ()=>{ Object.assign(L, R); st.h[id] = {v, c:R}; fim(); };
+    $('#nv-duas').onclick = ()=>{ historias.push(novaDe(uid(), Object.assign({}, R, {titulo:(R.titulo||'')+' '+T('(outro aparelho)','(other device)')}))); st.h[id] = {v, c:R}; fim(); };
+  }
+  function desligarAqui(confirmar){
+    const fazer = async ()=>{
+      if(rodando) await rodando.catch(()=>{});   // senão a ida e volta em andamento gravaria o estado de novo
+      const u = U; clearTimeout(tEspera); tEspera = 0; estado = 'sem-conta';
+      try{ await Dados.apagarKV('nuvemchave|'+u); await Dados.apagarKV('nuvem|'+u); }catch(e){}
+      chaves = null; st = null; await avaliar();
+    };
+    if(!confirmar) return fazer();
+    modal(`<h3>☁️ ${T('Desligar neste aparelho?','Switch off on this device?')}</h3>
+      <p class="hint">${T('As histórias continuam neste aparelho e na conta; só param de ir e vir por aqui. Para ligar de novo, vai pedir o código de recuperação.','The stories stay on this device and in the account; they just stop syncing here. To switch on again, it will ask for the recovery code.')}</p>
+      <div style="height:12px"></div><button class="btn" id="nv-sim">${T('Desligar neste aparelho','Switch off on this device')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="nv-nao">${T('Cancelar','Cancel')}</button>`);
+    $('#nv-nao').onclick = fecharModal;
+    $('#nv-sim').onclick = ()=>{ fecharModal(); fazer(); };
+  }
+  // selo no canto de baixo: "⏳ N aguardando" sem internet, "✓ Tudo salvo" por 5 s, "✋ escolher" (toque abre a escolha)
+  function pintarSelo(){
+    let s = $('#nv-selo');
+    if(!s){ s = document.createElement('button'); s.id = 'nv-selo'; s.type = 'button'; s.setAttribute('aria-live','polite'); s.style.cssText = 'position:fixed;left:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:60;padding:6px 12px;border-radius:999px;font-weight:600;font-size:12px;line-height:1.2;background:rgba(20,15,34,.94);color:#e8e1ff;border:1px solid rgba(155,123,255,.4)'; s.onclick = ()=>{ if(st && Object.keys(st.conflitos).length) escolher(); }; document.body.appendChild(s); }
+    const n = quantasPendentes(), nc = estado==='ligada' && st ? Object.keys(st.conflitos).length : 0, recente = Date.now() - mostrarSelo < 5000;
+    s.hidden = !(estado==='ligada' && (nc || (n && (erro || !navigator.onLine)) || (!n && recente)));
+    s.style.pointerEvents = nc ? 'auto' : 'none';
+    s.textContent = nc ? '✋ '+nc+' '+T('para escolher qual fica','to choose which stays')
+      : n ? '⏳ '+n+' '+T('aguardando a internet','waiting for internet') : '✓ '+T('Tudo salvo na sua conta','Everything saved in your account');
+    if(recente) setTimeout(pintarSelo, 5200);
+  }
+  function pintar(){
+    pintarSelo();
+    const c = $('#nv-conta'); if(!c) return;
+    let h;
+    if(estado==='sem-conta') h = `<p class="hint" style="margin:0">${T('Entre na conta SolverONE (cartão acima) para guardar as suas histórias na conta e ver nos outros aparelhos.','Sign in to your SolverONE account (card above) to keep your stories in the account and see them on your other devices.')}</p>`;
+    else if(estado==='indisponivel') h = `<p class="hint" style="margin:0">${motivo==='navegador' ? T('Este navegador não deixa guardar a chave com segurança (janela anônima?). Abra o app normalmente para usar.','This browser does not let the key be stored safely (private window?). Open the app normally to use it.')
+        : motivo==='desligado' ? T('A SolverONE desligou isto por agora. As suas histórias continuam neste aparelho.','SolverONE switched this off for now. Your stories stay on this device.')
+        : T('Em preparação: em breve as suas histórias vão poder ir para a conta, cifradas. Por enquanto, ficam neste aparelho (use a cópia protegida para levar).','Coming soon: your stories will be able to go to the account, encrypted. For now, they stay on this device (use the protected copy to move them).')}</p>`;
+    else if(estado==='sem-internet') h = `<p class="hint" style="margin:0">${T('Sem internet agora. Quando voltar, este cartão mostra as opções.','No internet right now. When it is back, this card shows the options.')}</p>`;
+    else if(estado==='nova') h = `<p class="hint" style="margin:0">${T('Guarde as suas histórias, onde parou e os ajustes na conta, cifrados, e veja tudo nos outros aparelhos. Continua funcionando sem internet.','Keep your stories, where you stopped and settings in the account, encrypted, and see everything on your other devices. It still works offline.')}</p>
+        <div style="height:10px"></div><button class="btn sm pri" id="nv-ligar">☁️ ${T('Ligar (4 passos)','Switch on (4 steps)')}</button>`;
+    else if(estado==='trancada') h = `<p class="hint" style="margin:0">${T('A sua conta já guarda histórias de outro aparelho. Para trazer para cá, digite o código de recuperação.','Your account already keeps stories from another device. To bring them here, type the recovery code.')}</p>
+        <div style="height:10px"></div><button class="btn sm pri" id="nv-codigo-btn">🔑 ${T('Digitar o código','Type the code')}</button>`;
+    else {
+      const n = quantasPendentes(), nc = Object.keys(st.conflitos).length;
+      const minhas = historias.filter(x=>!doAcervo(x)).length;
+      h = `<p class="hint" style="margin:0">${rodando ? '⏳ '+T('Conferindo com a conta…','Checking with the account…')
+          : nc ? '✋ '+T('Falta escolher qual fica','Still need to choose which stays')
+          : n ? '⏳ '+n+' '+T('mudança(s) aguardando para subir','change(s) waiting to go up')
+          : '✓ '+T('Tudo salvo na sua conta','Everything saved in your account')} · ${minhas} ${T('história(s) suas','story(ies) of yours')}</p>
+        ${erro ? `<p class="hint" style="color:var(--vermelho)">${esc(erro)}</p>` : ''}
+        ${nc ? `<div class="aviso" style="margin-top:10px">✋ ${nc} ${T('história(s) mudaram em dois aparelhos','story(ies) changed on two devices')} <button class="btn sm" id="nv-escolher" style="margin-top:8px">${T('Escolher qual fica','Choose which stays')}</button></div>` : ''}
+        ${segurando.length ? `<div class="aviso" style="margin-top:10px">${segurando.length} ${T('histórias saíram deste aparelho de uma vez. Tirar também da conta (e dos outros aparelhos)?','stories left this device at once. Remove them from the account (and other devices) too?')}
+          <div class="linha" style="margin-top:8px"><button class="btn sm" id="nv-apagar-sim">${T('Tirar da conta','Remove from account')}</button><button class="btn sm" id="nv-apagar-nao">${T('Trazer de volta','Bring them back')}</button></div></div>` : ''}
+        <div class="linha" style="margin-top:10px"><button class="btn sm" id="nv-agora">🔄 ${T('Conferir agora','Check now')}</button></div>
+        <div style="height:10px"></div><button class="linkzinho" style="margin:0" id="nv-desligar">${T('Desligar neste aparelho','Switch off on this device')}</button>`;
+    }
+    c.innerHTML = h;
+    const b = (sel, fn)=>{ const e = $(sel); if(e) e.onclick = fn; };
+    b('#nv-ligar', primeiraVez); b('#nv-codigo-btn', pedirCodigo); b('#nv-escolher', escolher);
+    b('#nv-agora', ()=>sincronizar(null, true).catch(()=>{})); b('#nv-desligar', ()=>desligarAqui(true));
+    b('#nv-apagar-sim', ()=>{ st.liberado = segurando.slice(); segurando = []; sincronizar(); });
+    b('#nv-apagar-nao', ()=>{ segurando.forEach(id=>{ const k = st.h[id]; if(k && k.c){ historias.push(novaDe(id, k.c)); } }); segurando = []; salvarAqui(); pintarTudo(); sincronizar(); });
+  }
+  const outros = ()=> (estado==='ligada' && st && st.outros) || {leituras:0, segundos:0, sequencia:0};
+
+  function iniciar(){
+    document.addEventListener('ch:conta', ()=>{ if(Plataforma.uid()!==U) avaliar(); });   // entrou, saiu ou trocou de conta
+    document.addEventListener('dgo:idioma', pintar);
+    window.addEventListener('online', ()=>{ if(estado==='ligada') sincronizar(); else if(estado==='sem-internet') avaliar(); });
+    window.addEventListener('offline', pintarSelo);
+    // ao sair do app, sobe o que estiver pendente; ao voltar, traz o que mudou nos outros aparelhos
+    document.addEventListener('visibilitychange', ()=>{ if(estado==='ligada' && (!document.hidden || quantasPendentes())) sincronizar(); });
+    setInterval(()=>{ if(estado==='ligada' && !document.hidden) sincronizar(); }, 120000);
+    return avaliar();
+  }
+  return { iniciar, mudou, sincronizar, desligarAqui, outros, estado: ()=>estado, pendentes: quantasPendentes };
+})();
 
 /* ---------- guardar a voz num arquivo e trazer de volta ----------
    Para levar a voz para outro aparelho, para o endereço novo (solverone.com.br) ou para ter uma cópia.
@@ -5196,7 +5945,7 @@ const FilaVoz = (function(){
         if(leitorAberto()){ agora = T('esperando você fechar a história aberta…','waiting for you to close the open story…'); pintar(); await esperar(5); continue; }
         if(navigator.onLine===false){ agora = T('sem internet — continuo quando voltar','offline — resuming when it is back'); pintar(); await esperar(60); continue; }
         const id = st.ids[0], h = historias.find(x=>x.id===id);
-        if(!h){ st.ids.shift(); gravar(); continue; }
+        if(!h){ if(!Dados.carregou()){ await Dados.esperar(); continue; } st.ids.shift(); gravar(); continue; }
         if(await umaHistoria(h)){
           st.ids.shift(); st.feitas = (st.feitas||0)+1; gravar();
           toast('✅ '+T('Voz pronta: ','Voice ready: ')+h.titulo, 3500);
@@ -5882,9 +6631,9 @@ Topo.iniciar();
 Inbox.iniciar();
 
 aplicarCfgNaTela(); pintarTudo();
-atualizarVozGuardada(true);   // selos "voz guardada" dos cartões
 aplicarConfigDaUrl();
-carregarDoGithub();
+// as histórias vêm do IndexedDB (rápido, mas não é na hora): depois de carregar, a tela e os selos se atualizam
+Dados.iniciar().then(()=>{ pintarTudo(); atualizarVozGuardada(true); carregarDoGithub().finally(()=>Nuvem.iniciar()); });
 Assist.iniciar();
 // chegou arquivo novo do RootifyONE: redesenha o que depende dos interruptores
 Rec.aoMudar(()=>{ Assist.aplicar(); Anuncios.pintar(); criarSemIA(); });
