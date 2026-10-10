@@ -193,6 +193,32 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
 6. Acervo no servidor e comunidade (2d), com as regras e a fila de revisão no RootifyONE. A decidir: revisão antes de
    publicar começa ligada (recomendado) e o texto dos Termos da comunidade.
 
+## 7b. Complementos de 10/Out/2026 (diretriz de trabalho demorado e interruptores do RootifyONE)
+
+**Trabalho demorado nas etapas da nuvem** (skill `trabalho-em-fundo-solverone`). O app já tem o `tarefas.js` (desde a
+leitura de foto: tela acesa, pílula "não feche o app", dá para usar outras telas, "✅ Pronto · toque para ver"). Nas
+etapas abaixo, tudo o que pode passar de 2 segundos vai por ele (`DGO.tarefa.iniciar`), nunca por uma barra própria da tela:
+
+| Etapa | Trabalho demorado | Como fica |
+|---|---|---|
+| 2b | Fazer e restaurar a cópia protegida; mudar as histórias para o IndexedDB | Pílula com andamento; a mudança só apaga a cópia antiga depois de conferir tudo; se a página fechar no meio, ao abrir avisa "foi interrompido" e refaz do começo (nada se perde, porque a antiga ainda está lá). |
+| 2c | "Levar minhas histórias para a nuvem" (embaralhar e enviar uma por uma) e "trazer tudo" num aparelho novo | Retomável: cada história é um item da fila de envio; fechar no meio só para o envio, e ao abrir continua de onde parou ("Continuar de onde parou?"). Sem internet, a pílula diz "esperando a internet". |
+| 2d | Baixar o acervo inteiro na primeira vez; publicar (conferência de nomes) | Pílula com "Baixando o acervo… 12 de 36"; publicar é rápido, mas a conferência de nomes de uma história longa também vai pela pílula. |
+
+A fila de voz (`FilaVoz`) já trabalha sozinha com tela acesa; continua como está.
+
+**Interruptores do RootifyONE** (o OmniLifeONE 2.16 passou a obedecer ao "Controle dos apps": `recursos.js`, arquivos
+`recursos/global.json` e `recursos/<app>.json` no `solverone-dados`, e `recursos-do-app.json` na raiz do app). Para não ter
+dois lugares mandando na mesma coisa:
+
+- **O que é só mostrar ou esconder na tela** (AssistONE, anúncios, a aba Comunidade, o botão Publicar, a seção Nuvem) obedece
+  aos interruptores do RootifyONE, como no OmniLifeONE.
+- **O que o banco precisa garantir** (publicar só para os planos certos, limite por dia, revisão antes de aparecer,
+  esconder por denúncias) fica em `conta_regras`, porque o arquivo de interruptores é público e não protege nada.
+- Para combinar com o chat do RootifyONE: a tela de "Controle dos apps" do Contador grava as duas coisas (o interruptor e,
+  quando for de banco, a `conta_regras` por `admin_conta_salvar_regra`), para o dono mexer num lugar só.
+- Ligar os interruptores no Contador é uma mudança no app (regra zero): entra junto com a etapa 2d, ou antes, se você pedir.
+
 ## 8. Para combinar com o chat do RootifyONE (contrato)
 
 1. **Chave pessoal comum entre os apps.** `sol_chave_publica` guarda **uma** chave por pessoa e
@@ -201,4 +227,5 @@ Cada etapa é uma versão, com PR e merge; o app funciona entre uma e outra.
    (cópia cifrada da chave privada, só a própria pessoa lê) usada por todos os apps — o próprio plano do OmniLifeONE já
    sugere isso (item 9.4).
 2. **Áudio na nuvem** (Storage `sol-arquivos`): fora deste plano; se um dia entrar, só cifrado e com cota por plano.
-3. Nada mais: `sol_apps` já tem o Contador (`conta`), e o registro de acessos já aceita `app`.
+3. **Interruptores × `conta_regras`** (item 7b): a tela "Controle dos apps" grava as duas, para o dono mexer num lugar só.
+4. Nada mais: `sol_apps` já tem o Contador (`conta`), e o registro de acessos já aceita `app`.
