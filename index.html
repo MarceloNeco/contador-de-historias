@@ -934,7 +934,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     </div>
   </div>
 
-  <div class="tit">💾 Histórias e backup</div>
+  <div class="tit">💾 Histórias e cópia de segurança</div>
   <div class="card">
     <div class="sw">
       <div class="txt"><b>Trazer as histórias que vêm com o app</b><span>Ao abrir, buscar as histórias novas do acervo do app.</span></div>
@@ -942,11 +942,11 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     </div>
     <div style="height:12px"></div>
     <div class="linha">
-      <button class="btn sm" id="btn-exportar">⬇️ Exportar</button>
-      <button class="btn sm" id="btn-importar">⬆️ Importar</button>
+      <button class="btn sm" id="btn-exportar">🔒 Guardar uma cópia</button>
+      <button class="btn sm" id="btn-importar">📂 Trazer uma cópia</button>
     </div>
     <input type="file" id="file-importar" accept=".json,application/json" class="oculto">
-    <div class="hint">Exportar baixa um arquivo com as suas histórias, para guardar ou levar para outro aparelho (lá, use Importar). Ele tem os nomes das crianças: guarde só para você e não publique.</div>
+    <div class="hint">A cópia sai protegida por uma senha sua e por um código para anotar num papel. Para trazer de volta, aqui ou em outro aparelho, use Trazer uma cópia: nada se repete.</div>
     <div style="height:14px"></div>
     <button class="btn sm rox" id="btn-transferir">📱 Levar minha configuração para outro aparelho</button>
   </div>
@@ -1250,7 +1250,55 @@ if(!Array.isArray(historias)) historias=[];
 
 const salvarCfg = ()=> salvar(CHAVE_C,cfg);
 const salvarStats = ()=> salvar(CHAVE_S,stats);
-const salvarHistorias = ()=>{ try{ localStorage.setItem(CHAVE_H, JSON.stringify(historias)); }catch(e){ toast('Sem espaço no celular 😕'); } };
+/* ---------- onde ficam as histórias (v1.19.0) ----------
+   Antes: localStorage (uns 5 MB; com muitas histórias o app parava de salvar). Agora: IndexedDB (banco ch_dados, loja
+   kv, chave 'historias', o mesmo JSON de antes). Na primeira abertura COPIA, CONFERE e só então apaga a lista antiga do
+   localStorage. Sem IndexedDB (navegador antigo ou janela anônima que bloqueia), continua no localStorage como antes.
+   O id das histórias nunca muda aqui: é ele que liga cada história à voz guardada. */
+const Dados = (function(){
+  let db = null, carregado = false, pendente = false, usaIDB = false;
+  const esperando = [];
+  const abrir = ()=> new Promise((ok, falha)=>{
+    if(!('indexedDB' in window)) return falha(new Error('sem IndexedDB'));
+    let r; try{ r = indexedDB.open('ch_dados', 1); }catch(e){ return falha(e); }
+    r.onupgradeneeded = ()=>{ r.result.createObjectStore('kv'); };
+    r.onsuccess = ()=>ok(r.result); r.onerror = ()=>falha(r.error); r.onblocked = ()=>falha(new Error('bloqueado'));
+  });
+  const ler = k => new Promise((ok, falha)=>{ const q = db.transaction('kv','readonly').objectStore('kv').get(k); q.onsuccess = ()=>ok(q.result); q.onerror = ()=>falha(q.error); });
+  const gravar = (k, v) => new Promise((ok, falha)=>{ const tx = db.transaction('kv','readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = ()=>ok(); tx.onerror = ()=>falha(tx.error); tx.onabort = ()=>falha(tx.error); });
+  const lista = txt => { try{ const v = JSON.parse(txt||'[]'); return Array.isArray(v) ? v : []; }catch(e){ return []; } };
+  // junta duas listas sem repetir (pelo id); em caso de id igual, vale a primeira
+  const juntar = (a, b) => { const ids = new Set(a.map(h=>h && h.id)); return a.concat(b.filter(h=>h && !ids.has(h.id))); };
+  function pronto(){ carregado = true; while(esperando.length) esperando.shift()(); if(pendente){ pendente = false; salvar(); } }
+  async function iniciar(){
+    try{ db = await abrir(); usaIDB = true; }catch(e){ usaIDB = false; pronto(); return; }
+    try{
+      let guardadas = lista(await ler('historias'));
+      const antiga = localStorage.getItem(CHAVE_H);
+      if(antiga !== null){
+        const juntas = juntar(guardadas, lista(antiga));
+        const txt = JSON.stringify(juntas);
+        await gravar('historias', txt);
+        if((await ler('historias')) === txt) localStorage.removeItem(CHAVE_H);   // conferido: só agora a antiga sai
+        guardadas = juntas;
+      }
+      historias = juntar(historias, guardadas);   // o que mudou na memória enquanto carregava vence
+    }catch(e){ usaIDB = false; }                 // deu errado no meio: continua no localStorage, que ainda está lá
+    pronto();
+  }
+  function salvar(){
+    if(!carregado){ pendente = true; return; }
+    const txt = JSON.stringify(historias);
+    if(!usaIDB){ try{ localStorage.setItem(CHAVE_H, txt); }catch(e){ toast(T('Sem espaço no celular 😕','No space left on the phone 😕')); } return; }
+    gravar('historias', txt).catch(()=>toast(T('Sem espaço no aparelho para salvar 😕','No space on the device to save 😕')));
+  }
+  async function apagar(){
+    try{ localStorage.removeItem(CHAVE_H); }catch(e){}
+    if(usaIDB) await gravar('historias', '[]').catch(()=>{});
+  }
+  return { iniciar, salvar, apagar, carregou: ()=>carregado, esperar: ()=> carregado ? Promise.resolve() : new Promise(r=>esperando.push(r)), noIndexedDB: ()=>usaIDB };
+})();
+const salvarHistorias = ()=> Dados.salvar();
 
 /* ----------------------------- texto / marcadores ----------------------------- */
 // quanto tempo cada ambiente fica tocando antes de sumir devagar
@@ -3965,18 +4013,153 @@ $$('#sons-teste button').forEach(b=>b.addEventListener('click',()=>{
   b._t = setTimeout(()=>{ b.classList.remove('on'); b._t=null; }, seg*1000);
 }));
 
-/* ----------------------------- backup / GitHub ----------------------------- */
-function pacote(){
-  return { versao:1, atualizadoEm:new Date().toISOString(), historias };
-}
-$('#btn-exportar').addEventListener('click',()=>{
-  const blob=new Blob([JSON.stringify(pacote(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='historias.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-  toast('Arquivo historias.json baixado');
-});
+/* ----------------------------- cópia (backup) ----------------------------- */
+/* ---------- cópia protegida (v1.19.0; diretriz "Cópia (backup) e restauração sem duplicar") ----------
+   O conteúdo sai embaralhado (AES-GCM 256) com uma chave aleatória, guardada duas vezes: pela SENHA da cópia e por um
+   CÓDIGO de recuperação mostrado uma vez só (PBKDF2-SHA256, 600 mil rodadas). Em claro, só o app, a versão e a data.
+   As chaves de IA nunca entram. Restaurar JUNTA sem repetir: mesmo id ou mesmo título + texto = a mesma história, e a
+   do aparelho vence; ajustes só preenchem o que está vazio aqui. Embaralhar e abrir vão pela pílula (tarefas.js). */
+const Copia = (function(){
+  const FORMATO = 'contador-copia-protegida', RODADAS = 600000, ALFA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const b64 = u8 => { let x = ''; for(let i=0; i<u8.length; i+=0x8000) x += String.fromCharCode.apply(null, u8.subarray(i, i+0x8000)); return btoa(x); };
+  const deB64 = x => Uint8Array.from(atob(x), c=>c.charCodeAt(0));
+  const aleatorio = n => crypto.getRandomValues(new Uint8Array(n));
+  // 20 letras/números sem os que confundem (0/O, 1/I/L): ~99 bits; sorteio sem viés
+  function codigoNovo(){
+    let c = '';
+    while(c.length < 20){ for(const b of aleatorio(32)){ if(b < 248 && c.length < 20) c += ALFA[b % 31]; } }
+    return c.match(/.{5}/g).join('-');
+  }
+  const soCodigo = x => String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const segredo = k => /key$|token$/i.test(k) || k==='ghRepo';
+  async function chaveDe(texto, sal, rodadas){
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(texto), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2', hash:'SHA-256', salt:sal, iterations:rodadas}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  }
+  async function fechar(bytes, texto){
+    const sal = aleatorio(16), iv = aleatorio(12);
+    const k = await chaveDe(texto, sal, RODADAS);
+    return { sal:b64(sal), iv:b64(iv), chave:b64(new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, k, bytes))) };
+  }
+  async function abrirEmbrulho(e, texto, rodadas){
+    const k = await chaveDe(texto, deB64(e.sal), rodadas);
+    return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:deB64(e.iv)}, k, deB64(e.chave)));
+  }
+  async function criar(senha, andamento){
+    const ajustes = {}; Object.keys(cfg).forEach(k=>{ if(!segredo(k)) ajustes[k] = cfg[k]; });
+    const conteudo = new TextEncoder().encode(JSON.stringify({ app:'contador-de-historias', versao:VERSAO, em:new Date().toISOString(), historias, cfg:ajustes, stats }));
+    const bruta = aleatorio(32), codigo = codigoNovo(), iv = aleatorio(12);
+    const chave = await crypto.subtle.importKey('raw', bruta, 'AES-GCM', false, ['encrypt']);
+    const dados = b64(new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, chave, conteudo)));
+    if(andamento) andamento(0.3, T('protegendo com a senha…','protecting with the password…'));
+    const pelaSenha = await fechar(bruta, senha);
+    if(andamento) andamento(0.65, T('protegendo com o código…','protecting with the code…'));
+    const peloCodigo = await fechar(bruta, soCodigo(codigo));
+    bruta.fill(0);
+    const arquivo = JSON.stringify({ formato:FORMATO, v:1, app:'contador-de-historias', versao:VERSAO, criadaEm:new Date().toISOString(),
+      kdf:{ nome:'PBKDF2-SHA256', rodadas:RODADAS }, senha:pelaSenha, codigo:peloCodigo, iv:b64(iv), dados });
+    return { arquivo, codigo };
+  }
+  async function abrir(obj, texto){
+    const rodadas = Number(obj.kdf && obj.kdf.rodadas) || RODADAS;
+    let bruta = null;
+    try{ bruta = await abrirEmbrulho(obj.senha, texto, rodadas); }
+    catch(e){ try{ bruta = await abrirEmbrulho(obj.codigo, soCodigo(texto), rodadas); }catch(e2){ throw new Error('senha'); } }
+    const chave = await crypto.subtle.importKey('raw', bruta, 'AES-GCM', false, ['decrypt']); bruta.fill(0);
+    return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM', iv:deB64(obj.iv)}, chave, deB64(obj.dados))));
+  }
+  function baixar(arquivo){
+    const nome = 'UM-Contador-copia-protegida-' + new Date().toISOString().slice(0,10) + '.json';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([arquivo], {type:'application/json'})); a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    return nome;
+  }
+  // 1) senha → 2) pílula enquanto embaralha → 3) o código para anotar → 4) baixar
+  function fazer(depois){
+    modal(`<h3>🔒 ${T('Guardar uma cópia protegida','Save a protected copy')}</h3>
+      <p class="hint">${T('A cópia leva as suas histórias, onde você parou e os ajustes (as chaves de IA não vão). Ela sai embaralhada: só abre com a senha que você escolher agora ou com um código que vou mostrar para você anotar.','The copy takes your stories, where you stopped and your settings (AI keys are left out). It comes out scrambled: it only opens with the password you choose now or with a code I will show you to write down.')}</p>
+      <label class="f" for="cp-senha">${T('Senha da cópia (pelo menos 6 letras ou números; 8 ou mais é melhor)','Copy password (at least 6 letters or numbers; 8 or more is better)')}</label>
+      <input type="password" id="cp-senha" autocomplete="new-password" placeholder="${T('Ex.: estrela-do-mar-27','E.g.: starfish-27')}">
+      <label class="f" for="cp-senha2">${T('Repita a senha','Repeat the password')}</label>
+      <input type="password" id="cp-senha2" autocomplete="new-password">
+      <div class="aviso oculto" id="cp-erro" style="margin-top:10px"></div>
+      <div style="height:12px"></div><button class="btn pri" id="cp-fazer">${T('Fazer a cópia','Make the copy')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="cp-nao">${T('Cancelar','Cancel')}</button>`);
+    $('#cp-nao').onclick = fecharModal;
+    $('#cp-fazer').onclick = ()=>{
+      const a = $('#cp-senha').value, b = $('#cp-senha2').value, erro = $('#cp-erro');
+      const mostrar = t=>{ erro.textContent = t; erro.classList.remove('oculto'); };
+      if(a.length < 6) return mostrar(T('A senha precisa ter pelo menos 6 letras ou números.','The password needs at least 6 letters or numbers.'));
+      if(a !== b) return mostrar(T('As duas senhas não são iguais. Digite de novo.','The two passwords are not the same. Type them again.'));
+      fecharModal();
+      DGO.tarefa.iniciar({ id:'copia-fazer', titulo:T('Fazendo a cópia protegida','Making the protected copy'),
+        executar: andamento => criar(a, andamento), aoAbrir: r => mostrarCodigo(r, depois) })
+        .catch(()=>toast(T('Não deu para fazer a cópia agora. Tente de novo.','Could not make the copy now. Try again.'), 5000));
+    };
+  }
+  function mostrarCodigo(r, depois){
+    modal(`<h3>📝 ${T('Anote este código num papel','Write this code down on paper')}</h3>
+      <p class="hint">${T('Se esquecer a senha, é com este código que a cópia abre. Ele aparece só agora: guarde o papel junto com os documentos da casa (não deixe salvo no celular).','If you forget the password, this code opens the copy. It shows up only now: keep the paper with the household documents (do not leave it saved on the phone).')}</p>
+      <div class="cp-codigo" id="cp-codigo" style="font:700 1.15rem/1.6 ui-monospace,monospace;letter-spacing:.06em;text-align:center;padding:14px;border-radius:12px;border:1px dashed var(--borda,#555);margin:12px 0;word-break:break-all">${esc(r.codigo)}</div>
+      <button class="btn sm" id="cp-copiar">📋 ${T('Copiar o código','Copy the code')}</button>
+      <label style="display:flex;gap:10px;align-items:center;margin:14px 0 6px"><input type="checkbox" id="cp-anotei" style="width:auto"> ${T('Anotei o código num papel','I wrote the code down on paper')}</label>
+      <button class="btn pri" id="cp-baixar" disabled>⬇️ ${T('Baixar a cópia','Download the copy')}</button>`);
+    $('#cp-copiar').onclick = ()=>{ try{ navigator.clipboard.writeText(r.codigo).then(()=>toast(T('Código copiado. Anote no papel também.','Code copied. Write it on paper too.'))); }catch(e){} };
+    $('#cp-anotei').onchange = e=>{ $('#cp-baixar').disabled = !e.target.checked; };
+    $('#cp-baixar').onclick = ()=>{
+      const nome = baixar(r.arquivo); r.arquivo = null;
+      fecharModal(); toast(T('Cópia guardada: ','Copy saved: ')+nome, 5000);
+      if(typeof depois === 'function') setTimeout(depois, 400);
+    };
+  }
+  // junta a cópia com o que já está aqui, sem repetir; o aparelho vence
+  function aplicar(c){
+    const lista = (c && Array.isArray(c.historias)) ? c.historias : [];
+    const validas = lista.filter(h=>h && h.texto).length;
+    const novas = mesclar(lista);
+    let ajustes = 0;
+    if(c && c.cfg) Object.keys(c.cfg).forEach(k=>{ if(!segredo(k) && (cfg[k]===undefined || cfg[k]==='') && c.cfg[k]!=='' && c.cfg[k]!==undefined){ cfg[k] = c.cfg[k]; ajustes++; } });
+    if(c && c.stats){
+      ['leituras','segundos','sequencia'].forEach(k=>{ stats[k] = Math.max(Number(stats[k])||0, Number(c.stats[k])||0); });
+      if(String(c.stats.ultimaNoite||'') > String(stats.ultimaNoite||'')) stats.ultimaNoite = c.stats.ultimaNoite;
+    }
+    salvarHistorias(); salvarCfg(); salvarStats(); aplicarCfgNaTela(); pintarTudo(); atualizarVozGuardada(true);
+    return { novas, jaEstavam: Math.max(0, validas - novas), ajustes };
+  }
+  function resumo(r){
+    modal(`<h3>✅ ${T('Cópia trazida','Copy restored')}</h3>
+      <p class="hint" style="font-size:15px">${r.novas} ${T('história(s) nova(s) entraram.','new story(ies) came in.')}<br>
+      ${r.jaEstavam} ${T('já estavam aqui e não foram repetidas.','were already here and were not repeated.')}${r.ajustes ? '<br>'+r.ajustes+' '+T('ajuste(s) que estavam vazios foram preenchidos.','empty setting(s) were filled in.') : ''}</p>
+      <div style="height:12px"></div><button class="btn sm" id="cp-ok">${T('Entendi','Got it')}</button>`);
+    $('#cp-ok').onclick = fecharModal;
+  }
+  function restaurar(obj){
+    modal(`<h3>🔓 ${T('Trazer uma cópia protegida','Restore a protected copy')}</h3>
+      <p class="hint">${T('Digite a senha desta cópia ou o código anotado no papel. Nada do que já está aqui se repete nem se perde.','Type this copy\'s password or the code written on paper. Nothing already here is repeated or lost.')}</p>
+      <input type="password" id="cp-abrir" autocomplete="off" placeholder="${T('Senha ou código (ex.: ABCDE-…)','Password or code (e.g. ABCDE-…)')}" aria-label="${T('Senha ou código','Password or code')}">
+      <div class="aviso oculto" id="cp-erro2" style="margin-top:10px"></div>
+      <div style="height:12px"></div><button class="btn pri" id="cp-trazer">${T('Abrir e trazer','Open and restore')}</button>
+      <div style="height:10px"></div><button class="btn sm ghost" id="cp-nao2">${T('Cancelar','Cancel')}</button>`);
+    $('#cp-nao2').onclick = fecharModal;
+    $('#cp-trazer').onclick = ()=>{
+      const texto = $('#cp-abrir').value; if(!texto) return;
+      fecharModal();
+      // senha errada não é "erro" da tarefa: volta como resposta, para a pílula sumir e a janela mostrar o aviso
+      DGO.tarefa.iniciar({ id:'copia-abrir', titulo:T('Abrindo a cópia protegida','Opening the protected copy'),
+        executar: ()=>abrir(obj, texto).then(c=>({ ok:aplicar(c) }), e=>({ erro: e && e.message==='senha' ? 'senha' : 'arquivo' })),
+        aoAbrir: r=>{
+          if(r.ok) return resumo(r.ok);
+          restaurar(obj);
+          const x = $('#cp-erro2');
+          x.textContent = r.erro==='senha' ? T('A senha ou o código não confere. Confira as letras e tente de novo.','The password or code does not match. Check the letters and try again.')
+                                           : T('Não deu para abrir este arquivo. Ele pode estar incompleto.','Could not open this file. It may be incomplete.');
+          x.classList.remove('oculto');
+        } });
+    };
+  }
+  return { fazer, restaurar, aplicar, FORMATO };
+})();
+$('#btn-exportar').addEventListener('click', ()=>Copia.fazer());
 $('#btn-importar').addEventListener('click',()=>$('#file-importar').click());
 $('#file-importar').addEventListener('change', e=>{
   const f=e.target.files[0]; if(!f) return;
@@ -3984,10 +4167,10 @@ $('#file-importar').addEventListener('change', e=>{
   fr.onload=()=>{
     try{
       const j=JSON.parse(fr.result);
-      const lista = Array.isArray(j)? j : (j.historias||[]);
-      const n = mesclar(lista);
-      salvarHistorias(); pintarTudo();
-      toast(n? n+' história(s) novas importadas' : 'Nada novo para importar');
+      if(j && j.formato===Copia.FORMATO){ Copia.restaurar(j); e.target.value=''; return; }
+      // arquivo antigo, sem proteção (historias.json): continua aceito, juntando sem repetir
+      const r = Copia.aplicar({ historias: Array.isArray(j)? j : (j.historias||[]) });
+      toast(r.novas ? r.novas+T(' história(s) novas · ',' new story(ies) · ')+r.jaEstavam+T(' já estavam',' already here') : T('Nada novo: tudo já estava aqui','Nothing new: everything was already here'), 4500);
     }catch(err){ toast('Arquivo inválido 😕'); }
     e.target.value='';
   };
@@ -4012,12 +4195,35 @@ function mesclar(lista){
 }
 
 $('#btn-transferir').addEventListener('click', telaTransferencia);
-$('#btn-apagar-tudo').addEventListener('click',()=>{
-  if(!confirm('Isso apaga TODAS as histórias e ajustes deste celular. Tem certeza?')) return;
-  if(!confirm('Mesmo? Se você não exportou o backup, não tem volta.')) return;
-  localStorage.removeItem(CHAVE_H); localStorage.removeItem(CHAVE_C); localStorage.removeItem(CHAVE_S);
-  location.reload();
+// diretriz: antes de apagar qualquer dado do navegador, oferecer a cópia protegida
+$('#btn-apagar-tudo').addEventListener('click', ()=>{
+  modal(`<h3>🗑️ ${T('Apagar tudo deste aparelho','Erase everything on this device')}</h3>
+    <p class="hint">${T('Apaga as histórias, os ajustes e as contas de leitura deste aparelho. Não dá para desfazer.','Erases the stories, settings and reading counts on this device. It cannot be undone.')}</p>
+    <div class="aviso" style="margin-top:10px">${T('Antes, guarde uma cópia protegida: com ela você traz tudo de volta, aqui ou em outro aparelho.','First, save a protected copy: with it you bring everything back, here or on another device.')}</div>
+    <div style="height:12px"></div><button class="btn pri" id="ap-copia">🔒 ${T('Guardar a cópia agora','Save the copy now')}</button>
+    <div style="height:10px"></div><button class="btn sm ghost" id="ap-ja">${T('Já tenho uma cópia · continuar','I already have a copy · continue')}</button>
+    <div style="height:6px"></div><button class="btn sm ghost" id="ap-nao">${T('Cancelar','Cancel')}</button>`);
+  $('#ap-nao').onclick = fecharModal;
+  $('#ap-copia').onclick = ()=>Copia.fazer(apagarPasso2);
+  $('#ap-ja').onclick = apagarPasso2;
 });
+async function apagarPasso2(){
+  let mb = 0; try{ mb = ((await Guarda.resumo()).total.bytes||0)/1048576; }catch(e){}
+  modal(`<h3>🗑️ ${T('Última confirmação','Last confirmation')}</h3>
+    <p class="hint">${T('Vai sair deste aparelho: todas as histórias, os ajustes e as contas de leitura.','This will leave this device: all stories, settings and reading counts.')}</p>
+    <label style="display:flex;gap:10px;align-items:center;margin:12px 0"><input type="checkbox" id="ap-vozes" style="width:auto"> ${T('Apagar também as vozes guardadas','Also erase the saved voices')} (${mb.toFixed(1).replace('.', idiomaEN() ? '.' : ',')} MB)</label>
+    <p class="hint">${T('A conta SolverONE continua conectada (para sair, use o cartão Conta SolverONE).','The SolverONE account stays connected (to sign out, use the SolverONE account card).')}</p>
+    <div style="height:12px"></div><button class="btn" id="ap-sim" style="color:var(--vermelho)">${T('Apagar tudo','Erase everything')}</button>
+    <div style="height:10px"></div><button class="btn sm ghost" id="ap-nao2">${T('Cancelar','Cancel')}</button>`);
+  $('#ap-nao2').onclick = fecharModal;
+  $('#ap-sim').onclick = async ()=>{
+    const vozes = $('#ap-vozes').checked;
+    await Dados.apagar();
+    if(vozes){ try{ await Guarda.limpar(); }catch(e){} }
+    localStorage.removeItem(CHAVE_C); localStorage.removeItem(CHAVE_S);
+    location.reload();
+  };
+}
 
 /* ---------- levar a configuração para outro aparelho ---------- */
 // Viaja só o necessário para ler e escrever histórias. O token do GitHub NUNCA vai junto.
@@ -4088,6 +4294,12 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.19.0','10/10/2026', [
+    'Cópia protegida: a cópia das histórias sai embaralhada, com uma senha sua e um código para anotar num papel',
+    'Trazer uma cópia junta sem repetir: história que já está aqui não entra de novo, e nada se perde',
+    'Apagar tudo agora oferece guardar a cópia antes e deixa escolher se as vozes guardadas saem junto',
+    'As histórias passaram para um espaço maior do aparelho: com muitas histórias, o app não para mais de salvar'
+  ]],
   ['1.18.1','09/10/2026', [
     'Leitura de foto (Usar a câmera) que não some: a tela fica acesa, uma pílula embaixo avisa "não feche o app" com progresso, dá para usar outras telas e, ao terminar, "✅ Pronto · toque para ver" reabre a leitura (diretriz SolverONE de tarefas longas, arquivo tarefas.js)'
   ]],
@@ -5181,7 +5393,7 @@ const FilaVoz = (function(){
         if(leitorAberto()){ agora = T('esperando você fechar a história aberta…','waiting for you to close the open story…'); pintar(); await esperar(5); continue; }
         if(navigator.onLine===false){ agora = T('sem internet — continuo quando voltar','offline — resuming when it is back'); pintar(); await esperar(60); continue; }
         const id = st.ids[0], h = historias.find(x=>x.id===id);
-        if(!h){ st.ids.shift(); gravar(); continue; }
+        if(!h){ if(!Dados.carregou()){ await Dados.esperar(); continue; } st.ids.shift(); gravar(); continue; }
         if(await umaHistoria(h)){
           st.ids.shift(); st.feitas = (st.feitas||0)+1; gravar();
           toast('✅ '+T('Voz pronta: ','Voice ready: ')+h.titulo, 3500);
@@ -5862,9 +6074,9 @@ Topo.iniciar();
 Inbox.iniciar();
 
 aplicarCfgNaTela(); pintarTudo();
-atualizarVozGuardada(true);   // selos "voz guardada" dos cartões
 aplicarConfigDaUrl();
-carregarDoGithub();
+// as histórias vêm do IndexedDB (rápido, mas não é na hora): depois de carregar, a tela e os selos se atualizam
+Dados.iniciar().then(()=>{ pintarTudo(); atualizarVozGuardada(true); carregarDoGithub(); });
 Assist.iniciar();
 
 // desbloqueia o áudio no primeiro toque (regra dos celulares)
