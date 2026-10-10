@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.20.0',
+  versaoApp: '1.21.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -58,7 +58,8 @@ DGO.iniciar({
     '#chips-personagem',
     '[data-motor="solverone"]',  /* botões da SolverONE: o app escreve o texto em PT/EN (muda com o plano) */
     '#sv-conta',                 /* cartão da conta SolverONE: o app escreve em PT/EN (muda ao entrar e sair) */
-    '#nv-conta', '#nv-selo'      /* nuvem (v1.20.0): o app escreve em PT/EN */
+    '#nv-conta', '#nv-selo',     /* nuvem (v1.20.0): o app escreve em PT/EN */
+    '#assist-admin'              /* aviso "Desligado pela administração": o app escreve em PT/EN */
   ],
 
   /* ---------- barras que ficam grudadas no topo ----------

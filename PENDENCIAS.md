@@ -36,7 +36,7 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 | 23 | Termos de uso da comunidade (o que pode publicar, direitos sobre a história, personagens de filmes, denúncias) | idem | ⏸ texto legal antes de abrir a comunidade |
 | 24 | Outros nomes do acervo público para o dono conferir se são de gente de verdade (ex.: personagens de outras séries com nome e sobrenome ou "seu"/"vovó") | Revisão da 1.18.0 | ⏸ o dono confere a lista de personagens; o que for real vira nome inventado |
 | 25 | Trabalho demorado das etapas da nuvem (cópia protegida, levar e trazer histórias, baixar o acervo) pelo `tarefas.js`: tela acesa, pílula, aviso ao fechar, continuar de onde parou | Diretriz de trabalho demorado, 10/Out/2026 | 🔵 em andamento — 2b na 1.19.0 (cópia pela pílula); 2c na 1.20.0 (ligar e trazer da conta pela pílula); falta a 2d |
-| 26 | Obedecer aos interruptores do RootifyONE ("Controle dos apps", como o OmniLifeONE 2.16) e combinar com `conta_regras` para o dono mexer num lugar só | OmniLifeONE 2.16, 10/Out/2026 | 🟡 aberta — junto com a etapa 2d (ou antes, se o dono pedir); combinar com o chat do RootifyONE |
+| 26 | Obedecer aos interruptores do RootifyONE ("Controle dos apps", como o OmniLifeONE 2.16) e combinar com `conta_regras` para o dono mexer num lugar só | OmniLifeONE 2.16, 10/Out/2026 | ✅ 1.21.0 — obedece a `assistone`, `assistone.dicas`, `anuncios` e `criar-com-ia` (`recursos.js` + `recursos-do-app.json`); ficaram de fora `voz` (é o coração do app), `ocr`/`telemetria`/`offline` (no `diretrizes.js` 1.0.x, não trocado) e `ia` geral. Falta combinar com `conta_regras` (chat do RootifyONE) |
 | 27 | Perdeu o código de recuperação: hoje um aparelho que ainda está ligado continua funcionando, mas não dá para gerar um código novo nem recomeçar a nuvem da conta | Etapa 2c, 10/Out/2026 | 🟡 aberta — precisa de uma versão nova da chave (`conta_chave` versão 2) e de decidir o que acontece com as histórias cifradas com a antiga |
 | 28 | Testar a nuvem com o banco de verdade, depois de o SQL rodar: dois aparelhos, sem internet, o código num aparelho novo, a escolha quando muda nos dois | Etapa 2c, 10/Out/2026 | ⏸ depende do #2 |
 
@@ -54,3 +54,4 @@ das crianças. Plano: `PLANO-SUPABASE-contador-de-historias.md`.
 - **1.20.0 (10/Out/2026) — Etapa 2c:** minhas histórias na conta pronta no app (cifrada, código de recuperação,
   consentimento do responsável, sem internet, juntar e escolher), em "em preparação" até o SQL rodar; #14 e #25 avançaram;
   novos #27 e #28.
+- **1.21.0 (10/Out/2026) — interruptores do RootifyONE:** fechou #26 (`recursos.js` + `recursos-do-app.json`).

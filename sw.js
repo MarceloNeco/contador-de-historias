@@ -2,13 +2,13 @@
    como app no celular e no computador.
    Ao publicar uma versao nova do seu site, troque o numero de VERSAO
    abaixo (ex.: 'v1' -> 'v2') para o aparelho pegar os arquivos novos. */
-var VERSAO = 'v18';
+var VERSAO = 'v19';
 var CACHE = 'dgo-' + VERSAO;
 
 self.addEventListener('install', function (e) {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function (c) {
-    return c.addAll(['./', './index.html', './diretrizes.js', './diretrizes-config.js', './tarefas.js', './ajuda-botao.png']).catch(function () {});
+    return c.addAll(['./', './index.html', './diretrizes.js', './diretrizes-config.js', './tarefas.js', './recursos.js', './ajuda-botao.png']).catch(function () {});
   }));
 });
 

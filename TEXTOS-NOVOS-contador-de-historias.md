@@ -440,3 +440,12 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Desligar | ☁️ Desligar neste aparelho? · As histórias continuam neste aparelho e na conta; só param de ir e vir por aqui. Para ligar de novo, vai pedir o código de recuperação. · Desligar neste aparelho · Cancelar | ☁️ Switch off on this device? · The stories stay on this device and in the account; they just stop syncing here. To switch on again, it will ask for the recovery code. · Switch off on this device · Cancel |
 | Selo | ✓ Tudo salvo na sua conta · ⏳ N aguardando a internet · ✋ N para escolher qual fica | ✓ Everything saved in your account · ⏳ N waiting for internet · ✋ N to choose which stays |
 | Apagar tudo, 2ª tela | … As histórias guardadas na conta continuam lá. | … The stories kept in the account stay there. |
+
+---
+
+# v1.21.0 — Interruptores do RootifyONE
+
+| Onde | PT | EN |
+|---|---|---|
+| Configurações → AssistONE | Desligado pela administração da SolverONE. | Turned off by the SolverONE administration. |
+| Criar, ao tentar gerar | Criar com IA foi desligado pela administração da SolverONE. | Create with AI was turned off by the SolverONE administration. |
