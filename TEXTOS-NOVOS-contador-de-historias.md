@@ -449,3 +449,30 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 |---|---|---|
 | Configurações → AssistONE | Desligado pela administração da SolverONE. | Turned off by the SolverONE administration. |
 | Criar, ao tentar gerar | Criar com IA foi desligado pela administração da SolverONE. | Create with AI was turned off by the SolverONE administration. |
+
+## Cofre de chaves (v1.22.0)
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Campo trancado | 🔐 Guardado no cofre — abrir para ver ou mudar | 🔐 Saved in the vault — open to see or change |
+| Painel · aberto | Cofre aberto neste aparelho. As chaves e os nomes das crianças ficam trancados com o seu PIN. | Vault open on this device. The keys and the children's names stay locked with your PIN. |
+| Painel · trancar | 🔒 Trancar o cofre agora | 🔒 Lock the vault now |
+| Painel · trancado | Cofre trancado. As chaves e os nomes das crianças só aparecem com o PIN. | Vault locked. The keys and the children's names only show with the PIN. |
+| Painel · abrir | 🔓 Abrir o cofre | 🔓 Open the vault |
+| Painel · sem PIN ainda | Suas chaves e os nomes das crianças ainda estão sem proteção neste aparelho. Crie um PIN para trancar tudo no cofre. | Your keys and the children's names are still unprotected on this device. Create a PIN to lock everything in the vault. |
+| Painel · criar | 🔐 Criar o PIN agora | 🔐 Create the PIN now |
+| Painel · vazio | Ao colar uma chave ou escrever o nome das crianças, o app pede para criar um PIN e tranca tudo num cofre neste aparelho. | When you paste a key or write the children's names, the app asks you to create a PIN and locks everything in a vault on this device. |
+| Erro · trancado | O cofre de chaves está trancado. Digite o PIN para usar as chaves guardadas. | The key vault is locked. Type the PIN to use the saved keys. |
+| Janela do PIN · motivo | O Contador quer usar as chaves e os nomes das crianças guardados no cofre. | Storyteller wants to use the keys and children's names saved in the vault. |
+| Fila de voz · motivo | A fila de voz precisa das chaves e dos nomes guardados no cofre. | The voice queue needs the keys and names saved in the vault. |
+| Link · explicação | As chaves de IA e os nomes das crianças ficam trancados no cofre de cada aparelho e não viajam neste link. Ele leva só a voz e os modelos escolhidos, para você não precisar escolher tudo de novo. | The AI keys and the children's names stay locked in each device's vault and do not travel in this link. It only carries the chosen voice and models, so you do not have to pick everything again. |
+| Link · outro aparelho | No outro aparelho, depois de abrir o link, cole as chaves uma vez em Configurações: o app pede um PIN para trancá-las no cofre dele. | On the other device, after opening the link, paste the keys once in Settings: the app asks for a PIN to lock them in its vault. |
+| Link antigo · aviso | Este é um link do tipo antigo: ele traz chaves de IA no endereço, e esse tipo de link não é mais gerado (…). As chaves vão para o cofre deste aparelho — vai pedir o PIN. | This is an old-style link: it carries AI keys in the address, and that kind of link is no longer generated (…). The keys go to this device's vault — it will ask for the PIN. |
+| Link antigo · cofre trancado | Configurado, mas as chaves NÃO foram guardadas: o cofre continuou trancado. Abra o link de novo e digite o PIN. | Set up, but the keys were NOT saved: the vault stayed locked. Open the link again and type the PIN. |
+| Cópia · explicação | …(as chaves de IA não vão: ficam no cofre). Os nomes das crianças vão, mas só dentro da parte embaralhada. | …(AI keys are left out: they stay in the vault). The children's names go, but only inside the scrambled part. |
+| Cópia · sem nomes | Os nomes das crianças ficaram de fora desta cópia, porque o cofre continuou trancado. Eles seguem guardados no cofre deste aparelho. | The children's names were left out of this copy because the vault stayed locked. They remain saved in this device's vault. |
+| Trazer cópia · nomes | Os nomes das crianças foram para o cofre. | The children's names went into the vault. |
+| Trazer cópia · trancado | Os nomes das crianças que vinham na cópia NÃO foram trazidos: o cofre continuou trancado. Traga a cópia de novo e digite o PIN. | The children's names in the copy were NOT restored: the vault stayed locked. Restore the copy again and type the PIN. |
+| Arquivo de voz | Este arquivo não tem senha: o cumprimento com os nomes das crianças não vai nele (os nomes só saem na cópia protegida). | This file has no password: the greeting with the children's names is not in it (names only leave in the protected copy). |
+| Apagar tudo | …Apaga as histórias, os ajustes, os nomes das crianças e as contas de leitura… As chaves de IA ficam no cofre (valem também para os outros apps da SolverONE)… | …Erases the stories, settings, the children's names and reading counts… The AI keys stay in the vault (they also serve the other SolverONE apps)… |
+| Apagar tudo · cofre trancado | Não apaguei nada: abra o cofre (PIN) para apagar também os nomes das crianças. | I erased nothing: open the vault (PIN) to erase the children's names too. |

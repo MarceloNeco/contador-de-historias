@@ -102,6 +102,7 @@ async function coletar(browser, base) {
     await page.click('nav.tabs button[data-tela=acervo]');
     await page.waitForSelector('.hist[data-id=teste_1]');
     await page.click('.hist[data-id=teste_1]');
+    await resolverPin(page, PIN);
     await page.waitForSelector('#btn-play');
     await page.click('#btn-play');
     await resolverPin(page, PIN);
@@ -116,6 +117,7 @@ async function coletar(browser, base) {
     await page.click('nav.tabs button[data-tela=acervo]');
     await page.waitForSelector('.hist[data-id=teste_1]');
     await page.click('.hist[data-id=teste_1]');
+    await resolverPin(page, PIN);
     await page.waitForSelector('#btn-play');
     await page.click('#btn-play');
     await resolverPin(page, PIN);

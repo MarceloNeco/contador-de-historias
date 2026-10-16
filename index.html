@@ -882,6 +882,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
   <div class="tit">✨ IA que escreve as histórias</div>
   <div class="card">
     <div class="cofre" id="cofre-lista" aria-label="Chaves salvas"></div>
+    <div class="info" id="cofre-painel" style="margin-bottom:14px" aria-live="polite"></div>
     <div class="seg" id="sel-motor-texto" style="flex-wrap:wrap">
       <button data-motor="manual">✍️ Só eu escrevo</button>
       <button data-motor="gemini" class="on">Gemini<br><span style="font-weight:500;font-size:11px">tem plano grátis</span></button>
@@ -979,6 +980,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <button class="btn sm" id="btn-voz-exportar">💾 Guardar num arquivo</button>
       <button class="btn sm" id="btn-voz-importar">📂 Trazer de um arquivo</button>
     </div>
+    <div class="hint" id="aviso-voz-arquivo"></div>
     <input type="file" id="file-voz" class="oculto">
     <div class="lista-guarda" id="lista-guarda"></div>
     <div style="height:10px"></div>
@@ -1126,6 +1128,8 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
      estiverem no repositório, o site funciona igual — só ignora estas linhas. -->
 <!-- interruptores do RootifyONE → Controle dos apps (o que o dono liga e desliga). Antes do código do app. -->
 <script src="recursos.js" data-app="contador-de-historias"></script>
+<!-- cofre comum de chaves (SolverCofre): sempre ANTES do diretrizes.js -->
+<script src="cofre.js"></script>
 <script src="diretrizes.js"></script>
 <script src="diretrizes-config.js"></script>
 <script src="tarefas.js"></script>
@@ -1211,23 +1215,29 @@ $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') fecharModal
 
 /* ----------------------------- estado ----------------------------- */
 const CHAVE_H='ch_historias', CHAVE_C='ch_config', CHAVE_S='ch_stats';
+/* Segredos (v1.22.0): as chaves de IA e os nomes das crianças NÃO ficam em cfg nem no ch_config; moram só no cofre
+   comum (cofre.js, SolverCofre), trancado por PIN. Campo do app → nome no cofre. Veja o módulo Seg logo abaixo. */
+const SEGREDOS = {
+  geminiKey:'ia:gemini', openaiKey:'ia:openai', elevenKey:'ia:elevenlabs', anthropicKey:'ia:anthropic',
+  publicoNomes:'contador:publicoNomes', nomesProtegidos:'contador:nomesProtegidos'
+};
 
 const configPadrao = {
-  publicoNomes:'', publicoTipo:'', publicoNaHistoria:true, saudarAntes:true,
+  publicoTipo:'', publicoNaHistoria:true, saudarAntes:true,
   motorVoz:'nativo', vozNativa:'', vel:0.95, tom:1.05,
-  elevenKey:'', elevenVoice:'', elevenModel:'eleven_multilingual_v2', elevenEstab:0.45,
-  openaiKey:'', openaiVoice:'nova', openaiModel:'gpt-4o-mini-tts',
+  elevenVoice:'', elevenModel:'eleven_multilingual_v2', elevenEstab:0.45,
+  openaiVoice:'nova', openaiModel:'gpt-4o-mini-tts',
   openaiInstr:'Leia como um pai contando história de dormir: voz calma, carinhosa, pausas naturais e emoção nas falas dos personagens.',
   geminiVoice:'Sulafat', geminiModelTts:'gemini-3.1-flash-tts-preview',
   geminiInstr:'Leia esta história de dormir em português do Brasil como um pai contando para as filhas: voz calma e carinhosa, ritmo tranquilo, pausas naturais, e emoção diferente na fala de cada personagem. Não comente nada, apenas leia o texto.',
   assistOne:true,
   solveroneVoz:'', solveroneModeloVoz:'',
-  motorTexto:'gemini', geminiKey:'', geminiModel:'gemini-3.6-flash',
-  anthropicKey:'', anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
+  motorTexto:'gemini', geminiModel:'gemini-3.6-flash',
+  anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
   efeitos:true, volEfeitos:35, durEfeitos:'medio', adiantar:true,
   carregarGithub:true,
   fonte:19, telaAcesa:true, destaque:true, usarVozGuardada:true,
-  protegerNomes:true, nomesProtegidos:'', comandosVoz:false, comandosIA:false,
+  protegerNomes:true, comandosVoz:false, comandosIA:false,
   tema:'escuro', reduzirAnimacoes:false
 };
 const statsPadrao = { leituras:0, segundos:0, ultimaNoite:'', sequencia:0 };
@@ -1236,19 +1246,31 @@ function ler(chave, padrao){
   try{ const v=localStorage.getItem(chave); return v? Object.assign({},padrao,JSON.parse(v)) : Object.assign({},padrao); }
   catch(e){ return Object.assign({},padrao); }
 }
-function salvar(chave,valor){ try{ localStorage.setItem(chave, JSON.stringify(valor)); }catch(e){ toast('Sem espaço para salvar 😕'); } }
+function salvar(chave,valor){
+  if(chave===CHAVE_C) valor = semSegredos(valor);
+  try{ localStorage.setItem(chave, JSON.stringify(valor)); }catch(e){ toast('Sem espaço para salvar 😕'); }
+}
+// o ch_config nunca recebe segredo de volta. O que AINDA estiver lá em texto aberto (esperando o PIN criar o cofre,
+// ou a cópia temporária do Eleições) fica como está: só o cofre.js e o Seg mexem nisso.
+function semSegredos(valor){
+  const o = Object.assign({}, valor); let antigo = {};
+  try{ antigo = JSON.parse(localStorage.getItem(CHAVE_C)||'{}') || {}; }catch(e){}
+  Object.keys(SEGREDOS).forEach(c=>{ delete o[c]; if(typeof antigo[c]==='string' && antigo[c]) o[c] = antigo[c]; });
+  return o;
+}
 
 let cfg = ler(CHAVE_C, configPadrao);
+Object.keys(SEGREDOS).forEach(c=>{ delete cfg[c]; });   // o que veio em texto aberto vai para o cofre pelo cofre.js, não fica em cfg
 // modelos que o Google tirou do ar para novas chaves: troca e grava
 if(/^gemini-(1\.|2\.0|2\.5-flash$|2\.5-pro$|2\.5-flash-lite$)/.test(cfg.geminiModel||'')){
   cfg.geminiModel = 'gemini-3.6-flash';
-  try{ localStorage.setItem(CHAVE_C, JSON.stringify(cfg)); }catch(e){}
+  salvar(CHAVE_C, cfg);
 }
 // o envio do acervo para o GitHub saiu (v1.18.0: publicava as histórias da família num arquivo público);
 // o token que tinha ficado guardado aqui sai junto — é uma senha e não serve mais para nada
 if('ghToken' in cfg || 'ghRepo' in cfg){
   delete cfg.ghToken; delete cfg.ghRepo;
-  try{ localStorage.setItem(CHAVE_C, JSON.stringify(cfg)); }catch(e){}
+  salvar(CHAVE_C, cfg);
 }
 let stats = ler(CHAVE_S, statsPadrao);
 let historias = [];
@@ -1259,6 +1281,74 @@ if(!Array.isArray(historias)) historias=[];
 function avisarNuvem(){ try{ Nuvem.mudou(); }catch(e){} }
 const salvarCfg = ()=>{ salvar(CHAVE_C,cfg); avisarNuvem(); };
 const salvarStats = ()=>{ salvar(CHAVE_S,stats); avisarNuvem(); };
+
+/* ---------- Seg: chaves e nomes no cofre comum (v1.22.0) ----------
+   Ler sem esperar:   Seg.agora(campo)  → '' se o cofre está trancado (a tela mostra o aviso do cofre)
+   Ler e continuar:   await Seg.ler(campo) → trancado: a janela do PIN abre e a ação segue depois; "Agora não" = erro
+   Saber sem abrir:   Seg.tem(campo)
+   Gravar:            Seg.gravar(campo, valor) → só no cofre (depois de gravar, tira a cópia antiga do ch_config, se houver)
+   Nada daqui volta para o ch_config. Quem digita rápido grava com um pequeno atraso (agendar/descarregar). */
+const Seg = (function(){
+  const MOTIVO = {pt:'O Contador quer usar as chaves e os nomes das crianças guardados no cofre.', en:'Storyteller wants to use the keys and children\'s names saved in the vault.'};
+  const C = ()=> window.SolverCofre || null;
+  const nome = c => SEGREDOS[c];
+  let pend = Promise.resolve(), recusou = false, ouvintes = [];
+  const agendados = {}; let relogio = 0;
+  const trancadoErro = ()=>{
+    const e = new Error(T('O cofre de chaves está trancado. Digite o PIN para usar as chaves guardadas.','The key vault is locked. Type the PIN to use the saved keys.'));
+    e.cofreTrancado = true; return e;
+  };
+  const semCofre = ()=> new Error(T('O cofre de chaves não carregou. Atualize a página.','The key vault did not load. Reload the page.'));
+  const tem = c => { const k=C(); return !!(k && k.tem(nome(c))); };
+  const agora = c => { const k=C(); return k ? String(k.lerAgora(nome(c))||'') : ''; };
+  const aberto = ()=>{ const k=C(); return !!(k && k.aberto()); };
+  const existe = ()=>{ const k=C(); return !!(k && (k.existe() || k.pendentes().length>0)); };
+  const pendentes = ()=>{ const k=C(); return k ? k.pendentes().length : 0; };
+  // a cópia em texto aberto do ch_config (a temporária do Eleições, ou a que ainda não migrou) sai quando o valor muda ou é apagado
+  function tirarCopia(c){
+    try{
+      const o = JSON.parse(localStorage.getItem(CHAVE_C)||'null');
+      if(o && typeof o==='object' && c in o){ delete o[c]; localStorage.setItem(CHAVE_C, JSON.stringify(o)); }
+    }catch(e){}
+  }
+  function descarregar(){
+    clearTimeout(relogio);
+    Object.keys(agendados).forEach(c=>{ const v = agendados[c]; delete agendados[c]; gravar(c, v).catch(()=>{}); });
+  }
+  async function ler(c, motivo){
+    descarregar();
+    await pend;
+    const k = C(); if(!k) return '';
+    try{ return String(await k.ler(nome(c), {motivo: motivo||MOTIVO}) || ''); }
+    catch(e){ if(e && e.message==='cofre-trancado'){ recusou = true; throw trancadoErro(); } throw e; }
+  }
+  // só abre o cofre (se houver o que abrir); o valor lido não interessa
+  const abrir = async motivo => { await ler('geminiKey', motivo); };
+  // o leitor e a fila de voz perguntam o PIN uma vez; recusou = não insistir até a pessoa pedir algo que precise do cofre
+  const precisaPerguntar = ()=> !recusou && !aberto() && existe();
+  function gravar(c, valor){
+    valor = String(valor==null ? '' : valor).trim();
+    const p = pend.then(()=>{
+      const k = C(); if(!k) throw semCofre();
+      return valor ? k.gravar(nome(c), valor, {motivo:MOTIVO}) : k.apagar(nome(c), {motivo:MOTIVO});
+    }).then(()=>{ tirarCopia(c); recusou = false; });
+    pend = p.catch(()=>{});
+    return p.catch(e=>{ if(e && e.message==='cofre-trancado') throw trancadoErro(); throw e; });
+  }
+  function agendar(c, valor){
+    agendados[c] = valor; clearTimeout(relogio); relogio = setTimeout(descarregar, 450);
+  }
+  const emEspera = ()=> Object.keys(agendados).length > 0;
+  const aoMudar = fn => { ouvintes.push(fn); };
+  ['cofre:aberto','cofre:trancado','cofre:mudou','cofre:migrado'].forEach(ev=>{
+    document.addEventListener(ev, ()=>{ if(ev==='cofre:trancado') recusou = false; ouvintes.slice().forEach(fn=>{ try{ fn(ev); }catch(e){} }); });
+  });
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) descarregar(); });
+  window.addEventListener('pagehide', descarregar);
+  return { tem, agora, ler, abrir, gravar, agendar, descarregar, aberto, existe, pendentes, precisaPerguntar, emEspera, aoMudar, MOTIVO,
+           pedir: motivo=>{ const k=C(); return k ? k.pedir({motivo: motivo||MOTIVO}) : Promise.resolve(false); },
+           trancar: ()=>{ const k=C(); return k ? k.trancar() : Promise.resolve(true); } };
+})();
 /* ---------- onde ficam as histórias (v1.19.0) ----------
    Antes: localStorage (uns 5 MB; com muitas histórias o app parava de salvar). Agora: IndexedDB (banco ch_dados, loja
    kv, chave 'historias', o mesmo JSON de antes). Na primeira abertura COPIA, CONFERE e só então apaga a lista antiga do
@@ -1980,11 +2070,12 @@ function vozesCompletas(h){
 
 /* ---------------------------- motores de voz (devolvem Blob) ---------------------------- */
 async function audioElevenlabs(texto){
-  if(!cfg.elevenKey) throw new Error('Cole sua chave da ElevenLabs em Configurações.');
+  const chave = await Seg.ler('elevenKey');
+  if(!chave) throw new Error('Cole sua chave da ElevenLabs em Configurações.');
   if(!cfg.elevenVoice) throw new Error('Escolha uma voz da ElevenLabs em Configurações.');
   const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+encodeURIComponent(cfg.elevenVoice), {
     method:'POST',
-    headers:{'xi-api-key':cfg.elevenKey,'Content-Type':'application/json','Accept':'audio/mpeg'},
+    headers:{'xi-api-key':chave,'Content-Type':'application/json','Accept':'audio/mpeg'},
     body: JSON.stringify({
       text: semMarcadores(texto),
       model_id: cfg.elevenModel,
@@ -1996,12 +2087,13 @@ async function audioElevenlabs(texto){
 }
 
 async function audioOpenai(texto){
-  if(!cfg.openaiKey) throw new Error('Cole sua chave da OpenAI em Configurações.');
+  const chave = await Seg.ler('openaiKey');
+  if(!chave) throw new Error('Cole sua chave da OpenAI em Configurações.');
   const corpo = { model:cfg.openaiModel, voice:cfg.openaiVoice, input:semMarcadores(texto), response_format:'mp3' };
   if(cfg.openaiModel==='gpt-4o-mini-tts' && cfg.openaiInstr) corpo.instructions = cfg.openaiInstr;
   const r = await fetch('https://api.openai.com/v1/audio/speech', {
     method:'POST',
-    headers:{'Authorization':'Bearer '+cfg.openaiKey,'Content-Type':'application/json'},
+    headers:{'Authorization':'Bearer '+chave,'Content-Type':'application/json'},
     body: JSON.stringify(corpo)
   });
   if(!r.ok) throw new Error('OpenAI: '+ r.status +' — '+ (await r.text()).slice(0,180));
@@ -2052,10 +2144,10 @@ function erroGemini(status, corpo){
 let caminhoGemini = null;   // 'interactions' | 'generate'
 const MODELO_CLASSICO = m => /^gemini-3/.test(m||'') ? 'gemini-2.5-flash-preview-tts' : (m || 'gemini-2.5-flash-preview-tts');
 
-async function geminiInteractions(texto){
+async function geminiInteractions(texto, chave){
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
     method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
+    headers:{'Content-Type':'application/json','x-goog-api-key':chave},
     body: JSON.stringify({
       model: cfg.geminiModelTts,
       input: (cfg.geminiInstr||'') + '\n\n' + semMarcadores(texto),
@@ -2069,11 +2161,11 @@ async function geminiInteractions(texto){
   return pcmParaWavBlob(b64, 24000);
 }
 
-async function geminiGenerate(texto){
+async function geminiGenerate(texto, chave){
   const modelo = MODELO_CLASSICO(cfg.geminiModelTts);
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(modelo)+':generateContent',{
     method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
+    headers:{'Content-Type':'application/json','x-goog-api-key':chave},
     body: JSON.stringify({
       contents:[{ parts:[{ text: (cfg.geminiInstr||'') + '\n\n' + semMarcadores(texto) }] }],
       generationConfig:{
@@ -2089,13 +2181,14 @@ async function geminiGenerate(texto){
 }
 
 async function audioGemini(texto){
-  if(!cfg.geminiKey) throw new Error('Cole sua chave do Gemini em Configurações.');
+  const chave = await Seg.ler('geminiKey');
+  if(!chave) throw new Error('Cole sua chave do Gemini em Configurações.');
   const ordem = caminhoGemini==='generate' ? [['generate',geminiGenerate],['interactions',geminiInteractions]]
                                            : [['interactions',geminiInteractions],['generate',geminiGenerate]];
   let ultimo=null;
   for(const [nome, fn] of ordem){
     try{
-      const b = await fn(texto);
+      const b = await fn(texto, chave);
       caminhoGemini = nome;
       return b;
     }catch(e){
@@ -2634,7 +2727,9 @@ const Leitor = (function(){
   }
 
   return {
-    abrir(h){
+    abrir(h, jaPediu){
+      // os nomes das crianças (cumprimento) e as chaves estão no cofre: trancado, pede o PIN uma vez antes de montar a fila
+      if(!jaPediu && Seg.precisaPerguntar()){ Seg.abrir().catch(()=>{}).then(()=>Leitor.abrir(h, true)); return; }
       if(!$('#leitor').classList.contains('on')) Nav.empurrar('leitor');
       document.body.classList.add('com-leitor');
       hist=h; contou=false;
@@ -2887,10 +2982,10 @@ Não escreva mais nada além disso — sem comentários, sem explicações, sem 
 }
 
 // um pedido ao Gemini, sem insistir
-async function geminiTexto(prompt, modelo){
+async function geminiTexto(prompt, modelo, chave){
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(modelo)+':generateContent',{
     method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-key':cfg.geminiKey},
+    headers:{'Content-Type':'application/json','x-goog-api-key':chave},
     body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:4096} })
   });
   if(!r.ok){
@@ -2922,16 +3017,18 @@ function modeloReserva(m){
 /* ---------- proteção dos nomes das crianças (LGPD, art. 14: dado de criança pede cuidado extra) ----------
    Os nomes configurados viram códigos antes de sair do aparelho e voltam depois.
    A IA escreve "[NOME1]" e o site troca pelo nome certo aqui dentro. */
-function nomesParaProteger(){
-  const extra = (cfg.nomesProtegidos||'').split(/\s*,\s*/).map(x=>x.trim()).filter(Boolean);
-  const todos = nomesDoPublico().concat(extra).filter(n=>n.length>=2);
+async function nomesParaProteger(){
+  if(!cfg.protegerNomes) return [];
+  // os nomes moram no cofre: trancado, pede o PIN; sem eles o pedido NÃO sai (melhor falhar do que mandar o nome da criança)
+  const extra = (await Seg.ler('nomesProtegidos')).split(/\s*,\s*/).map(x=>x.trim()).filter(Boolean);
+  const todos = nomesDoPublico(await Seg.ler('publicoNomes')).concat(extra).filter(n=>n.length>=2);
   return [...new Set(todos)].sort((a,b)=>b.length-a.length);   // o mais longo primeiro ("Ana Clara" antes de "Ana")
 }
 function escRe(t){ return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
-function mascararNomes(texto){
+function mascararNomes(texto, nomes){
   const mapa = [];
   if(!cfg.protegerNomes) return {texto, mapa};
-  nomesParaProteger().forEach((n,i)=>{
+  nomes.forEach((n,i)=>{
     const cod = '[NOME'+(i+1)+']';
     const re = new RegExp('(^|[^\\p{L}])('+escRe(n)+')(?![\\p{L}])','giu');
     if(re.test(texto)){ texto = texto.replace(re, (m0,a)=>a+cod); mapa.push([cod,n]); }
@@ -2948,7 +3045,7 @@ function desmascararNomes(texto, mapa){
   return texto;
 }
 async function chamarIA(promptOriginal, aviso, opcoes){
-  const {texto, mapa} = mascararNomes(promptOriginal);
+  const {texto, mapa} = mascararNomes(promptOriginal, await nomesParaProteger());
   const r = await chamarIASemFiltro(texto, aviso, opcoes);
   return typeof r==='string' ? desmascararNomes(r, mapa) : r;
 }
@@ -2959,7 +3056,7 @@ const ORDEM_IA = ['gemini','anthropic','openai','solverone'];
 const NOME_IA  = {gemini:'Gemini', anthropic:'Claude', openai:'OpenAI', solverone:'SolverONE'};
 const CHAVE_IA = {gemini:'geminiKey', anthropic:'anthropicKey', openai:'openaiKey'};
 // a IA da SolverONE não tem chave: vale quando a conta tem o plano e ainda há saldo no mês
-const temChaveIA = m => m==='solverone' ? Plataforma.disponivel('texto') : !!cfg[CHAVE_IA[m]];
+const temChaveIA = m => m==='solverone' ? Plataforma.disponivel('texto') : Seg.tem(CHAVE_IA[m]);
 function semChave(msg){ const e = new Error(msg); e.semChave = true; return e; }
 // erro de um provedor com marcas do que aconteceu: cota (429), crédito (402 ou saldo zerado) ou chave recusada (401/403)
 function erroDoProvedor(nome, status, corpo){
@@ -3008,7 +3105,8 @@ async function chamarIASemFiltro(prompt, aviso, opcoes){
 async function chamarMotor(m, prompt, aviso, temReserva){
   if(m==='solverone') return Plataforma.texto(prompt, aviso);
   if(m==='gemini'){
-    if(!cfg.geminiKey) throw semChave('Cole sua chave do Gemini em Configurações → IA que escreve.');
+    const chave = await Seg.ler('geminiKey');
+    if(!chave) throw semChave('Cole sua chave do Gemini em Configurações → IA que escreve.');
     const esperas = [6000, 15000, 30000];
     let ultimo = null;
     for(let t=0; t<=esperas.length; t++){
@@ -3016,7 +3114,7 @@ async function chamarMotor(m, prompt, aviso, temReserva){
         // na última tentativa, se o problema for lotação, muda para o modelo reserva
         const modelo = (t===esperas.length && ultimo && ultimo.sobrecarga) ? modeloReserva(cfg.geminiModel) : cfg.geminiModel;
         if(modelo!==cfg.geminiModel) aviso('o '+cfg.geminiModel+' está lotado — tentando com o '+modelo+'…');
-        return await geminiTexto(prompt, modelo);
+        return await geminiTexto(prompt, modelo, chave);
       }catch(e){
         ultimo = e;
         if(e.modeloVelho) throw e;
@@ -3035,10 +3133,11 @@ async function chamarMotor(m, prompt, aviso, temReserva){
     throw ultimo;
   }
   if(m==='anthropic'){
-    if(!cfg.anthropicKey) throw semChave('Cole sua chave da Anthropic em Configurações → IA que escreve.');
+    const chave = await Seg.ler('anthropicKey');
+    if(!chave) throw semChave('Cole sua chave da Anthropic em Configurações → IA que escreve.');
     const r = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cfg.anthropicKey,
+      headers:{'Content-Type':'application/json','x-api-key':chave,
                'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body: JSON.stringify({ model:cfg.anthropicModel, max_tokens:4096, temperature:1,
                              messages:[{role:'user', content:prompt}] })
@@ -3048,10 +3147,11 @@ async function chamarMotor(m, prompt, aviso, temReserva){
     return (j.content||[]).map(b=>b.text||'').join('').trim();
   }
   if(m==='openai'){
-    if(!cfg.openaiKey) throw semChave('Cole sua chave da OpenAI em Configurações.');
+    const chave = await Seg.ler('openaiKey');
+    if(!chave) throw semChave('Cole sua chave da OpenAI em Configurações.');
     const r = await fetch('https://api.openai.com/v1/chat/completions',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.openaiKey},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+chave},
       body: JSON.stringify({ model:cfg.openaiModelTxt, temperature:1,
                              messages:[{role:'user', content:prompt}] })
     });
@@ -3264,8 +3364,8 @@ function mostrarAprovacao(){
 }
 
 /* ------------------------- para quem são as histórias ------------------------- */
-function nomesDoPublico(){
-  return (cfg.publicoNomes||'').split(/\s*,\s*|\s+e\s+/i).map(x=>x.trim()).filter(Boolean);
+function nomesDoPublico(texto){
+  return (texto===undefined ? Seg.agora('publicoNomes') : texto).split(/\s*,\s*|\s+e\s+/i).map(x=>x.trim()).filter(Boolean);
 }
 function nomesPorExtenso(){
   const n = nomesDoPublico();
@@ -3729,7 +3829,7 @@ function mostrarBlocosTexto(){
 const COFRE = [['gemini','Gemini','geminiKey'],['anthropic','Claude (Anthropic)','anthropicKey'],['openai','OpenAI','openaiKey'],['elevenlabs','ElevenLabs','elevenKey']];
 function pintarCofre(){
   const el = $('#cofre-lista'); if(!el) return;
-  const itens = COFRE.map(([id,nome,campo])=>({nome, tem:!!cfg[campo]}));
+  const itens = COFRE.map(([id,nome,campo])=>({nome, tem:Seg.tem(campo)}));
   itens.sort((a,b)=>(b.tem?1:0)-(a.tem?1:0));     // sort é estável: dentro de cada grupo, a ordem da lista
   const sv = (typeof Plataforma!=='undefined') ? Plataforma.resumoCofre() : '';
   el.innerHTML = sv + itens.map(i=>`<div class="it${i.tem?'':' sem'}"><span>${i.tem?'🔑':'◦'} ${esc(i.nome)}</span>${
@@ -3755,22 +3855,14 @@ function campo(sel, chave, tipo){
     if(chave==='fonte'){ $('#lbl-fonte').textContent=cfg.fonte; $('#lt-texto').style.fontSize=cfg.fonte+'px'; }
   });
 }
-campo('#in-eleven-key','elevenKey'); campo('#in-openai-key','openaiKey');
 campo('#in-gemini-instr','geminiInstr');
-$('#in-publico-nomes').addEventListener('input',()=>{
-  cfg.publicoNomes = $('#in-publico-nomes').value; salvarCfg(); atualizarSaudacao();
-});
 $('#sel-publico-tipo').addEventListener('change',()=>{
   cfg.publicoTipo = $('#sel-publico-tipo').value; salvarCfg(); atualizarSaudacao();
 });
-campo('#in-openai-instr','openaiInstr'); campo('#in-gemini-key','geminiKey');
-campo('#in-anthropic-key','anthropicKey');
+campo('#in-openai-instr','openaiInstr');
 campo('#rng-vel','vel','num'); campo('#rng-tom','tom','num'); campo('#rng-vol','volEfeitos','num');
 campo('#rng-estab','elevenEstab','num'); campo('#rng-fonte','fonte','num');
 
-// a chave da OpenAI aparece em dois lugares; mantém os dois iguais
-$('#in-openai-key2').addEventListener('input',()=>{ cfg.openaiKey=$('#in-openai-key2').value.trim(); salvarCfg(); $('#in-openai-key').value=cfg.openaiKey; pintarCofre(); });
-$('#in-openai-key').addEventListener('input',()=>{ $('#in-openai-key2').value=cfg.openaiKey; });
 
 function selecao(sel, chave){
   const el=$(sel); if(!el) return;
@@ -3784,10 +3876,6 @@ selecao('#sel-modelo-anthropic','anthropicModel'); selecao('#sel-modelo-openai-t
 $('#sel-voz-gemini').innerHTML = VOZES_GEMINI.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}</option>`).join('');
 selecao('#sel-voz-gemini','geminiVoice'); selecao('#sel-modelo-gemini-tts','geminiModelTts');
 
-// a chave do Gemini aparece em dois lugares; mantém as duas iguais
-function espelharGemini(){ $('#in-gemini-key').value=cfg.geminiKey||''; $('#in-gemini-key-voz').value=cfg.geminiKey||''; }
-$('#in-gemini-key-voz').addEventListener('input',()=>{ cfg.geminiKey=$('#in-gemini-key-voz').value.trim(); salvarCfg(); $('#in-gemini-key').value=cfg.geminiKey; pintarCofre(); });
-$('#in-gemini-key').addEventListener('input',()=>{ $('#in-gemini-key-voz').value=cfg.geminiKey; });
 
 function chave(sel, campoCfg, depois){
   const el=$(sel);
@@ -3810,8 +3898,73 @@ chave('#tg-usar-guardada','usarVozGuardada');
 chave('#tg-publico-historia','publicoNaHistoria');
 chave('#tg-saudar-antes','saudarAntes');
 chave('#tg-proteger-nomes','protegerNomes');
-$('#in-nomes-protegidos').value = cfg.nomesProtegidos||'';
-$('#in-nomes-protegidos').addEventListener('input',()=>{ cfg.nomesProtegidos=$('#in-nomes-protegidos').value; salvarCfg(); });
+/* ---------- chaves e nomes no cofre (v1.22.0) ----------
+   Os seis campos abaixo não ficam em cfg: cada um lê e grava no cofre comum (Seg). A chave do Gemini e a da OpenAI
+   aparecem em dois lugares da tela; as duas telas mostram sempre o mesmo valor. Com o cofre trancado, o campo
+   não mostra nada: avisa que está guardado e, ao tocar, pede o PIN. */
+const CAMPOS_TELA = {
+  geminiKey:['#in-gemini-key','#in-gemini-key-voz'], openaiKey:['#in-openai-key','#in-openai-key2'],
+  elevenKey:['#in-eleven-key'], anthropicKey:['#in-anthropic-key'],
+  publicoNomes:['#in-publico-nomes'], nomesProtegidos:['#in-nomes-protegidos']
+};
+function pintarSegredos(){
+  if(Seg.emEspera()) return;                                   // a pessoa está digitando: não mexe
+  const aviso = T('🔐 Guardado no cofre — abrir para ver ou mudar','🔐 Saved in the vault — open to see or change');
+  Object.keys(CAMPOS_TELA).forEach(c=>{
+    const trancado = !Seg.aberto() && Seg.tem(c);
+    CAMPOS_TELA[c].forEach(sel=>{
+      const el = $(sel); if(!el) return;
+      if(el.dataset.ph===undefined) el.dataset.ph = el.getAttribute('placeholder')||'';
+      if(trancado){ el.value = ''; el.placeholder = aviso; el.readOnly = true; el.dataset.cofre = '1'; }
+      else if(document.activeElement!==el){ el.readOnly = false; delete el.dataset.cofre; el.placeholder = el.dataset.ph; el.value = Seg.agora(c); }
+    });
+  });
+}
+function salvarSegredo(c, valor){
+  return Seg.gravar(c, valor).then(()=>pintarCofre(), e=>{
+    toast((e && e.message) || T('Não deu para guardar no cofre.','Could not save to the vault.'), 5000);
+    pintarSegredos();
+  });
+}
+Object.keys(CAMPOS_TELA).forEach(c=>{
+  const els = CAMPOS_TELA[c].map(sel=>$(sel)).filter(Boolean);
+  els.forEach(el=>{
+    el.addEventListener('input', ()=>{
+      if(el.dataset.cofre) return;
+      els.forEach(o=>{ if(o!==el) o.value = el.value; });      // as duas telas da mesma chave ficam iguais
+      if(Seg.aberto()) Seg.agendar(c, el.value);               // cofre aberto: grava sozinho, sem janela
+    });
+    el.addEventListener('change', ()=>{                        // cofre fechado: o PIN é pedido aqui (cria ou abre) e a ação segue
+      if(el.dataset.cofre) return;
+      if(Seg.aberto()) Seg.descarregar(); else salvarSegredo(c, el.value);
+    });
+  });
+});
+// campo trancado: tocar nele pede o PIN
+['click','focusin'].forEach(ev=>document.addEventListener(ev, e=>{
+  const el = e.target && e.target.closest ? e.target.closest('input[data-cofre="1"]') : null;
+  if(el) Seg.abrir().catch(()=>{});
+}));
+
+function pintarPainelCofre(){
+  const el = $('#cofre-painel'); if(!el) return;
+  const K = window.SolverCofre;
+  let h;
+  if(!K) h = `<div class="aviso">${T('O cofre de chaves não carregou. Atualize a página.','The key vault did not load. Reload the page.')}</div>`;
+  else if(Seg.aberto()) h = `<div>🔓 ${T('Cofre aberto neste aparelho. As chaves e os nomes das crianças ficam trancados com o seu PIN.','Vault open on this device. The keys and the children\'s names stay locked with your PIN.')}</div>
+    <div style="height:8px"></div><button class="btn sm" id="btn-cofre-trancar">🔒 ${T('Trancar o cofre agora','Lock the vault now')}</button>`;
+  else if(!K.existe() && Seg.pendentes()>0) h = `<div class="aviso">⚠️ ${T('Suas chaves e os nomes das crianças ainda estão sem proteção neste aparelho. Crie um PIN para trancar tudo no cofre.','Your keys and the children\'s names are still unprotected on this device. Create a PIN to lock everything in the vault.')}</div>
+    <div style="height:8px"></div><button class="btn sm pri" id="btn-cofre-abrir">🔐 ${T('Criar o PIN agora','Create the PIN now')}</button>`;
+  else if(K.existe()) h = `<div>🔐 ${T('Cofre trancado. As chaves e os nomes das crianças só aparecem com o PIN.','Vault locked. The keys and the children\'s names only show with the PIN.')}</div>
+    <div style="height:8px"></div><button class="btn sm" id="btn-cofre-abrir">🔓 ${T('Abrir o cofre','Open the vault')}</button>`;
+  else h = `<div>🔐 ${T('Ao colar uma chave ou escrever o nome das crianças, o app pede para criar um PIN e tranca tudo num cofre neste aparelho.','When you paste a key or write the children\'s names, the app asks you to create a PIN and locks everything in a vault on this device.')}</div>`;
+  el.innerHTML = h;
+  const t = $('#btn-cofre-trancar'); if(t) t.onclick = ()=>{ Seg.trancar().then(()=>toast(T('🔒 Cofre trancado','🔒 Vault locked'))); };
+  const a = $('#btn-cofre-abrir'); if(a) a.onclick = ()=>{ Seg.abrir().catch(()=>{}); };
+}
+Seg.aoMudar(()=>{ pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualizarSaudacao(); });
+document.addEventListener('dgo:idioma', ()=>{ pintarSegredos(); pintarPainelCofre(); });
+pintarSegredos(); pintarPainelCofre();
 
 // Configurações → Voz guardada: total em MB e a lista por história, cada uma com a sua lixeira
 function mostrarGuarda(){
@@ -3900,6 +4053,7 @@ $('#btn-ouvir-cumprimento').addEventListener('click', async ()=>{
   const b=$('#btn-ouvir-cumprimento'), rotulo='🔈 Ouvir o cumprimento';
   b.disabled=true; b.innerHTML='<span class="load"></span> preparando a voz…';
   try{
+    await Seg.abrir().catch(()=>{});     // os nomes das crianças estão no cofre; recusando o PIN, o cumprimento sai sem nomes
     const frase = fraseCumprimento();
     if(cfg.motorVoz==='nativo'){
       if('speechSynthesis' in window) speechSynthesis.cancel();
@@ -3935,11 +4089,12 @@ $('#btn-testar-voz').addEventListener('click', async ()=>{
 
 $('#btn-modelos-gemini').addEventListener('click', async ()=>{
   const b=$('#btn-modelos-gemini'), rot='🔄 Ver os modelos que a minha chave aceita';
-  if(!cfg.geminiKey){ toast('Cole a chave do Gemini primeiro'); return; }
+  let chave=''; try{ chave = await Seg.ler('geminiKey'); }catch(e){ toast(e.message, 5000); return; }
+  if(!chave){ toast('Cole a chave do Gemini primeiro'); return; }
   b.disabled=true; b.innerHTML='<span class="load"></span> consultando o Google…';
   try{
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models',
-                          {headers:{'x-goog-api-key':cfg.geminiKey}});
+                          {headers:{'x-goog-api-key':chave}});
     if(!r.ok) throw new Error('Google: '+r.status+' — '+(await r.text()).slice(0,160));
     const j = await r.json();
     const bons = (j.models||[])
@@ -3964,18 +4119,19 @@ $('#btn-modelos-gemini').addEventListener('click', async ()=>{
    Um pedido barato ao provedor. "Falta permissão" (ElevenLabs com chave restrita, por exemplo)
    quer dizer que a chave é válida: só não pode listar. Serve para gerar, então é aceita. */
 const TESTE_CHAVE = {
-  gemini:     ()=>fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1',{headers:{'x-goog-api-key':cfg.geminiKey}}),
-  anthropic:  ()=>fetch('https://api.anthropic.com/v1/models?limit=1',{headers:{'x-api-key':cfg.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}}),
-  openai:     ()=>fetch('https://api.openai.com/v1/models',{headers:{'Authorization':'Bearer '+cfg.openaiKey}}),
-  elevenlabs: ()=>fetch('https://api.elevenlabs.io/v1/user',{headers:{'xi-api-key':cfg.elevenKey}})
+  gemini:     k=>fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1',{headers:{'x-goog-api-key':k}}),
+  anthropic:  k=>fetch('https://api.anthropic.com/v1/models?limit=1',{headers:{'x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}}),
+  openai:     k=>fetch('https://api.openai.com/v1/models',{headers:{'Authorization':'Bearer '+k}}),
+  elevenlabs: k=>fetch('https://api.elevenlabs.io/v1/user',{headers:{'xi-api-key':k}})
 };
 function faltaPermissao(status, corpo){ return (status===401 || status===403) && /missing_permissions|permission/i.test(corpo||''); }
 async function testarChave(id, btn){
   const campo = {gemini:'geminiKey',anthropic:'anthropicKey',openai:'openaiKey',elevenlabs:'elevenKey'}[id];
-  if(!cfg[campo]){ toast(T('Cole a chave primeiro','Paste the key first')); return; }
+  let chave=''; try{ chave = await Seg.ler(campo); }catch(e){ toast(e.message, 5000); return; }
+  if(!chave){ toast(T('Cole a chave primeiro','Paste the key first')); return; }
   const rot = btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="load"></span> '+T('testando…','testing…');
   try{
-    const r = await TESTE_CHAVE[id]();
+    const r = await TESTE_CHAVE[id](chave);
     const corpo = r.ok ? '' : (await r.text()).slice(0,300);
     if(r.ok) toast(T('✓ Chave válida','✓ Key is valid'));
     else if(faltaPermissao(r.status, corpo)) toast(T('✓ Chave válida — sem permissão para este teste, mas serve para gerar','✓ Key is valid — no permission for this test, but it works for generating'), 5000);
@@ -3990,7 +4146,7 @@ async function testarChave(id, btn){
 $('#btn-carregar-vozes').addEventListener('click', async ()=>{
   const b=$('#btn-carregar-vozes'); b.disabled=true; b.innerHTML='<span class="load"></span> buscando…';
   try{
-    const r = await fetch('https://api.elevenlabs.io/v1/voices',{headers:{'xi-api-key':cfg.elevenKey}});
+    const r = await fetch('https://api.elevenlabs.io/v1/voices',{headers:{'xi-api-key':await Seg.ler('elevenKey')}});
     if(!r.ok){
       const corpo = (await r.text()).slice(0,300);
       throw new Error(faltaPermissao(r.status, corpo)
@@ -4053,7 +4209,7 @@ const Copia = (function(){
     return c.match(/.{5}/g).join('-');
   }
   const soCodigo = x => String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-  const segredo = k => /key$|token$/i.test(k) || k==='ghRepo';
+  const segredo = k => /key$|token$/i.test(k) || k==='ghRepo' || k in SEGREDOS;   // chaves e nomes não passam pelo cfg: os nomes entram à parte, só dentro da parte embaralhada
   async function chaveDe(texto, sal, rodadas){
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(texto), 'PBKDF2', false, ['deriveKey']);
     return crypto.subtle.deriveKey({name:'PBKDF2', hash:'SHA-256', salt:sal, iterations:rodadas}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
@@ -4067,8 +4223,9 @@ const Copia = (function(){
     const k = await chaveDe(texto, deB64(e.sal), rodadas);
     return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:deB64(e.iv)}, k, deB64(e.chave)));
   }
-  async function criar(senha, andamento){
+  async function criar(senha, andamento, nomes){
     const ajustes = {}; Object.keys(cfg).forEach(k=>{ if(!segredo(k)) ajustes[k] = cfg[k]; });
+    Object.assign(ajustes, nomes || {});     // os nomes das crianças só vão aqui, dentro do conteúdo embaralhado
     const conteudo = new TextEncoder().encode(JSON.stringify({ app:'contador-de-historias', versao:VERSAO, em:new Date().toISOString(), historias, cfg:ajustes, stats }));
     const bruta = aleatorio(32), codigo = codigoNovo(), iv = aleatorio(12);
     const chave = await crypto.subtle.importKey('raw', bruta, 'AES-GCM', false, ['encrypt']);
@@ -4099,7 +4256,7 @@ const Copia = (function(){
   // 1) senha → 2) pílula enquanto embaralha → 3) o código para anotar → 4) baixar
   function fazer(depois){
     modal(`<h3>🔒 ${T('Guardar uma cópia protegida','Save a protected copy')}</h3>
-      <p class="hint">${T('A cópia leva as suas histórias, onde você parou e os ajustes (as chaves de IA não vão). Ela sai embaralhada: só abre com a senha que você escolher agora ou com um código que vou mostrar para você anotar.','The copy takes your stories, where you stopped and your settings (AI keys are left out). It comes out scrambled: it only opens with the password you choose now or with a code I will show you to write down.')}</p>
+      <p class="hint">${T('A cópia leva as suas histórias, onde você parou e os ajustes (as chaves de IA não vão: ficam no cofre). Os nomes das crianças vão, mas só dentro da parte embaralhada. Ela só abre com a senha que você escolher agora ou com um código que vou mostrar para você anotar.','The copy takes your stories, where you stopped and your settings (AI keys are left out: they stay in the vault). The children\'s names go, but only inside the scrambled part. It only opens with the password you choose now or with a code I will show you to write down.')}</p>
       <label class="f" for="cp-senha">${T('Senha da cópia (pelo menos 6 letras ou números; 8 ou mais é melhor)','Copy password (at least 6 letters or numbers; 8 or more is better)')}</label>
       <input type="password" id="cp-senha" autocomplete="new-password" placeholder="${T('Ex.: estrela-do-mar-27','E.g.: starfish-27')}">
       <label class="f" for="cp-senha2">${T('Repita a senha','Repeat the password')}</label>
@@ -4108,14 +4265,20 @@ const Copia = (function(){
       <div style="height:12px"></div><button class="btn pri" id="cp-fazer">${T('Fazer a cópia','Make the copy')}</button>
       <div style="height:10px"></div><button class="btn sm ghost" id="cp-nao">${T('Cancelar','Cancel')}</button>`);
     $('#cp-nao').onclick = fecharModal;
-    $('#cp-fazer').onclick = ()=>{
+    $('#cp-fazer').onclick = async ()=>{
       const a = $('#cp-senha').value, b = $('#cp-senha2').value, erro = $('#cp-erro');
       const mostrar = t=>{ erro.textContent = t; erro.classList.remove('oculto'); };
       if(a.length < 6) return mostrar(T('A senha precisa ter pelo menos 6 letras ou números.','The password needs at least 6 letters or numbers.'));
       if(a !== b) return mostrar(T('As duas senhas não são iguais. Digite de novo.','The two passwords are not the same. Type them again.'));
       fecharModal();
+      // os nomes das crianças estão no cofre: trancado, pede o PIN antes de a pílula começar; sem o PIN, a cópia sai sem os nomes
+      const nomes = {}; let semNomes = false;
+      for(const c of ['publicoNomes','nomesProtegidos']){
+        try{ const v = await Seg.ler(c); if(v) nomes[c] = v; }catch(e){ semNomes = true; break; }
+      }
+      if(semNomes) Object.keys(nomes).forEach(k=>delete nomes[k]);
       DGO.tarefa.iniciar({ id:'copia-fazer', titulo:T('Fazendo a cópia protegida','Making the protected copy'),
-        executar: andamento => criar(a, andamento), aoAbrir: r => mostrarCodigo(r, depois) })
+        executar: andamento => criar(a, andamento, nomes).then(r=>Object.assign(r, {semNomes})), aoAbrir: r => mostrarCodigo(r, depois) })
         .catch(()=>toast(T('Não deu para fazer a cópia agora. Tente de novo.','Could not make the copy now. Try again.'), 5000));
     };
   }
@@ -4123,6 +4286,7 @@ const Copia = (function(){
     modal(`<h3>📝 ${T('Anote este código num papel','Write this code down on paper')}</h3>
       <p class="hint">${T('Se esquecer a senha, é com este código que a cópia abre. Ele aparece só agora: guarde o papel junto com os documentos da casa (não deixe salvo no celular).','If you forget the password, this code opens the copy. It shows up only now: keep the paper with the household documents (do not leave it saved on the phone).')}</p>
       <div class="cp-codigo" id="cp-codigo" style="font:700 1.15rem/1.6 ui-monospace,monospace;letter-spacing:.06em;text-align:center;padding:14px;border-radius:12px;border:1px dashed var(--borda,#555);margin:12px 0;word-break:break-all">${esc(r.codigo)}</div>
+      ${r.semNomes ? `<div class="aviso" style="margin-bottom:10px">${T('Os nomes das crianças ficaram de fora desta cópia, porque o cofre continuou trancado. Eles seguem guardados no cofre deste aparelho.','The children\'s names were left out of this copy because the vault stayed locked. They remain saved in this device\'s vault.')}</div>` : ''}
       <button class="btn sm" id="cp-copiar">📋 ${T('Copiar o código','Copy the code')}</button>
       <label style="display:flex;gap:10px;align-items:center;margin:14px 0 6px"><input type="checkbox" id="cp-anotei" style="width:auto"> ${T('Anotei o código num papel','I wrote the code down on paper')}</label>
       <button class="btn pri" id="cp-baixar" disabled>⬇️ ${T('Baixar a cópia','Download the copy')}</button>`);
@@ -4148,10 +4312,24 @@ const Copia = (function(){
     salvarHistorias(); salvarCfg(); salvarStats(); aplicarCfgNaTela(); pintarTudo(); atualizarVozGuardada(true);
     return { novas, jaEstavam: Math.max(0, validas - novas), ajustes };
   }
+  // os nomes da cópia vão para o cofre (só onde ainda estão vazios); trancado e sem PIN, ficam de fora e a pessoa é avisada
+  async function trazerNomes(c){
+    const r = {preenchidos:0, trancado:false};
+    const vindos = {};
+    ['publicoNomes','nomesProtegidos'].forEach(k=>{ const v = c && c.cfg && c.cfg[k]; if(typeof v==='string' && v.trim()) vindos[k] = v.trim(); });
+    for(const k of Object.keys(vindos)){
+      try{
+        if(await Seg.ler(k)) continue;           // o aparelho vence: só preenche o que está vazio
+        await Seg.gravar(k, vindos[k]); r.preenchidos++;
+      }catch(e){ r.trancado = true; break; }
+    }
+    return r;
+  }
   function resumo(r){
+    const nm = r.nomes || {};
     modal(`<h3>✅ ${T('Cópia trazida','Copy restored')}</h3>
       <p class="hint" style="font-size:15px">${r.novas} ${T('história(s) nova(s) entraram.','new story(ies) came in.')}<br>
-      ${r.jaEstavam} ${T('já estavam aqui e não foram repetidas.','were already here and were not repeated.')}${r.ajustes ? '<br>'+r.ajustes+' '+T('ajuste(s) que estavam vazios foram preenchidos.','empty setting(s) were filled in.') : ''}</p>
+      ${r.jaEstavam} ${T('já estavam aqui e não foram repetidas.','were already here and were not repeated.')}${r.ajustes ? '<br>'+r.ajustes+' '+T('ajuste(s) que estavam vazios foram preenchidos.','empty setting(s) were filled in.') : ''}${nm.preenchidos ? '<br>'+T('Os nomes das crianças foram para o cofre.','The children\'s names went into the vault.') : ''}${nm.trancado ? '<br>⚠️ '+T('Os nomes das crianças que vinham na cópia NÃO foram trazidos: o cofre continuou trancado. Traga a cópia de novo e digite o PIN.','The children\'s names in the copy were NOT restored: the vault stayed locked. Restore the copy again and type the PIN.') : ''}</p>
       <div style="height:12px"></div><button class="btn sm" id="cp-ok">${T('Entendi','Got it')}</button>`);
     $('#cp-ok').onclick = fecharModal;
   }
@@ -4168,7 +4346,7 @@ const Copia = (function(){
       fecharModal();
       // senha errada não é "erro" da tarefa: volta como resposta, para a pílula sumir e a janela mostrar o aviso
       DGO.tarefa.iniciar({ id:'copia-abrir', titulo:T('Abrindo a cópia protegida','Opening the protected copy'),
-        executar: ()=>abrir(obj, texto).then(c=>({ ok:aplicar(c) }), e=>({ erro: e && e.message==='senha' ? 'senha' : 'arquivo' })),
+        executar: ()=>abrir(obj, texto).then(async c=>{ const ok = aplicar(c); ok.nomes = await trazerNomes(c); return { ok }; }, e=>({ erro: e && e.message==='senha' ? 'senha' : 'arquivo' })),
         aoAbrir: r=>{
           if(r.ok) return resumo(r.ok);
           restaurar(obj);
@@ -4220,7 +4398,7 @@ $('#btn-transferir').addEventListener('click', telaTransferencia);
 // diretriz: antes de apagar qualquer dado do navegador, oferecer a cópia protegida
 $('#btn-apagar-tudo').addEventListener('click', ()=>{
   modal(`<h3>🗑️ ${T('Apagar tudo deste aparelho','Erase everything on this device')}</h3>
-    <p class="hint">${T('Apaga as histórias, os ajustes e as contas de leitura deste aparelho. Não dá para desfazer.','Erases the stories, settings and reading counts on this device. It cannot be undone.')}</p>
+    <p class="hint">${T('Apaga as histórias, os ajustes, os nomes das crianças e as contas de leitura deste aparelho. Não dá para desfazer. As chaves de IA ficam no cofre (valem também para os outros apps da SolverONE); para tirá-las, use o cofre.','Erases the stories, settings, the children\'s names and reading counts on this device. It cannot be undone. The AI keys stay in the vault (they also serve the other SolverONE apps); to remove them, use the vault.')}</p>
     <div class="aviso" style="margin-top:10px">${T('Antes, guarde uma cópia protegida: com ela você traz tudo de volta, aqui ou em outro aparelho.','First, save a protected copy: with it you bring everything back, here or on another device.')}</div>
     <div style="height:12px"></div><button class="btn pri" id="ap-copia">🔒 ${T('Guardar a cópia agora','Save the copy now')}</button>
     <div style="height:10px"></div><button class="btn sm ghost" id="ap-ja">${T('Já tenho uma cópia · continuar','I already have a copy · continue')}</button>
@@ -4240,6 +4418,11 @@ async function apagarPasso2(){
   $('#ap-nao2').onclick = fecharModal;
   $('#ap-sim').onclick = async ()=>{
     const vozes = $('#ap-vozes').checked;
+    // os nomes das crianças moram no cofre: apagar tudo também os apaga (trancado, pede o PIN; sem ele, nada é apagado)
+    if(Seg.tem('publicoNomes') || Seg.tem('nomesProtegidos')){
+      try{ await Seg.gravar('publicoNomes',''); await Seg.gravar('nomesProtegidos',''); }
+      catch(e){ toast(T('Não apaguei nada: abra o cofre (PIN) para apagar também os nomes das crianças.','I erased nothing: open the vault (PIN) to erase the children\'s names too.'), 6000); return; }
+    }
     await Nuvem.desligarAqui();   // antes: senão a próxima ida e volta apagaria as histórias da conta também
     await Dados.apagar();
     if(vozes){ try{ await Guarda.limpar(); }catch(e){} }
@@ -4249,14 +4432,17 @@ async function apagarPasso2(){
 }
 
 /* ---------- levar a configuração para outro aparelho ---------- */
-// Viaja só o necessário para ler e escrever histórias. O token do GitHub NUNCA vai junto.
+// Viaja só a voz e o modelo (v1.22.0): chaves e nomes das crianças NUNCA vão no endereço.
 const CAMPOS_TRANSF = {
   mv:'motorVoz', mt:'motorTexto',
-  gk:'geminiKey', gv:'geminiVoice', gmt:'geminiModelTts', gmx:'geminiModel',
-  ek:'elevenKey', ev:'elevenVoice', em:'elevenModel',
-  ok:'openaiKey', ov:'openaiVoice', om:'openaiModel',
-  ak:'anthropicKey', am:'anthropicModel'
+  gv:'geminiVoice', gmt:'geminiModelTts', gmx:'geminiModel',
+  ev:'elevenVoice', em:'elevenModel',
+  ov:'openaiVoice', om:'openaiModel',
+  am:'anthropicModel'
 };
+// links ANTIGOS (até a 1.21.0) levavam as chaves no endereço. Não são mais gerados; se alguém abrir um, as chaves
+// vão para o cofre (depois do PIN), nunca para o ch_config.
+const CHAVES_DE_LINK_ANTIGO = { gk:'geminiKey', ek:'elevenKey', ok:'openaiKey', ak:'anthropicKey' };
 function linkDeConfig(){
   const c = {};
   Object.keys(CAMPOS_TRANSF).forEach(k=>{ const v = cfg[CAMPOS_TRANSF[k]]; if(v) c[k]=v; });
@@ -4271,35 +4457,38 @@ function aplicarConfigDaUrl(){
   let c;
   try{ c = JSON.parse(decodeURIComponent(escape(atob(m[1])))); }catch(e){ toast('Link de configuração inválido'); return; }
   if(!c || typeof c!=='object') return;
-  const quantas = Object.keys(c).length;
+  const chavesNoLink = Object.keys(CHAVES_DE_LINK_ANTIGO).filter(k=>typeof c[k]==='string' && c[k]);
+  const quantas = Object.keys(c).filter(k=>CAMPOS_TRANSF[k] || CHAVES_DE_LINK_ANTIGO[k]).length;
   if(!quantas) return;
   setTimeout(()=>{
-    modal(`<h3>Configurar este aparelho?</h3>
-      <p class="hint">Você abriu um link que traz as configurações de voz e de IA de outro aparelho seu (${quantas} itens, incluindo as chaves).</p>
-      <div class="aviso" style="margin-top:12px">Só aceite se foi você mesmo que gerou esse link. Ele não mexe nas suas histórias.</div>
+    modal(`<h3>${T('Configurar este aparelho?','Set up this device?')}</h3>
+      <p class="hint">${T('Você abriu um link que traz as configurações de voz e de IA de outro aparelho seu','You opened a link that brings the voice and AI settings of another device of yours')} (${quantas} ${T('itens','items')}${chavesNoLink.length ? T(', incluindo as chaves',', including the keys') : ''}).</p>
+      ${chavesNoLink.length ? `<div class="aviso" style="margin-top:12px">${T('Este é um link do tipo antigo: ele traz chaves de IA no endereço, e esse tipo de link não é mais gerado (o endereço pode ficar salvo em conversas e no histórico). As chaves vão para o cofre deste aparelho — vai pedir o PIN. Depois, apague a mensagem que tinha o link e, se alguém mais pode ter visto, troque as chaves no site de cada provedor.','This is an old-style link: it carries AI keys in the address, and that kind of link is no longer generated (the address can stay saved in chats and history). The keys go to this device\'s vault — it will ask for the PIN. Afterwards, delete the message that had the link and, if anyone else may have seen it, replace the keys on each provider\'s site.')}</div>` : ''}
+      <div class="aviso" style="margin-top:12px">${T('Só aceite se foi você mesmo que gerou esse link. Ele não mexe nas suas histórias.','Only accept if you generated this link yourself. It does not touch your stories.')}</div>
       <div style="height:14px"></div>
-      <button class="btn ok" id="cfg-sim">✅ Configurar este aparelho</button>
+      <button class="btn ok" id="cfg-sim">✅ ${T('Configurar este aparelho','Set up this device')}</button>
       <div style="height:10px"></div>
-      <button class="btn sm ghost" id="cfg-nao">Agora não</button>`);
-    $('#cfg-sim').onclick=()=>{
+      <button class="btn sm ghost" id="cfg-nao">${T('Agora não','Not now')}</button>`);
+    $('#cfg-sim').onclick=async ()=>{
       Object.keys(CAMPOS_TRANSF).forEach(k=>{ if(c[k]) cfg[CAMPOS_TRANSF[k]] = c[k]; });
       salvarCfg(); aplicarCfgNaTela(); fecharModal();
-      toast('Pronto! Este aparelho já está configurado 💜');
+      let falhou = false;
+      for(const k of chavesNoLink){ try{ await Seg.gravar(CHAVES_DE_LINK_ANTIGO[k], c[k]); }catch(e){ falhou = true; break; } }
+      toast(falhou ? T('Configurado, mas as chaves NÃO foram guardadas: o cofre continuou trancado. Abra o link de novo e digite o PIN.','Set up, but the keys were NOT saved: the vault stayed locked. Open the link again and type the PIN.')
+                   : T('Pronto! Este aparelho já está configurado 💜','Done! This device is set up 💜'), falhou ? 6000 : 3500);
     };
     $('#cfg-nao').onclick=fecharModal;
   }, 400);
 }
 function telaTransferencia(){
   const link = linkDeConfig();
-  const temChave = !!(cfg.geminiKey || cfg.elevenKey || cfg.openaiKey || cfg.anthropicKey);
-  modal(`<h3>Levar a configuração para o celular</h3>
-    <p class="hint">As chaves ficam guardadas em cada aparelho separadamente — é isso que impede que elas vão parar no GitHub. Este link leva as configurações deste aparelho para outro, sem digitar nada.</p>
-    ${temChave ? '' : '<div class="aviso" style="margin-top:12px">Você ainda não tem nenhuma chave preenchida aqui. Preencha primeiro.</div>'}
-    <div class="aviso" style="margin-top:12px"><b>O link contém suas chaves.</b> Mande só para você mesmo (o jeito mais seguro é o menu do Chrome → <b>Enviar para seus dispositivos</b>). Não poste em grupo nem deixe salvo em lugar público.</div>
+  modal(`<h3>${T('Levar a configuração para o celular','Take the settings to your phone')}</h3>
+    <p class="hint">${T('As chaves de IA e os nomes das crianças ficam trancados no cofre de cada aparelho e <b>não viajam</b> neste link. Ele leva só a voz e os modelos escolhidos, para você não precisar escolher tudo de novo.','The AI keys and the children\'s names stay locked in each device\'s vault and <b>do not travel</b> in this link. It only carries the chosen voice and models, so you do not have to pick everything again.')}</p>
+    <div class="info" style="margin-top:12px">${T('No outro aparelho, depois de abrir o link, cole as chaves uma vez em Configurações: o app pede um PIN para trancá-las no cofre dele.','On the other device, after opening the link, paste the keys once in Settings: the app asks for a PIN to lock them in its vault.')}</div>
     <div style="height:14px"></div>
     <button class="btn pri" id="tr-copiar">📋 Copiar o link</button>
     <div style="height:10px"></div>
-    <div class="info">No outro aparelho, é só abrir esse link uma vez: o site pergunta se pode configurar e pronto — nunca mais precisa fazer isso nele.</div>
+    <div class="info">${T('No outro aparelho, é só abrir esse link uma vez: o site pergunta se pode configurar.','On the other device, just open this link once: the site asks whether it can set things up.')}</div>
     <div style="height:14px"></div>
     <button class="btn sm ghost" id="tr-fechar">Fechar</button>`);
   $('#tr-copiar').onclick=()=>{
@@ -4317,6 +4506,13 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.22.0','16/10/2026', [
+    'Cofre de chaves: as chaves de IA (Gemini, OpenAI, ElevenLabs, Claude) e os nomes das crianças saíram do texto aberto do navegador e ficam trancados num cofre com um PIN seu, o mesmo cofre dos outros apps da SolverONE',
+    'Com o cofre trancado, o app pede o PIN na hora de usar uma chave ou os nomes e continua sozinho; em Configurações há "🔒 Trancar o cofre agora"',
+    'O link "Levar minha configuração para outro aparelho" não leva mais chaves nem nomes: só a voz e o modelo. Links antigos que ainda tragam chaves guardam as chaves no cofre, depois do PIN',
+    'A cópia protegida continua levando os nomes das crianças, só dentro da parte embaralhada; o arquivo de voz (sem senha) deixa o cumprimento com os nomes de fora',
+    'Por baixo: módulo de diretrizes 1.10.0 e cofre.js'
+  ]],
   ['1.21.0','10/10/2026', [
     'Obedece aos interruptores do RootifyONE → Controle dos apps (arquivo recursos.js): o dono da SolverONE pode desligar o AssistONE, as dicas do AssistONE, a faixa de anúncios e o "A IA escreve" (criar com IA); o que for desligado some do app. Sem internet, vale a última escolha recebida (ou tudo ligado)'
   ]],
@@ -4581,12 +4777,10 @@ function aplicarCfgNaTela(){
   $('#lbl-vol').textContent=cfg.volEfeitos;
   $('#lbl-estab').textContent=Number(cfg.elevenEstab).toFixed(2);
   $('#lbl-fonte').textContent=cfg.fonte;
-  $('#in-openai-key2').value=cfg.openaiKey||'';
   $('#in-gemini-instr').value=cfg.geminiInstr||'';
-  $('#in-publico-nomes').value=cfg.publicoNomes||'';
   $('#sel-publico-tipo').value=cfg.publicoTipo||'';
   atualizarSaudacao();
-  espelharGemini();
+  pintarSegredos();
   pintarCofre();
   $('#hint-idade').textContent=PERFIS['6-9'].guia;
 }
@@ -5361,7 +5555,12 @@ const Nuvem = (function(){
     serie:h.serie||'', ordem:Number(h.ordem)||0, criadaEm:h.criadaEm||'', origem:h.origem||'' });
   const prog = h => ({ favorita:!!h.favorita, lida:!!h.lida, posFrase:Math.min(100000, Number(h.posFrase)||0),
     frasesTotal:Math.min(100000, Number(h.frasesTotal)||0), leituras:Math.min(1000000, Number(h.leituras)||0), ouvidaEm: h.ouvidaEm ? iso(h.ouvidaEm) : '' });
-  const prefs = ()=>{ const o = {}; PREFS.forEach(k=>{ o[k] = cfg[k]===undefined ? null : cfg[k]; }); return o; };
+  // os nomes das crianças moram no cofre (v1.22.0). Cofre aberto: vai o valor dele. Trancado: nunca pede PIN em segundo plano
+  // e não apaga o da conta (repete o último valor conhecido de lá).
+  const prefs = ()=>{ const o = {}; PREFS.forEach(k=>{
+    if(k in SEGREDOS) o[k] = Seg.aberto() ? Seg.agora(k) : ((st && st.pref && st.pref.c && st.pref.c[k]!==undefined) ? st.pref.c[k] : null);
+    else o[k] = cfg[k]===undefined ? null : cfg[k];
+  }); return o; };
   let APARELHO = ''; try{ APARELHO = localStorage.getItem('ch_aparelho') || ''; if(!/^[A-Za-z0-9_-]{8,64}$/.test(APARELHO)){ APARELHO = 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); localStorage.setItem('ch_aparelho', APARELHO); } }catch(e){ APARELHO = 'a'+Date.now().toString(36)+'semlocal'; }
 
   // estado: sem-conta · indisponivel (motivo: preparo | desligado | navegador) · sem-internet · nova · trancada · ligada
@@ -5543,12 +5742,15 @@ const Nuvem = (function(){
     const x = (await rest('GET', 'conta_preferencias?select=versao,dados_cifrado&user_id=eq.'+U) || [])[0];
     if(!x || !x.dados_cifrado || (st.pref && st.pref.v >= x.versao)) return;
     let R; try{ R = await decifrar(x.dados_cifrado, 'preferencias'); }catch(e){ return; }
-    const local = prefs(), base = st.pref && st.pref.c; let mudou = false;
+    const local = prefs(), base = st.pref && st.pref.c; let mudou = false, adiado = false;
     PREFS.forEach(k=>{
       if(!(k in R) || igual(local[k], R[k])) return;
-      if(!base || igual(local[k], base[k])){ cfg[k] = R[k]; mudou = true; }
+      if(!base || igual(local[k], base[k])){
+        if(k in SEGREDOS){ if(Seg.aberto()){ Seg.gravar(k, R[k]); } else adiado = true; return; }   // cofre trancado: tenta de novo na próxima volta
+        cfg[k] = R[k]; mudou = true;
+      }
     });
-    st.pref = {v:x.versao, c:R};
+    if(!adiado) st.pref = {v:x.versao, c:R};
     if(mudou){ salvar(CHAVE_C, cfg); aplicarCfgNaTela(); if(typeof Topo!=='undefined') Topo.aplicarTema(); }
   }
   async function puxarEstatisticas(){
@@ -5845,11 +6047,14 @@ const Nuvem = (function(){
 /* ---------- guardar a voz num arquivo e trazer de volta ----------
    Para levar a voz para outro aparelho, para o endereço novo (solverone.com.br) ou para ter uma cópia.
    Um arquivo só, sem conversão (o áudio vai do jeito que está guardado), então pesa o mesmo que a voz. */
+(function(){ const e=$('#aviso-voz-arquivo'); const p=()=>{ e.textContent = T('Este arquivo não tem senha: o cumprimento com os nomes das crianças não vai nele (os nomes só saem na cópia protegida).','This file has no password: the greeting with the children\'s names is not in it (names only leave in the protected copy).'); }; p(); document.addEventListener('dgo:idioma', p); })();
 $('#btn-voz-exportar').addEventListener('click', async ()=>{
   const b = $('#btn-voz-exportar'), rot = b.innerHTML;
   b.disabled = true; b.innerHTML = '<span class="load"></span>';
   try{
-    const {itens, blobs} = await Guarda.tudo();
+    const todos = await Guarda.tudo(), itens = [], blobs = []; let cumprimentos = 0;
+    // o cumprimento ("Olá <nomes das crianças>…") não vai neste arquivo, que não tem senha: o nome ficaria em claro nele
+    todos.itens.forEach((it,i)=>{ if(/^saudacao\|/.test(it.k)){ cumprimentos++; return; } itens.push(it); blobs.push(todos.blobs[i]); });
     if(!itens.length){ toast(T('Ainda não há voz guardada','No saved voice yet')); return; }
     const completos = {};
     historias.forEach(h=>{ if(h.audioCompleto && Object.keys(h.audioCompleto).length) completos[h.id] = h.audioCompleto; });
@@ -5862,7 +6067,7 @@ $('#btn-voz-exportar').addEventListener('click', async ()=>{
     a.download = 'contador-voz-'+new Date().toISOString().slice(0,10)+'.chvoz';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
-    toast(T('Arquivo com ','File with ')+fmtBytes(arq.size)+T(' pronto — guarde num lugar seguro',' ready — keep it somewhere safe'), 4500);
+    toast(T('Arquivo com ','File with ')+fmtBytes(arq.size)+T(' pronto — guarde num lugar seguro',' ready — keep it somewhere safe')+(cumprimentos ? T(' (o cumprimento com os nomes das crianças não vai neste arquivo)',' (the greeting with the children\'s names is not in this file)') : ''), 6000);
   }catch(e){ toast(T('Não consegui: ','Could not: ')+(e.message||e)); }
   finally{ b.disabled = false; b.innerHTML = rot; }
 });
@@ -5921,6 +6126,7 @@ const FilaVoz = (function(){
   function naoAdiantaInsistir(e){
     const msg = String(e && e.message || ''), s = statusDe(e);
     if(e && e.plataforma) return !e.passageiro;   // SolverONE: sem login, sem plano ou fim do saldo do mês não passam esperando
+    if(e && e.cofreTrancado) return true;          // cofre trancado e PIN recusado: pausa e avisa
     if(/Cole sua chave|Escolha uma voz/i.test(msg)) return true;
     if(/quota|cota/i.test(msg)) return false;      // sem cota ou sem caracteres (ElevenLabs): espera e tenta de novo
     return s===400 || s===401 || s===403 || s===404;
@@ -5929,6 +6135,7 @@ const FilaVoz = (function(){
   function motivoClaro(e){
     if(e && e.plataforma) return e.message;
     const s = statusDe(e), msg = String(e && e.message || '');
+    if(e && e.cofreTrancado) return msg;
     if(/Cole sua chave|Escolha uma voz/i.test(msg)) return msg;
     if(s===401 || s===403) return T('a chave de voz foi recusada (erro '+s+'). Confira ou troque a chave em Configurações → Voz e toque em Continuar.','the voice key was refused (error '+s+'). Check or replace the key in Settings → Voice and tap Resume.');
     if(s===400 || s===404) return T('o provedor não aceitou o pedido (erro '+s+'). Confira a voz e o modelo em Configurações → Voz e toque em Continuar.','the provider rejected the request (error '+s+'). Check the voice and model in Settings → Voice and tap Resume.');
@@ -5940,6 +6147,10 @@ const FilaVoz = (function(){
     if(rodando) return;
     rodando = true; tentativa = 0; segurarTela(); pintar();
     try{
+      if(Seg.precisaPerguntar()){
+        try{ await Seg.abrir(T('A fila de voz precisa das chaves e dos nomes guardados no cofre.','The voice queue needs the keys and names saved in the vault.')); }
+        catch(e){ parar(e.message); return; }
+      }
       while(st.ligada && st.ids.length){
         if(cfg.motorVoz==='nativo'){ parar(T('Escolha uma voz de internet (Gemini, ElevenLabs ou OpenAI) em Configurações → Voz.','Choose an internet voice (Gemini, ElevenLabs or OpenAI) in Settings → Voice.')); break; }
         if(leitorAberto()){ agora = T('esperando você fechar a história aberta…','waiting for you to close the open story…'); pintar(); await esperar(5); continue; }

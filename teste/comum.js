@@ -67,12 +67,12 @@ async function contexto(browser, base, opc) {
   return { ctx, ped };
 }
 
-/* grava os valores de mentira no armazenamento ANTES do app abrir (uma vez por aba) */
+/* grava os valores de mentira no armazenamento ANTES do app abrir (uma vez por contexto: outras abas e recargas não semeiam de novo) */
 async function semear(ctx, dados) {
   await ctx.addInitScript((d) => {
     try {
-      if (sessionStorage.getItem('__semeado')) return;
-      sessionStorage.setItem('__semeado', '1');
+      if (localStorage.getItem('__semeado')) return;
+      localStorage.setItem('__semeado', '1');
       Object.keys(d).forEach((k) => localStorage.setItem(k, typeof d[k] === 'string' ? d[k] : JSON.stringify(d[k])));
     } catch (e) {}
   }, dados);

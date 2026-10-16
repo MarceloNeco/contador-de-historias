@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.21.0',
+  versaoApp: '1.22.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -32,6 +32,7 @@ DGO.iniciar({
     ativo: false,       /* DESLIGADO de proposito: o banner deste modulo (1.0.0) e uma imagem fixa.
                            A faixa em carrossel, igual a dos outros apps, fica no index.html
                            (bloco "anuncios" no script) e le /solverone-dados/anuncios.json. */
+    popup: { ativo: false },   /* o pop-up do modulo novo (1.10.0) tambem fica desligado */
     link: 'https://marceloneco.github.io/',
     imagem: '',         /* vazio = placeholder <ANUNCIE AQUI>.
                            Depois troque por 'banner.jpg' */
@@ -39,6 +40,30 @@ DGO.iniciar({
     /* enquanto uma destas telas estiver aberta o banner some sozinho,
        e volta quando ela fecha */
     esconderCom: ['.leitor', '.modal']
+  },
+
+  /* ---------- partes do modulo 1.10.0 que o Contador ja faz por conta propria (ou nao tinha): desligadas ----------
+     O app salta do modulo 1.0.2 para o 1.10.0 so para ganhar o cofre comum de chaves (cofre.js).
+     Nada do que o modulo novo traz de tela entra sem o dono pedir. */
+  ia: { ativo: false, botaoNaFaixa: false },                 /* a IA do Contador e a dele mesmo (chamarIA); sem botao de IA do modulo */
+  niveis: { ativo: false, arquivo: '' },                     /* acesso por plano: o Contador usa Plataforma/servicos_plataforma_app */
+  compat: { bloqueio: false, aviso: false },                 /* sem faixa nem bloqueio de "navegador antigo" que o app nao tinha */
+  feedback: { ativo: false, perguntaDiaria: false },         /* 💬 e pergunta do dia: ficam como sugestao no PENDENCIAS.md (nao foram pedidos) */
+
+  /* ---------- cofre comum de chaves (cofre.js, SolverCofre 1.0.0) ----------
+     Onde o Contador guardava segredos em texto aberto (ch_config). Na primeira vez que o cofre abre (ao criar o PIN),
+     so estes campos vao para o cofre e saem do ch_config; o resto do ch_config, as historias e as estatisticas ficam.
+     COPIA TEMPORARIA (autorizada pelo dono em 16/Out/2026): o Eleicoes (planos-candidatos-2026) le de proposito
+     geminiKey, openaiKey e elevenKey em ch_config (index.html dele, funcao chaveContador). Esses tres ficam COPIADOS
+     (manter: true) ate o Eleicoes passar a ler pelo cofre (proximo app da Fase 3); depois, tirar o manter.
+     anthropicKey e os nomes das criancas nao sao lidos por ninguem de fora: saem na hora. */
+  cofre: {
+    fontes: [
+      { chave: 'ch_config', caminho: '', manter: true,
+        mapa: { geminiKey: 'ia:gemini', openaiKey: 'ia:openai', elevenKey: 'ia:elevenlabs' } },
+      { chave: 'ch_config', caminho: '',
+        mapa: { anthropicKey: 'ia:anthropic', publicoNomes: 'contador:publicoNomes', nomesProtegidos: 'contador:nomesProtegidos' } }
+    ]
   },
 
   /* ---------- trechos que o tradutor nao pode tocar ----------
@@ -59,6 +84,11 @@ DGO.iniciar({
     '[data-motor="solverone"]',  /* botões da SolverONE: o app escreve o texto em PT/EN (muda com o plano) */
     '#sv-conta',                 /* cartão da conta SolverONE: o app escreve em PT/EN (muda ao entrar e sair) */
     '#nv-conta', '#nv-selo',     /* nuvem (v1.20.0): o app escreve em PT/EN */
+    '#cofre-painel', '#aviso-voz-arquivo',  /* cofre (v1.22.0): o app escreve em PT/EN */
+    /* campos de chave e de nomes: o app troca o placeholder (aviso "guardado no cofre"); o tradutor guardaria o texto
+       velho e o poria de volta */
+    '#in-gemini-key', '#in-gemini-key-voz', '#in-openai-key', '#in-openai-key2', '#in-eleven-key', '#in-anthropic-key',
+    '#in-publico-nomes', '#in-nomes-protegidos',
     '#assist-admin'              /* aviso "Desligado pela administração": o app escreve em PT/EN */
   ],
 
