@@ -21,7 +21,10 @@
 (function (raiz) {
   'use strict';
 
-  var VERSAO = '1.0.2';
+  /* 1.10.0 (16/Out/2026): as chaves de IA moram SÓ no cofre comum (cofre.js, global SolverCofre), trancadas
+     por PIN. Sem o cofre.js na página, continua do jeito antigo (texto aberto) e avisa no console.
+     Ordem: cofre.js -> diretrizes.js -> diretrizes-config.js. Ver ARQUITETURA.md, "Cofre comum de chaves". */
+  var VERSAO = '1.10.0';
   if (raiz.DGO && raiz.DGO.__carregado) { return; }
 
   /* ------------------------------------------------------------------
@@ -43,17 +46,85 @@
     responsivo: true,
 
     seletorIdiomaVisivel: true,
-    posicaoSeletorIdioma: 'topo-direita',
+    posicaoSeletorIdioma: 'faixa',   // 'faixa' = dentro da faixa do topo;
+                                     // ou topo-direita, topo-esquerda,
+                                     // baixo-direita, baixo-esquerda
 
     anuncios: {
       ativo: true,
-      imagem: '',                     // deixe vazio para usar o placeholder
-      link: 'https://marceloneco.github.io/',
-      texto: '<ANUNCIE AQUI>',
-      altura: 64,
-      /* enquanto uma destas telas estiver aberta, o banner some sozinho
+      rotulo: { pt: 'ANÚNCIO', en: 'AD' },
+      velocidade: 9,                  // segundos por cartao no carrossel
+      lista: [],                      // vazio = os proprios apps do hub
+      arquivo: 'anuncios.json',       // opcional: lista vinda de um arquivo
+      /* enquanto uma destas telas estiver aberta, a faixa some sozinha
          e volta quando ela fecha (leitor de tela cheia, modal, etc.) */
-      esconderCom: []
+      esconderCom: [],
+      popup: {
+        ativo: true,
+        antesDoLogin: true,           // um app sorteado antes de entrar
+        depoisDoLogin: true,          // outro app depois de entrar
+        esperaSegundos: 3,            // conta 3, 2, 1 e so entao libera o X
+        atrasoAbertura: 8,            // segundos ate aparecer
+        atrasoAntesDoLogin: 5,
+        umaVezPorSessao: true,        // uma vez antes e uma vez depois
+        intervaloHoras: 0,            // 0 = sem limite alem da sessao
+        botao: { pt: 'Conhecer', en: 'Open' }
+      }
+    },
+
+    /* consulta a IA: a chave e da pessoa, colada uma vez, valendo nos 3 apps */
+    ia: {
+      ativo: true,
+      botaoNaFaixa: true,           // o botao mora na faixa do topo, sem cobrir nada
+      provedorPadrao: 'openrouter', // o que tem plano gratis e mais modelos num cadastro so
+      modelos: {},                  // { openrouter:'...', groq:'...', gemini:'...' }
+      enderecos: {},                // { personalizado:'https://.../v1' }
+      proxy: {},                    // futuro: { openrouter:'https://seu-servidor/ia' } - a chave fica la
+      contexto: '',                 // o que este app faz, para a IA saber onde esta
+      sugestoes: [],                // [{pt,en}] perguntas de exemplo
+      servico: 'ia'                 // id do servico, para o controle de nivel
+    },
+
+    /* cofre comum (cofre.js): onde este app guardava chaves em texto aberto antes, para irem
+       sozinhas para o cofre na primeira vez que ele abrir. Ex. (RiseONE):
+       fontes: [{ chave: 'riseone.v1', caminho: 'settings.ai.keys', mapa: { gemini: 'ia:gemini', openai: 'ia:openai', claude: 'ia:anthropic' } }] */
+    cofre: {
+      fontes: []
+    },
+
+    /* o que pode ser feito em dados moveis: 'sempre' | 'wifi' | 'nunca' */
+    rede: {
+      pesado: 'wifi',               // imagens grandes, sons, motor de OCR, audio de voz
+      ia: 'sempre'                  // perguntas a IA (sao pequenas)
+    },
+
+    /* niveis de acesso: Visitante -> Membro -> Premium */
+    niveis: {
+      ativo: true,
+      padraoServico: 'visitante',   // nivel exigido quando o servico nao diz nada
+      arquivo: 'servicos.json',     // fonte da verdade, editada pelo painel de admin
+      servicos: [],                 // [{ id, nome:{pt,en}, descricao:{pt,en}, nivel }]
+      aoQuererPremium: null
+    },
+
+    /* arquivos master publicados pelo RootifyONE (mesma origem): recursos/<app>.json
+       (feature flags e comportamentos) e conteudo/<app>.json (textos, fotos, videos).
+       O app le ao abrir e guarda copia local como reserva. '' = desligado. */
+    fonteCentral: '/solverone-dados/',
+
+    /* endereco da pagina central (Portal) e dos apps. Vazio = o endereco atual (location.origin + '/');
+       pagina aberta como arquivo usa https://solverone.com.br/. App em outra origem (RootifyONE em
+       rootify-one.pages.dev) diz aqui: siteBase: 'https://solverone.com.br/'. Nunca fixar no codigo. */
+    siteBase: '',
+
+    /* o que o aparelho e o navegador precisam ter (DGO.compat, 1.7.0)
+       usa: o que o app usa de verdade (o quadro das Configuracoes so fala disso); null = o modulo deduz
+       minimos: versao recomendada por navegador (o RootifyONE pode trocar: comportamento global compat.minimos) */
+    compat: {
+      bloqueio: true,                 // tela cheia quando falta o essencial (fetch, Promise, IndexedDB, CSS, localStorage)
+      aviso: true,                    // faixa fechavel: versao antiga ou navegador dentro de outro app
+      usa: null,                      // ex.: ['camera', 'microfone', 'localizacao', 'notificacoes']
+      minimos: {}                     // ex.: { chrome: 110 } (vale sobre o padrao; o publicado pelo RootifyONE vale sobre este)
     },
 
     /* trechos que o tradutor e o formatador de datas nao podem tocar.
@@ -73,7 +144,8 @@
          1) se houver servidor (DGO.auth.backend.pedirRedefinicao) -> link por e-mail
          2) senao, se houver formularioRecuperacao -> o pedido chega para voce
          3) senao -> codigo de recuperacao gerado quando a conta e criada     */
-      formularioRecuperacao: ''      // ex.: 'https://formspree.io/f/xxxxxxx'
+      formularioRecuperacao: '',     // ex.: 'https://formspree.io/f/xxxxxxx'
+      emailsAdmin: []                // contas com estes e-mails entram como administrador
     },
 
     email: {
@@ -93,7 +165,11 @@
       idiomas: 'por+eng',
       cdn: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
       caminhoLocal: '',               // se um dia hospedar o tesseract.js no repositorio
-      caminhos: { worker: '', core: '', lang: '' }   // idem para worker, wasm e idiomas
+      caminhos: { worker: '', core: '', lang: '' },  // idem para worker, wasm e idiomas
+      /* motor hospedado no proprio repositorio (recomendado):
+         ocr-worker.js + tesseract-core-*.wasm.js + <idioma>.traineddata.gz */
+      local: 'auto',                  // 'auto' | true | false
+      worker: 'ocr-worker.js'
     },
 
     pwa: { ativo: true, manifesto: 'manifest.json', serviceWorker: 'sw.js' },
@@ -149,8 +225,17 @@
   function $(sel, ctx) { return (ctx || d).querySelector(sel); }
   function texto(v) { return (v === null || v === undefined) ? '' : String(v); }
 
+  /* '#a1b2c3' -> 'rgba(161,178,195,0.2)'  (sem depender de color-mix) */
+  function corSuave(hex, alfa) {
+    var h = String(hex || '').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (h.length !== 6) return 'rgba(148,163,184,' + (alfa || 0.2) + ')';
+    return 'rgba(' + parseInt(h.slice(0, 2), 16) + ',' + parseInt(h.slice(2, 4), 16) + ','
+                   + parseInt(h.slice(4, 6), 16) + ',' + (alfa === undefined ? 0.2 : alfa) + ')';
+  }
+
   /* Armazenamento com nome separado por app (os sites dividem o mesmo
-     endereco marceloneco.github.io, entao os dados nao podem se misturar) */
+     endereco (solverone.com.br), entao os dados nao podem se misturar) */
   var Guardar = {
     prefixo: function () { return 'dgo:' + cfg.app + ':'; },
     _alvo: function () { return (Sessao.tipo === 'visitante') ? raiz.sessionStorage : raiz.localStorage; },
@@ -196,23 +281,209 @@
     var css = [
       ':root{--dgo-topo:0px;--dgo-cor:' + cfg.cor + ';--dgo-barra:' + cfg.corFundoBarra + ';}',
       '.dgo-oculto{display:none !important;}',
-      '.dgo-banner{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:flex;align-items:center;gap:8px;',
-      'background:#11182a;border-bottom:1px solid rgba(255,255,255,.12);padding:4px 8px;',
-      'padding-top:calc(4px + env(safe-area-inset-top,0px));box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}',
-      '.dgo-banner a{flex:1;display:block;line-height:0;text-decoration:none;overflow:hidden;border-radius:8px;}',
-      '.dgo-banner img{width:100%;height:auto;display:block;max-height:' + cfg.anuncios.altura + 'px;object-fit:cover;}',
-      '.dgo-banner .dgo-x{flex:0 0 auto;width:30px;height:30px;border-radius:50%;border:0;cursor:pointer;',
-      'background:rgba(255,255,255,.14);color:#fff;font-size:17px;line-height:30px;padding:0;}',
-      '.dgo-banner .dgo-x:hover{background:rgba(255,255,255,.28);}',
-      '.dgo-idioma{position:fixed;z-index:2147483100;display:flex;align-items:center;gap:0;',
-      'background:rgba(15,23,42,.92);color:#fff;border-radius:999px;padding:3px;box-shadow:0 4px 14px rgba(0,0,0,.35);',
-      'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:12px;font-weight:700;user-select:none;}',
-      '.dgo-idioma button{border:0;background:transparent;color:#cbd5e1;padding:6px 11px;border-radius:999px;cursor:pointer;font:inherit;min-width:40px;min-height:32px;}',
+      /* campo com foco nunca escondido atras da faixa fixa do topo (WCAG 2.4.11): a rolagem deixa a altura
+         da faixa livre. :where() nao pesa nada, entao o app que tem o proprio cabecalho fixo (e o proprio
+         scroll-padding-top, como o RootifyONE) continua valendo por cima deste. */
+      ':where(html){scroll-padding-top:var(--dgo-topo,0px);}',
+      /* ---------- compatibilidade do aparelho (DGO.compat, 1.7.0) ---------- */
+      '.dgo-compat-faixa{position:fixed;left:.6rem;right:.6rem;bottom:calc(.6rem + env(safe-area-inset-bottom));z-index:2147483100;max-width:34rem;margin:0 auto;',
+      'background:#fef3c7;color:#422006;border:2px solid #b45309;border-radius:14px;padding:.7rem .8rem;box-shadow:0 10px 30px rgba(0,0,0,.35);',
+      'font:500 .92rem/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}',
+      '.dgo-compat-faixa .dgo-cf-linha{display:flex;gap:.6rem;align-items:flex-start;}',
+      '.dgo-compat-faixa .dgo-cf-tx{flex:1;min-width:0;}',
+      '.dgo-compat-faixa b{display:block;margin-bottom:.15rem;}',
+      '.dgo-compat-faixa ol{margin:.4rem 0 0;padding-left:1.3rem;}',
+      '.dgo-compat-faixa .dgo-cf-bts{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;}',
+      '.dgo-compat-faixa button,.dgo-compat-faixa a.dgo-cf-bt{min-height:44px;min-width:44px;padding:.4rem .8rem;border-radius:10px;border:2px solid #92400e;background:#fff7ed;color:#422006;',
+      'font:700 .9rem/1.2 system-ui,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}',
+      '.dgo-compat-faixa button:focus-visible,.dgo-compat-faixa a:focus-visible,.dgo-compat-janela button:focus-visible{outline:3px solid #1d4ed8;outline-offset:2px;}',
+      '.dgo-compat-janela{position:fixed;inset:0;z-index:2147483300;background:rgba(2,6,23,.72);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;}',
+      '.dgo-compat-janela ol{margin:.3rem 0 .6rem;padding-left:1.3rem;font-size:14px;line-height:1.5;color:#e2e8f0;}',
+      '.dgo-compat-janela details{margin:.4rem 0;}',
+      '.dgo-compat-janela summary{cursor:pointer;padding:11px 0;font-weight:700;color:#e2e8f0;}',
+      '.dgo-compat-quadro{border:1px solid rgba(251,191,36,.5);border-radius:12px;padding:10px 12px;margin:0 0 6px;background:rgba(251,191,36,.08);}',
+      '.dgo-compat-quadro ul{list-style:none;margin:6px 0;padding:0;font-size:13.5px;line-height:1.6;color:#e2e8f0;}',
+      /* ---------- campo de senha com 👁 (padrão de todos os apps) ---------- */
+      '.dgo-senha{position:relative;display:flex;align-items:center;width:100%;min-width:0;}',
+      '.dgo-senha>input{flex:1;min-width:0;padding-right:2.9rem !important;}',
+      '.dgo-senha-olho{position:absolute;right:.15rem;top:50%;transform:translateY(-50%);width:2.6rem;height:2.6rem;border:0;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:1.15rem;line-height:1;border-radius:.5rem;opacity:.75;padding:0;}',
+      '.dgo-senha-olho:hover{opacity:1;}',
+      '.dgo-senha-olho:focus-visible{outline:2px solid currentColor;outline-offset:-2px;opacity:1;}',
+      /* ---------- faixa do topo ---------- */
+      '.dgo-faixa{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:flex;align-items:stretch;gap:7px;',
+      'background:#0e1524;border-bottom:1px solid rgba(255,255,255,.12);padding:6px 7px;',
+      'padding-top:calc(6px + env(safe-area-inset-top,0px));box-sizing:border-box;overflow:hidden;',
+      'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}',
+      '.dgo-faixa.dgo-fina{padding:4px 7px;padding-top:calc(4px + env(safe-area-inset-top,0px));}',
+      '.dgo-rot{flex:0 0 auto;align-self:stretch;display:flex;align-items:center;justify-content:center;',
+      'writing-mode:vertical-rl;transform:rotate(180deg);font-size:8.5px;font-weight:800;letter-spacing:.22em;',
+      'color:#64748b;border-right:1px solid rgba(255,255,255,.12);padding:0 3px 0 1px;}',
+      '.dgo-carrossel{flex:1 1 auto;min-width:0;overflow:hidden;position:relative;',
+      '-webkit-mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 14px),transparent);',
+      'mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 14px),transparent);}',
+      '.dgo-trilho{display:flex;width:max-content;animation:dgo-desliza 60s linear infinite;}',
+      '.dgo-carrossel:hover .dgo-trilho,.dgo-carrossel:focus-within .dgo-trilho{animation-play-state:paused;}',
+      '@keyframes dgo-desliza{from{transform:translateX(0)}to{transform:translateX(-50%)}}',
+      '.dgo-card{flex:0 0 auto;display:flex;align-items:center;gap:8px;width:224px;padding:5px 9px 5px 6px;',
+      'margin-right:7px;border-radius:9px;text-decoration:none;background:rgba(255,255,255,.045);',
+      'border:1px solid rgba(255,255,255,.09);transition:background .15s,border-color .15s;}',
+      '.dgo-card:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);}',
+      '.dgo-ic{flex:0 0 auto;width:30px;height:30px;border-radius:8px;border:1px solid;display:flex;',
+      'align-items:center;justify-content:center;font-size:16px;line-height:1;object-fit:cover;}',
+      '.dgo-tx{min-width:0;display:flex;flex-direction:column;gap:1px;}',
+      '.dgo-nm{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:#e8eef8;',
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+      '.dgo-pt{flex:0 0 auto;width:6px;height:6px;border-radius:50%;}',
+      '.dgo-seta{flex:0 0 auto;color:#7dd3fc;font-weight:400;}',
+      '.dgo-selo{flex:0 0 auto;font-style:normal;font-size:7.5px;font-weight:800;letter-spacing:.08em;',
+      'padding:1px 4px;border-radius:4px;background:rgba(251,191,36,.18);color:#fcd34d;}',
+      '.dgo-fr{font-size:10px;line-height:1.25;color:#8b9ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+      '.dgo-faixa .dgo-x{flex:0 0 auto;align-self:center;width:26px;height:26px;border-radius:50%;border:0;cursor:pointer;',
+      'background:rgba(255,255,255,.12);color:#fff;font-size:15px;line-height:26px;padding:0;}',
+      '.dgo-faixa .dgo-x:hover{background:rgba(255,255,255,.26);}',
+      /* ---------- seletor de idioma ---------- */
+      '.dgo-idioma{display:flex;align-items:center;gap:0;background:rgba(255,255,255,.07);color:#fff;',
+      'border-radius:999px;padding:2px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;',
+      'font-size:11px;font-weight:800;user-select:none;}',
+      '.dgo-idioma.dgo-na-faixa{flex:0 0 auto;align-self:center;}',
+      '.dgo-idioma.dgo-flutua{position:fixed;z-index:2147483100;background:rgba(15,23,42,.92);padding:3px;',
+      'box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:12px;}',
+      '.dgo-idioma button{border:0;background:transparent;color:#cbd5e1;padding:5px 9px;border-radius:999px;',
+      'cursor:pointer;font:inherit;min-width:34px;min-height:28px;}',
+      '.dgo-idioma.dgo-flutua button{padding:6px 11px;min-width:40px;min-height:32px;}',
       '.dgo-idioma button.dgo-on{background:var(--dgo-cor);color:#04121f;}',
       '.dgo-idioma.dgo-topo-direita{right:10px;top:calc(var(--dgo-topo) + 10px);}',
       '.dgo-idioma.dgo-topo-esquerda{left:10px;top:calc(var(--dgo-topo) + 10px);}',
       '.dgo-idioma.dgo-baixo-direita{right:10px;bottom:calc(12px + env(safe-area-inset-bottom,0px));}',
       '.dgo-idioma.dgo-baixo-esquerda{left:10px;bottom:calc(12px + env(safe-area-inset-bottom,0px));}',
+      /* ---------- widget de IA ---------- */
+      '.dgo-ia-fio{max-height:46vh;overflow:auto;margin:12px 0;display:flex;flex-direction:column;gap:8px;',
+      '-webkit-overflow-scrolling:touch;}',
+      '.dgo-ia-msg{max-width:88%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.5;',
+      'white-space:pre-wrap;word-break:break-word;}',
+      '.dgo-ia-msg.dgo-eu{align-self:flex-end;background:var(--dgo-cor);color:#08131d;font-weight:500;}',
+      '.dgo-ia-msg.dgo-ia{align-self:flex-start;background:rgba(255,255,255,.07);color:#e2e8f0;}',
+      '.dgo-ia-msg.dgo-pensando{opacity:.6;font-style:italic;}',
+      '.dgo-ia-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}',
+      '.dgo-ia-chips button{border:1px solid rgba(255,255,255,.18);background:transparent;color:#cbd5e1;',
+      'border-radius:999px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;}',
+      '.dgo-ia-chips button:hover{background:rgba(255,255,255,.08);}',
+      '.dgo-ia-entrada{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:12px;',
+      'border:1px solid rgba(255,255,255,.16);background:#0b1220;color:#e2e8f0;font-size:15px;',
+      'font-family:inherit;resize:vertical;}',
+      '.dgo-faixa .dgo-ia-bt{flex:0 0 auto;align-self:center;width:30px;height:30px;border-radius:50%;',
+      'border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#e2e8f0;',
+      'font-size:14px;line-height:1;cursor:pointer;padding:0;}',
+      '.dgo-faixa .dgo-ia-bt:hover{background:rgba(255,255,255,.16);}',
+      /* ---------- cofre de chaves ---------- */
+      '.dgo-prov-cab{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;',
+      'padding:11px 12px;margin-top:6px;border-radius:11px;border:1px solid rgba(255,255,255,.12);',
+      'background:rgba(255,255,255,.04);color:#e2e8f0;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}',
+      '.dgo-prov-cab.dgo-on{border-color:var(--dgo-cor);background:rgba(255,255,255,.07);}',
+      '.dgo-prov-nome{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}',
+      '.dgo-prov-corpo{padding:10px 12px 4px;border:1px solid rgba(255,255,255,.08);border-top:0;',
+      'border-radius:0 0 11px 11px;margin-top:-4px;background:rgba(0,0,0,.15);}',
+      '.dgo-selo-ok{background:rgba(34,197,94,.18) !important;color:#86efac !important;}',
+      '.dgo-selo-pago{background:rgba(148,163,184,.18) !important;color:#cbd5e1 !important;}',
+      '.dgo-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px;}',
+      '.dgo-chip{font:inherit;font-size:12.5px;font-weight:700;padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.18);',
+      'background:transparent;color:#e2e8f0;cursor:pointer;min-height:34px;}',
+      '.dgo-chip.dgo-on{background:var(--dgo-cor);color:#04121f;border-color:var(--dgo-cor);}',
+      '.dgo-cap{font-size:13px;line-height:1;}',
+      '.dgo-serve{margin:4px 0 8px;font-size:13.5px;color:#e2e8f0;}',
+      '.dgo-guia{margin:10px 0;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;}',
+      '.dgo-guia summary{cursor:pointer;font-weight:700;font-size:13.5px;padding:4px 0;}',
+      '.dgo-guia-lista{padding-left:22px;margin:6px 0 0;}',
+      '.dgo-guia-lista li{margin:0 0 12px;}',
+      '.dgo-guia-lista li p{margin:0 0 6px;font-size:13.5px;line-height:1.45;}',
+      '.dgo-guia-ilu{margin:0;max-width:300px;}',
+      '.dgo-guia-ilu img,.dgo-guia-ilu svg{display:block;width:100%;height:auto;border-radius:10px;}',
+      '.dgo-campo{position:relative;}',
+      '.dgo-olho{position:absolute;right:6px;bottom:6px;width:34px;height:34px;border:0;border-radius:8px;background:transparent;color:#94a3b8;cursor:pointer;font-size:16px;}',
+      '.dgo-usar{flex-wrap:wrap;}.dgo-usar .dgo-b{width:auto;flex:1 1 auto;}',
+      '.dgo-passo{border:2px solid var(--dgo-cor);border-radius:12px;padding:10px 12px;margin:10px 0;background:rgba(255,255,255,.04);}',
+      '.dgo-passo-cab{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13px;}',
+      '.dgo-passo-barra{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;}',
+      '.dgo-passo-barra span{display:block;height:100%;background:var(--dgo-cor);}',
+      '.dgo-passo-txt{font-size:15px;line-height:1.45;margin:4px 0 8px;color:#fff;}',
+      '.dgo-passo .dgo-guia-ilu{max-width:360px;}',
+      '.dgo-b.dgo-b2.dgo-on{border-color:var(--dgo-cor);color:var(--dgo-cor);}',
+      '@media (prefers-color-scheme:light){.dgo-guia-ilu svg{filter:none;}}',
+      '.dgo-caixa select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;',
+      'border:1px solid rgba(255,255,255,.16);background:#0b1220;color:#e2e8f0;font-size:15px;font-family:inherit;}',
+      /* ---------- wizard ---------- */
+      '.dgo-wz-topo{font-size:10px;font-weight:800;letter-spacing:.18em;color:#64748b;',
+      'text-transform:uppercase;margin-bottom:9px;}',
+      '.dgo-wz-barra{display:flex;gap:4px;margin-bottom:6px;}',
+      '.dgo-wz-barra i{flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.14);}',
+      '.dgo-wz-barra i.dgo-on{background:var(--dgo-cor);}',
+      /* ---------- bloqueio por nivel ---------- */
+      '.dgo-cadeado{font-size:34px;line-height:1;text-align:center;margin:2px 0 10px;}',
+      '.dgo-bloqueado{position:relative;opacity:.62;}',
+      '.dgo-bloqueado::after{content:"\\1F512";position:absolute;top:2px;right:4px;font-size:12px;',
+      'line-height:1;pointer-events:none;}',
+      '.dgo-admin-barra{position:fixed;left:50%;transform:translateX(-50%);z-index:2147483150;',
+      'bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;',
+      'background:rgba(251,191,36,.95);color:#1c1300;border-radius:999px;padding:5px 6px 5px 14px;',
+      'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:11.5px;font-weight:800;',
+      'letter-spacing:.04em;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:94vw;}',
+      '.dgo-admin-barra button{border:0;background:rgba(28,19,0,.14);color:#1c1300;border-radius:999px;',
+      'padding:6px 11px;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap;}',
+      '.dgo-admin-barra button:hover{background:rgba(28,19,0,.26);}',
+      /* ---------- pop-up de anuncio ---------- */
+      '.dgo-pop-fundo{position:fixed;inset:0;z-index:2147483300;background:rgba(2,6,23,.82);',
+      'backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px;',
+      'box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}',
+      '.dgo-pop-env{position:relative;width:100%;max-width:340px;}',
+      '.dgo-pop{position:relative;width:100%;background:#141c2b;border:1px solid rgba(255,255,255,.14);',
+      'border-radius:24px;box-sizing:border-box;text-align:center;overflow:hidden;display:flex;',
+      'flex-direction:column;box-shadow:0 26px 70px rgba(0,0,0,.6);animation:dgo-sobe .26s ease-out;}',
+      '@keyframes dgo-sobe{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}',
+      '@media (prefers-reduced-motion:reduce){.dgo-pop{animation:none}}',
+      '.dgo-pop-arte{position:relative;display:flex;align-items:center;justify-content:center;',
+      'padding:30px 20px 4px;background:linear-gradient(160deg,var(--c-suave),transparent 70%);}',
+      '.dgo-pop-halo{position:absolute;width:210px;height:210px;border-radius:50%;',
+      'background:radial-gradient(circle,var(--c-suave),transparent 66%);filter:blur(4px);opacity:.9;}',
+      '.dgo-pop-ic{position:relative;width:82px;height:82px;border-radius:22px;border:1px solid;',
+      'display:flex;align-items:center;justify-content:center;font-size:41px;line-height:1;object-fit:cover;}',
+      '.dgo-pop-corpo{padding:16px 24px 20px;display:flex;flex-direction:column;}',
+      '.dgo-pop-nome{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;',
+      'font-size:22px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:8px;}',
+      '.dgo-pop-frase{font-size:14.5px;line-height:1.5;color:#a9b6c8;margin-bottom:20px;}',
+      '.dgo-pop-bt{display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;',
+      'background:var(--c,var(--dgo-cor));color:#0a1017;font-size:15px;font-weight:800;padding:14px 20px;',
+      'border-radius:999px;letter-spacing:.02em;transition:filter .15s,transform .15s;}',
+      '.dgo-pop-bt:hover{filter:brightness(1.1);transform:translateY(-1px);}',
+      '.dgo-pop-seta{font-weight:400;}',
+      '.dgo-pop-rot{font-size:8.5px;font-weight:800;letter-spacing:.22em;color:#5b6879;}',
+      '.dgo-pop-rot-topo{display:none;}',
+      '.dgo-pop-rot-baixo{margin-top:14px;}',
+      /* ---- em tela larga o pop-up deita: arte de um lado, texto do outro ---- */
+      '@media (min-width:660px){',
+      '.dgo-pop-env{max-width:640px;}',
+      '.dgo-pop{flex-direction:row;text-align:left;border-radius:26px;}',
+      '.dgo-pop-arte{flex:0 0 244px;align-self:stretch;padding:34px 18px;',
+      'background:linear-gradient(150deg,var(--c-suave),var(--c-fraca) 55%,transparent);',
+      'border-right:1px solid rgba(255,255,255,.08);}',
+      '.dgo-pop-halo{width:250px;height:250px;}',
+      '.dgo-pop-ic{width:116px;height:116px;border-radius:30px;font-size:58px;}',
+      '.dgo-pop-corpo{flex:1 1 auto;padding:34px 34px 30px;justify-content:center;}',
+      '.dgo-pop-nome{justify-content:flex-start;font-size:29px;margin-bottom:11px;}',
+      '.dgo-pop-frase{font-size:16px;margin-bottom:26px;max-width:32ch;}',
+      '.dgo-pop-bt{align-self:flex-start;padding:15px 30px;font-size:15.5px;}',
+      '.dgo-pop-rot-topo{display:block;margin-bottom:13px;}',
+      '.dgo-pop-rot-baixo{display:none;}',
+      '.dgo-pop-x{top:-19px;right:-19px;width:48px;height:48px;}',
+      '}',
+      '.dgo-pop-x{position:absolute;top:-17px;right:-17px;width:46px;height:46px;',
+      'border-radius:50%;border:1px solid rgba(255,255,255,.18);background:#27344a;color:#94a3b8;',
+      'font-size:17px;font-weight:800;cursor:default;z-index:2;box-shadow:0 6px 18px rgba(0,0,0,.45);}',
+      '.dgo-pop-x.dgo-pronto{cursor:pointer;font-size:23px;color:#fff;}',
+      '.dgo-pop-x.dgo-pronto:hover{background:#334155;}',
+      '@media (max-width:420px){.dgo-pop-x{top:-14px;right:-8px;width:40px;height:40px;}',
+      '.dgo-pop-ic{width:66px;height:66px;font-size:33px;}}',
+      '@media (max-width:440px){.dgo-card{width:198px;}',
+      '.dgo-idioma.dgo-na-faixa button{min-width:30px;padding:5px 7px;font-size:10.5px;}}',
       '.dgo-modal{position:fixed;inset:0;z-index:2147483200;background:rgba(2,6,23,.72);backdrop-filter:blur(3px);',
       'display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;',
       'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overscroll-behavior:contain;}',
@@ -243,6 +514,23 @@
       '.dgo-linha>*{flex:1;min-width:120px;}',
       '.dgo-fechar{position:absolute;top:10px;right:12px;}',
       '.dgo-video,.dgo-foto{width:100%;border-radius:12px;background:#000;display:block;max-height:48vh;object-fit:contain;}',
+      '.dgo-tarefas{position:fixed;left:.6rem;right:.6rem;bottom:calc(5.4rem + env(safe-area-inset-bottom));z-index:2147483000;display:flex;flex-direction:column;gap:.4rem;pointer-events:none;max-width:30rem;margin:0 auto;}',
+      '.dgo-tarefa{pointer-events:auto;display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:14px;background:#0f172a;color:#f8fafc;border:1px solid rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.35);font:600 .9rem/1.3 system-ui,sans-serif;cursor:default;}',
+      '.dgo-tarefa i{font-style:normal;font-size:1.3rem;line-height:1;}',
+      '.dgo-tarefa small{display:block;font-weight:500;opacity:.85;font-size:.78rem;}',
+      '.dgo-tarefa b{display:block;}',
+      '.dgo-tarefa .dgo-tarefa-barra{height:4px;border-radius:2px;background:rgba(255,255,255,.15);margin-top:.35rem;overflow:hidden;}',
+      '.dgo-tarefa .dgo-tarefa-barra span{display:block;height:100%;width:0;background:#10b981;transition:width .3s;}',
+      '.dgo-tarefa.pronta{background:#bbf7d0;color:#052e16;border-color:#4ade80;cursor:pointer;}',
+      '.dgo-tarefa.erro{background:#fecaca;color:#450a0a;border-color:#f87171;cursor:pointer;}',
+      '.dgo-tarefa.cancelada{background:#e2e8f0;color:#0f172a;border-color:#94a3b8;}',
+      '.dgo-tarefas-conta{pointer-events:none;align-self:center;padding:.15rem .6rem;border-radius:999px;background:#0f172a;color:#f8fafc;font:600 .75rem/1.4 system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3);}',
+      '.dgo-tarefa-acoes{display:flex;gap:.3rem;}',
+      '.dgo-tarefa-bt{min-width:44px;min-height:44px;border-radius:12px;border:1px solid currentColor;background:transparent;color:inherit;font:700 1rem/1 system-ui,sans-serif;cursor:pointer;opacity:.85;}',
+      '.dgo-tarefa-bt:focus-visible{outline:3px solid #38bdf8;outline-offset:2px;}',
+      '.dgo-tarefa .dgo-tarefa-barra.indef span{width:35%;animation:dgoFundoIndef 1.2s ease-in-out infinite;}',
+      '@keyframes dgoFundoIndef{0%{transform:translateX(-100%);}100%{transform:translateX(300%);}}',
+      '@media (prefers-reduced-motion:reduce){.dgo-tarefa .dgo-tarefa-barra span{transition:none;animation:none !important;}.dgo-tarefa .dgo-tarefa-barra.indef span{width:100%;opacity:.5;}}',
       '.dgo-video{cursor:crosshair;}',
       '.dgo-anel{position:fixed;width:60px;height:60px;margin:-30px 0 0 -30px;border:2px solid #fff;border-radius:50%;pointer-events:none;z-index:2147483647;box-shadow:0 0 0 2px rgba(0,0,0,.35);transition:opacity .9s,transform .9s;}',
       '.dgo-barra{height:7px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;margin:10px 0;}',
@@ -288,6 +576,21 @@
 
   /* Textos da propria interface deste modulo */
   var UI = {
+    tarefaNaoFeche: ['Não feche o app nem apague a tela. Pode usar outras telas.', 'Do not close the app or turn the screen off. You can use other screens.'],
+    tarefaPronta: ['Pronto · toque para ver', 'Done · tap to see'],
+    tarefaErro: ['Não deu certo · toque para fechar', 'Failed · tap to close'],
+    tarefaProcessando: ['Processando…', 'Processing…'],
+    tarefaSair: ['Uma leitura ainda está em andamento. Se sair agora, ela é perdida.', 'A reading is still in progress. If you leave now, it is lost.'],
+    fundoSair: ['Ainda estou terminando: {titulo}. Sair agora perde esse trabalho. Sair mesmo assim?', 'Still finishing: {titulo}. Leaving now loses this work. Leave anyway?'],
+    fundoTelaAberta: ['Mantenha a tela aberta até terminar.', 'Keep the screen on until it finishes.'],
+    fundoVarios: ['{n} em andamento', '{n} in progress'],
+    fundoCancelar: ['Cancelar', 'Cancel'],
+    fundoCancelado: ['Cancelado', 'Cancelled'],
+    fundoTentar: ['Tentar de novo', 'Try again'],
+    fundoInterrompido: ['Foi interrompido quando o app fechou · toque para fechar', 'Interrupted when the app closed · tap to close'],
+    fundoContinuar: ['Continuar de onde parou', 'Continue where it stopped'],
+    fundoFechar: ['Fechar', 'Close'],
+    fundoPodeNavegar: ['pode usar outras telas', 'you can use other screens'],
     entrar: ['Entrar', 'Sign in'],
     sair: ['Sair', 'Sign out'],
     visitante: ['Visitante', 'Guest'],
@@ -301,8 +604,8 @@
     entrarVisitante: ['Entrar sem senha', 'Continue without a password'],
     avisoVisitante: ['Como visitante nenhum dado pessoal é guardado e são exibidos anúncios.',
                      'As a guest no personal data is kept and ads are displayed.'],
-    avisoAssinante: ['Com conta de assinante os dados ficam guardados e não há anúncios.',
-                     'With a subscriber account your data is kept and there are no ads.'],
+    avisoMembro: ['Com conta os dados ficam guardados. Sem anúncios só no Premium.',
+                  'With an account your data is kept. Ad-free only with Premium.'],
     avisoAnunciante: ['Área para acompanhar campanhas e desempenho dos anúncios.',
                       'Area to follow campaigns and ad performance.'],
     entrarGoogle: ['Entrar com Google', 'Sign in with Google'],
@@ -341,9 +644,14 @@
     cancelar: ['Cancelar', 'Cancel'],
     salvar: ['Salvar', 'Save'],
     anuncio: ['Publicidade', 'Advertisement'],
+    anuncioRotulo: ['ANÚNCIO', 'AD'],
+    conhecer: ['Conhecer', 'Open'],
     fecharAnuncio: ['Fechar anúncio', 'Close ad'],
     anuncieAqui: ['<ANUNCIE AQUI>', '<ADVERTISE HERE>'],
     versao: ['Versão', 'Version'],
+    todosApps: ['Todos os apps SolverONE ↗', 'All SolverONE apps ↗'],
+    mostrarSenha: ['Mostrar senha', 'Show password'],
+    esconderSenha: ['Esconder senha', 'Hide password'],
     naoConfigurado: ['Ainda não configurado. Veja o passo a passo.', 'Not configured yet. See the step-by-step guide.'],
     senhaCurta: ['A senha precisa de pelo menos 6 caracteres.', 'The password needs at least 6 characters.'],
     senhasDiferentes: ['As duas senhas não são iguais.', 'The two passwords do not match.'],
@@ -417,7 +725,115 @@
     semRecuperacaoConfigurada: ['Este app ainda não tem recuperação por e-mail. Use o código de recuperação que apareceu quando a conta foi criada.',
                                 'This app has no e-mail recovery yet. Use the recovery code shown when the account was created.'],
     contaCriada: ['Conta criada.', 'Account created.'],
-    identificadorVazio: ['Escreva o apelido ou o e-mail da conta.', 'Write the alias or the e-mail of the account.']
+    identificadorVazio: ['Escreva o apelido ou o e-mail da conta.', 'Write the alias or the e-mail of the account.'],
+
+    membro: ['Membro', 'Member'],
+    premium: ['Premium', 'Premium'],
+    admin: ['Administrador', 'Administrator'],
+    painelAdmin: ['Painel do administrador', 'Administrator panel'],
+    adminNaoEhSeguranca: ['Este painel serve para testar o fluxo. Num site sem servidor ele organiza a oferta, mas não protege nada.',
+                          'This panel is for testing the flow. On a site without a server it organizes the offer, but protects nothing.'],
+    verComo: ['Ver o app como', 'View the app as'],
+    modoTeste: ['MODO DE TESTE', 'TEST MODE'],
+    sairDoTeste: ['Sair do teste', 'Leave test mode'],
+    servicos: ['Serviços e níveis', 'Services and levels'],
+    semServicos: ['Este app ainda não declarou serviços.', 'This app has not declared any services yet.'],
+    baixarServicos: ['Baixar o arquivo de níveis', 'Download the levels file'],
+    servicosComoSubir: ['Suba este arquivo na raiz do repositório para valer para todo mundo.',
+                        'Upload this file to the repository root so it applies to everyone.'],
+    contas: ['Contas neste aparelho', 'Accounts on this device'],
+    sohMembro: ['Este recurso é para quem tem conta. Criar conta é rápido e gratuito.',
+                'This feature is for account holders. Creating an account is quick and free.'],
+    sohPremium: ['Este recurso faz parte do Premium.', 'This feature is part of Premium.'],
+    virarPremium: ['Quero o Premium', 'I want Premium'],
+    premiumSemCobranca: ['Ainda não há cobrança automática. O pedido chega para o responsável, que libera a conta.',
+                         'There is no automatic billing yet. The request reaches the site owner, who unlocks the account.'],
+    entendi: ['Entendi', 'Got it'],
+
+    wzAvancar: ['Avançar', 'Next'],
+    wzVoltar: ['Voltar', 'Back'],
+    wzConcluir: ['Concluir', 'Finish'],
+    wzPular: ['Pular por enquanto', 'Skip for now'],
+    wzObrigatorio: ['Falta preencher:', 'Still missing:'],
+
+    perguntarIA: ['Perguntar à IA', 'Ask the AI'],
+    perguntar: ['Perguntar', 'Ask'],
+    pensando: ['Pensando...', 'Thinking...'],
+    escrevaPergunta: ['Escreva a sua pergunta', 'Write your question'],
+    sugestoes: ['Sugestões', 'Suggestions'],
+    limparConversa: ['Limpar a conversa', 'Clear the conversation'],
+    semResposta: ['A IA não devolveu resposta.', 'The AI returned no answer.'],
+    erroIA: ['Não deu certo:', 'It did not work:'],
+    semChave: ['Falta colar a chave da IA.', 'The AI key has not been pasted yet.'],
+    semInternet: ['Sem internet agora. O resto do app continua funcionando.',
+                  'No internet right now. The rest of the app keeps working.'],
+    cofreChaves: ['Chaves de IA', 'AI keys'],
+    tudo: ['Tudo', 'All'],
+    passo: ['Passo', 'Step'],
+    de: ['de', 'of'],
+    abrirAoLado: ['Abrir o site ao lado', 'Open the site beside'],
+    anterior: ['Anterior', 'Previous'],
+    jaFiz: ['Já fiz, próximo', 'Done, next'],
+    sairGuia: ['Sair do guia', 'Leave the guide'],
+    comecarGuia: ['Começar o guia acompanhado (um passo por vez)', 'Start the guided walkthrough (one step at a time)'],
+    colarAbaixo: ['Agora cole a chave no campo abaixo e toque em “Salvar e testar”.', 'Now paste the key in the field below and tap “Save and test”.'],
+    emUsoAgora: ['Em uso agora', 'In use now'],
+    limitesTit: ['Limites', 'Limits'],
+    contaTit: ['Conta', 'Account'],
+    abrirSite: ['Abrir o site', 'Open the site'],
+    guiaPasso: ['Guia passo a passo', 'Step-by-step guide'],
+    guiaPrintDica: ['Dica para quem administra: um print seu no lugar do desenho é só pôr um arquivo {arq} na raiz do app.',
+                    'Tip for admins: to show your own screenshot instead of the drawing, put a file {arq} in the app root.'],
+    suaChave: ['Sua chave', 'Your key'],
+    umaVez: ['aparece só uma vez!', 'shows only once!'],
+    salvarTestar: ['Salvar e testar', 'Save and test'],
+    mostrarChave: ['Mostrar ou esconder a chave', 'Show or hide the key'],
+    testando: ['Testando a chave com o provedor…', 'Testing the key with the provider…'],
+    chaveOk: ['✓ Chave aceita. Pronto para usar.', '✓ Key accepted. Ready to use.'],
+    chaveSalva: ['Chave salva.', 'Key saved.'],
+    chaveRecusada: ['O provedor recusou a chave. Confira se copiou inteira, ou crie outra no site.', 'The provider rejected the key. Check you copied it whole, or create another on the site.'],
+    corsAviso: ['Chave salva, mas o teste não passou pelo navegador. Pode ser bloqueio do provedor: tente usar a IA normalmente.', 'Key saved, but the test could not go through the browser. It may be a provider block: try using the AI normally.'],
+    usarPara: ['Usar para', 'Use for'],
+    pedeCartao: ['pede cartão', 'asks for a card'],
+    chaveNuncaChat: ['Nunca cole a chave em chat, e-mail ou arquivo: ela é como uma senha.', 'Never paste the key in a chat, e-mail or file: it is like a password.'],
+    cofreExplica: ['A chave é sua e fica guardada só neste navegador. Vale para os seus apps, e não passa por servidor nenhum além do próprio provedor.',
+                   'The key is yours and is kept in this browser only. It works across your apps and goes to no server other than the provider itself.'],
+    ondePegar: ['Onde pegar a chave do', 'Where to get the key for'],
+    qualUsar: ['Qual usar', 'Which one to use'],
+    emUso: ['Em uso', 'In use'],
+    usarEste: ['Usar este', 'Use this one'],
+    chave: ['Chave', 'Key'],
+    chaveAvisoCusto: ['Nos provedores pagos, o uso é cobrado na sua conta. Nos grátis, há limite de pedidos por dia.',
+                      'On paid providers usage is billed to your account. On free ones there is a daily request limit.'],
+    gratis: ['grátis', 'free'],
+    pago: ['pago', 'paid'],
+    provedor: ['Provedor', 'Provider'],
+    escolhaProvedor: ['Escolha o provedor…', 'Choose the provider…'],
+    modelo: ['Modelo', 'Model'],
+    listarModelos: ['Ver modelos que esta chave aceita', 'List models this key accepts'],
+    modelosGratis: ['só os grátis', 'free only'],
+    endereco: ['Endereço da API', 'API address'],
+    colarChave: ['colar a chave', 'paste the key'],
+    semEndereco: ['Falta o endereço da API deste provedor.', 'This provider is missing its API address.'],
+    soWifi: ['Você escolheu usar a IA só no Wi-Fi. Conecte ao Wi-Fi ou mude em Configurações → Rede.',
+             'You chose to use the AI on Wi-Fi only. Connect to Wi-Fi or change it in Settings → Network.'],
+    redeTitulo: ['Rede e dados móveis', 'Network and mobile data'],
+    redeAgora: ['Conexão agora', 'Connection now'],
+    redePesado: ['Baixar imagens, sons e pacotes grandes', 'Download images, sounds and large packages'],
+    redeIA: ['Perguntar à IA', 'Ask the AI'],
+    redeSempre: ['Wi-Fi ou dados', 'Wi-Fi or data'],
+    redeWifi: ['Só no Wi-Fi', 'Wi-Fi only'],
+    redeNunca: ['Nunca', 'Never'],
+    redeDados: ['dados móveis', 'mobile data'],
+    redeOffline: ['sem internet', 'offline'],
+    redeDesconhecida: ['não dá para saber neste navegador', 'cannot tell in this browser'],
+    redeAviso: ['Você está em dados móveis', 'You are on mobile data'],
+    redeSoWifi: ['Este download foi marcado para acontecer só no Wi-Fi.', 'This download is set to happen on Wi-Fi only.'],
+    redeBaixarAgora: ['Baixar mesmo assim', 'Download anyway'],
+    redeEsperarWifi: ['Esperar o Wi-Fi', 'Wait for Wi-Fi'],
+    oQueAIARecebe: ['O que a IA recebe junto com a pergunta', 'What the AI receives with the question'],
+    avisoIA: ['A resposta vem de um modelo de linguagem: pode errar. A pergunta e o contexto acima vão para o provedor escolhido; nada mais sai daqui.',
+              'The answer comes from a language model: it can be wrong. The question and the context above go to the chosen provider; nothing else leaves.']
   };
 
   var Idioma = {
@@ -713,6 +1129,7 @@
       raiz.setTimeout(function () {
         Varredura.pendente = false;
         marcarIgnorados();
+        if (cfg.niveis.ativo) { try { Niveis.revisar(); } catch (e) {} }
         if (nos && nos.length) { nos.forEach(function (n) { try { Varredura.ramo(n); } catch (e) {} }); }
         else Varredura.tudo();
       }, 16);
@@ -746,18 +1163,32 @@
      7. SELETOR GLOBAL DE IDIOMA (sempre visivel)
      ------------------------------------------------------------------ */
   var seletorEl = null;
+
+  /* o par PT | EN, para viver dentro da faixa do topo */
+  function blocoIdioma() {
+    var bPT = el('button', { type: 'button', 'aria-label': 'Português', texto: 'PT',
+                             onclick: function () { Idioma.definir('pt'); } });
+    var bEN = el('button', { type: 'button', 'aria-label': 'English', texto: 'EN',
+                             onclick: function () { Idioma.definir('en'); } });
+    seletorEl = el('div', { class: 'dgo-idioma dgo-na-faixa', role: 'group' }, [bPT, bEN]);
+    seletorEl._pt = bPT; seletorEl._en = bEN;
+    return seletorEl;
+  }
+
   function montarSeletorIdioma() {
-    if (!cfg.seletorIdiomaVisivel || seletorEl) return;
-    var pos = 'dgo-' + (cfg.posicaoSeletorIdioma || 'topo-direita');
+    if (!cfg.seletorIdiomaVisivel) return;
+    if (cfg.posicaoSeletorIdioma === 'faixa' || !cfg.posicaoSeletorIdioma) return;  /* vai na faixa */
+    if (seletorEl && seletorEl.parentNode === d.body) return;
+    var pos = 'dgo-' + cfg.posicaoSeletorIdioma;
     var bPT = el('button', { type: 'button', 'aria-label': 'Portugues', texto: 'PT', onclick: function () { Idioma.definir('pt'); } });
     var bEN = el('button', { type: 'button', 'aria-label': 'English', texto: 'EN', onclick: function () { Idioma.definir('en'); } });
-    seletorEl = el('div', { class: 'dgo-idioma ' + pos, 'data-dgo-ui': '1', role: 'group' }, [bPT, bEN]);
+    seletorEl = el('div', { class: 'dgo-idioma dgo-flutua ' + pos, 'data-dgo-ui': '1', role: 'group' }, [bPT, bEN]);
     seletorEl._pt = bPT; seletorEl._en = bEN;
     d.body.appendChild(seletorEl);
     atualizarSeletorIdioma();
   }
   function atualizarSeletorIdioma() {
-    if (!seletorEl) return;
+    if (!seletorEl || !seletorEl._pt) return;
     seletorEl._pt.className = Idioma.atual === 'pt' ? 'dgo-on' : '';
     seletorEl._en.className = Idioma.atual === 'en' ? 'dgo-on' : '';
   }
@@ -766,22 +1197,126 @@
      8. BANNER DE ANUNCIO NO TOPO
         Fechavel durante a sessao; volta a aparecer no proximo login.
      ------------------------------------------------------------------ */
-  var bannerEl = null;
+  var faixaEl = null;
+  var bannerEl = null;          /* mantido por compatibilidade: aponta para a faixa */
 
-  function imagemPlaceholder() {
-    var txt = Idioma.atual === 'en' ? '&lt;ADVERTISE HERE&gt;' : '&lt;ANUNCIE AQUI&gt;';
-    var svg =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="120" viewBox="0 0 1200 120">' +
-      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0" stop-color="#1e293b"/><stop offset="1" stop-color="#0f766e"/></linearGradient></defs>' +
-      '<rect width="1200" height="120" fill="url(#g)"/>' +
-      '<rect x="6" y="6" width="1188" height="108" fill="none" stroke="#5eead4" stroke-width="2" stroke-dasharray="10 8" rx="10"/>' +
-      '<text x="600" y="58" text-anchor="middle" font-family="system-ui,Segoe UI,Roboto,sans-serif" ' +
-      'font-size="42" font-weight="700" fill="#f8fafc">' + txt + '</text>' +
-      '<text x="600" y="92" text-anchor="middle" font-family="system-ui,Segoe UI,Roboto,sans-serif" ' +
-      'font-size="20" fill="#5eead4">marceloneco.github.io</text></svg>';
-    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  /* ------------------------------------------------------------------
+     8-A. LISTA PADRAO DE ANUNCIOS  —  os proprios apps do hub
+     Fonte: o Portal (nome, frase, link e cor de cada card).
+     O app que esta rodando nunca anuncia a si mesmo.
+     Para trocar: anuncios.lista no config, ou um anuncios.json na raiz.
+     Link = a pasta do app; o endereco vem de siteBase() (nunca fixo no codigo).
+     ------------------------------------------------------------------ */
+  var DOMINIO_OFICIAL = 'https://solverone.com.br/';
+  /* Endereco da pagina central: cfg.siteBase; senao, a origem de um fonteCentral completo (app que roda
+     em outra origem); senao, o endereco atual; pagina aberta como arquivo (copia baixada) usa o dominio oficial. */
+  function siteBase() {
+    var b = String(cfg.siteBase || '');
+    if (/^https?:\/\//i.test(b)) return b.charAt(b.length - 1) === '/' ? b : b + '/';
+    var m = /^(https?:\/\/[^\/]+)/i.exec(String(cfg.fonteCentral || ''));
+    if (m) return m[1] + '/';
+    var lo = raiz.location || {};
+    if ((lo.protocol === 'http:' || lo.protocol === 'https:') && lo.origin && lo.origin !== 'null') return lo.origin + '/';
+    return DOMINIO_OFICIAL;
   }
+  function linkApp(a) { var l = String((a && a.link) || ''); return /^[a-z]+:/i.test(l) ? l : siteBase() + l.replace(/^\//, ''); }
+  var APPS_HUB = [
+    { id: 'moneytrio', nome: 'MoneyTrio', cor: '#d6a076', glifo: '💰',
+      link: 'investify-me/',
+      frase: { pt: 'Finanças pessoais: BudgetONE, InvestifyONE e TaxONE',
+               en: 'Personal finance: BudgetONE, InvestifyONE and TaxONE' } },
+    { id: 'rise-one', nome: 'RiseONE', cor: '#beb0ec', glifo: '🏃',
+      link: 'rise-one/',
+      frase: { pt: 'Treino, corrida e dieta, com metas e evolução',
+               en: 'Training, running and diet, with goals and progress' } },
+    { id: 'omnilife-one', nome: 'OmniLifeONE', cor: '#e4a460', glifo: '🧩',
+      link: 'omnilife-one/', selo: { pt: 'EM BREVE', en: 'SOON' },
+      frase: { pt: 'A vida organizada em um só lugar', en: 'Life organized in one place' } },
+    { id: 'planos-candidatos-2026', nome: 'Eleições 2026', cor: '#a4c4a6', glifo: '🗳️',
+      link: 'planos-candidatos-2026/',
+      frase: { pt: 'Dados públicos transformados em informação clara',
+               en: 'Public data turned into clear information' } },
+    { id: 'contador-de-historias', nome: 'Contador de Histórias', cor: '#96c0e8', glifo: '📖',
+      link: 'contador-de-historias/',
+      frase: { pt: 'Cria e narra histórias de dormir', en: 'Creates and narrates bedtime stories' } },
+    { id: 'cifras-violao', nome: 'Cifras e Acordes', cor: '#eaa4b8', glifo: '🎸',
+      link: 'cifras-violao/',
+      frase: { pt: 'Cifras, troca de tom e dicionário de acordes',
+               en: 'Chord charts, key change and chord dictionary' } }
+  ];
+
+  var Anuncios = {
+    _lista: null,
+
+    lista: function () {
+      if (Anuncios._lista) return Anuncios._lista;
+      var base = (cfg.anuncios.lista && cfg.anuncios.lista.length) ? cfg.anuncios.lista : APPS_HUB;
+      Anuncios._lista = base.filter(function (a) { return a.id !== cfg.app; });
+      return Anuncios._lista;
+    },
+
+    /* carrega de um anuncios.json na raiz, se existir */
+    carregarArquivo: function () {
+      if (!cfg.anuncios.arquivo) return Promise.resolve(false);
+      return fetch(cfg.anuncios.arquivo, { cache: 'no-cache' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          var lista = Array.isArray(j) ? j : (j && j.anuncios);
+          if (!lista || !lista.length) return false;
+          cfg.anuncios.lista = lista;
+          Anuncios._lista = null;
+          montarFaixa();
+          return true;
+        })
+        .catch(function () { return false; });
+    },
+
+    frase: function (a) {
+      if (!a.frase) return '';
+      return (typeof a.frase === 'string') ? a.frase : (a.frase[Idioma.atual] || a.frase.pt || '');
+    },
+    selo: function (a) {
+      if (!a.selo) return '';
+      return (typeof a.selo === 'string') ? a.selo : (a.selo[Idioma.atual] || a.selo.pt || '');
+    },
+    botao: function (a) {
+      var b = a.botao || cfg.anuncios.popup.botao;
+      if (!b) return t('conhecer');
+      return (typeof b === 'string') ? b : (b[Idioma.atual] || b.pt || t('conhecer'));
+    },
+
+    registrar: function (tipo, id) {
+      try {
+        var hoje = new Date().toISOString().slice(0, 10);
+        var m = Guardar.ler('metricas-anuncio', {}, true) || {};
+        if (!m[hoje]) m[hoje] = { exibicao: 0, clique: 0, por: {} };
+        if (!m[hoje].por) m[hoje].por = {};
+        m[hoje][tipo] = (m[hoje][tipo] || 0) + 1;
+        if (id) {
+          if (!m[hoje].por[id]) m[hoje].por[id] = { exibicao: 0, clique: 0 };
+          m[hoje].por[id][tipo] = (m[hoje].por[id][tipo] || 0) + 1;
+        }
+        var dias = Object.keys(m).sort().slice(-60), limpo = {};
+        dias.forEach(function (k) { limpo[k] = m[k]; });
+        Guardar.gravar('metricas-anuncio', limpo, true);
+      } catch (e) {}
+    },
+
+    totais: function () {
+      var m = Guardar.ler('metricas-anuncio', {}, true) || {}, tot = { exibicao: 0, clique: 0, por: {} };
+      Object.keys(m).forEach(function (k) {
+        tot.exibicao += m[k].exibicao || 0;
+        tot.clique += m[k].clique || 0;
+        var por = m[k].por || {};
+        Object.keys(por).forEach(function (id) {
+          if (!tot.por[id]) tot.por[id] = { exibicao: 0, clique: 0 };
+          tot.por[id].exibicao += por[id].exibicao || 0;
+          tot.por[id].clique += por[id].clique || 0;
+        });
+      });
+      return tot;
+    }
+  };
 
   /* o anuncio fica fechado so ate o fim da sessao (sessionStorage) */
   var FlagAnuncio = {
@@ -814,46 +1349,121 @@
     setInterval(function () {
       if (d.hidden) return;
       var agora = telaCheiaAberta();
-      if (agora !== anterior) { anterior = agora; montarBanner(); }
+      if (agora !== anterior) { anterior = agora; montarFaixa(); }
     }, 450);
   }
 
+  function semAnuncios() {
+    /* so Premium fica livre de anuncio. Membro ve. O admin simulando um nivel
+       ve o que aquele nivel veria — e para isso que o modo de teste existe. */
+    if (Sessao.tipo === 'anunciante') return true;
+    return Niveis.atual() === 'premium';
+  }
+
   function deveMostrarAnuncio() {
-    if (telaCheiaAberta()) return false;
     if (!cfg.anuncios.ativo) return false;
-    if (Sessao.tipo === 'pagante') return false;        // assinante: sem anuncios
-    if (Sessao.tipo === 'anunciante') return false;
+    if (semAnuncios()) return false;
     if (FlagAnuncio.fechado()) return false;
+    if (!Anuncios.lista().length) return false;
     return true;
   }
 
-  function montarBanner() {
-    if (bannerEl) { bannerEl.parentNode.removeChild(bannerEl); bannerEl = null; }
-    /* uma exibicao por sessao de banner aberto, nao a cada redesenho */
-    if (!deveMostrarAnuncio()) { ajustarTopo(0); return; }
-    var img = el('img', {
-      src: cfg.anuncios.imagem || imagemPlaceholder(),
-      alt: t('anuncio') + ' - ' + (cfg.anuncios.texto || t('anuncieAqui')),
-      loading: 'eager'
-    });
-    /* a altura so e conhecida depois que a imagem carrega */
-    img.addEventListener('load', function () { ajustarTopo(bannerEl ? bannerEl.offsetHeight : 0); });
-    var link = el('a', {
-      href: cfg.anuncios.link, target: '_blank', rel: 'noopener noreferrer',
-      onclick: function () { Anuncios.registrar('clique'); }
-    }, [img]);
-    var x = el('button', {
-      class: 'dgo-x', type: 'button', 'aria-label': t('fecharAnuncio'), title: t('fecharAnuncio'),
-      texto: '×',
-      onclick: function () { FlagAnuncio.fechar(); montarBanner(); }
-    });
-    bannerEl = el('div', { class: 'dgo-banner', 'data-dgo-ui': '1', role: 'complementary', 'aria-label': t('anuncio') }, [link, x]);
-    d.body.insertBefore(bannerEl, d.body.firstChild);
-    if (!montarBanner._contou) { montarBanner._contou = true; Anuncios.registrar('exibicao'); }
-    (raiz.requestAnimationFrame || setTimeout)(function () {
-      ajustarTopo(bannerEl ? bannerEl.offsetHeight : 0);
-    }, 30);
+  /* ------------------------------------------------------------------
+     8-B. A FAIXA DO TOPO
+     [ PT | EN ]  [ A N U N C I O ]  [ carrossel andando ]  [ x ]
+     O seletor de idioma mora aqui dentro, e nao flutuando sobre a tela,
+     para nunca cobrir o titulo nem os botoes do app.
+     ------------------------------------------------------------------ */
+  function cartaoAnuncio(a) {
+    var pt = el('i', { class: 'dgo-pt', style: { background: a.cor || cfg.cor } });
+    var nome = el('span', { class: 'dgo-nm' }, [pt, d.createTextNode(a.nome)]);
+    var selo = Anuncios.selo(a);
+    if (selo) nome.appendChild(el('em', { class: 'dgo-selo', texto: selo }));
+    nome.appendChild(el('b', { class: 'dgo-seta', texto: '→' }));
+
+    var icone = a.icone
+      ? el('img', { class: 'dgo-ic', src: a.icone, alt: '', loading: 'lazy' })
+      : el('span', { class: 'dgo-ic', style: { background: 'color-mix(in srgb, ' + (a.cor || cfg.cor) + ' 22%, #0b1220)',
+                                               borderColor: a.cor || cfg.cor },
+                     texto: a.glifo || '●' });
+
+    return el('a', {
+      class: 'dgo-card', href: linkApp(a), target: '_blank', rel: 'noopener noreferrer',
+      'aria-label': a.nome + ' — ' + Anuncios.frase(a),
+      onclick: function () { Anuncios.registrar('clique', a.id); }
+    }, [
+      icone,
+      el('span', { class: 'dgo-tx' }, [nome, el('span', { class: 'dgo-fr', texto: Anuncios.frase(a) })])
+    ]);
   }
+
+  function montarFaixa() {
+    if (faixaEl && faixaEl.parentNode) faixaEl.parentNode.removeChild(faixaEl);
+    faixaEl = null; bannerEl = null;
+
+    var naFaixa = (cfg.posicaoSeletorIdioma === 'faixa' || !cfg.posicaoSeletorIdioma);
+    var querIdioma = cfg.seletorIdiomaVisivel && naFaixa;
+    var querIA = cfg.ia.ativo && cfg.ia.botaoNaFaixa !== false;
+    var querAnuncio = deveMostrarAnuncio();
+    var escondida = telaCheiaAberta();
+
+    if (escondida || (!querIdioma && !querAnuncio && !querIA)) { ajustarTopo(0); return; }
+
+    var filhos = [];
+
+    if (querIdioma) filhos.push(blocoIdioma());
+
+    if (cfg.ia.ativo && cfg.ia.botaoNaFaixa !== false) {
+      filhos.push(el('button', {
+        class: 'dgo-ia-bt', type: 'button', title: t('perguntarIA'), 'aria-label': t('perguntarIA'),
+        texto: '\u2728', onclick: function () { abrirIA(); }
+      }));
+    }
+
+    if (querAnuncio) {
+      var rot = cfg.anuncios.rotulo;
+      var rotulo = (rot && (rot[Idioma.atual] || rot.pt)) || t('anuncioRotulo');
+      filhos.push(el('span', { class: 'dgo-rot', 'aria-hidden': 'true', texto: rotulo }));
+
+      var lista = Anuncios.lista();
+      var trilho = el('div', { class: 'dgo-trilho' });
+      /* duas voltas do mesmo conteudo: o laco fica sem costura */
+      [0, 1].forEach(function (volta) {
+        lista.forEach(function (a) {
+          var c = cartaoAnuncio(a);
+          if (volta === 1) c.setAttribute('aria-hidden', 'true');
+          trilho.appendChild(c);
+        });
+      });
+      var segundos = Math.max(12, (cfg.anuncios.velocidade || 9) * lista.length);
+      trilho.style.animationDuration = segundos + 's';
+      if (raiz.matchMedia && raiz.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        trilho.style.animation = 'none';
+      }
+      var janela = el('div', { class: 'dgo-carrossel', role: 'complementary',
+                               'aria-label': rotulo }, [trilho]);
+      filhos.push(janela);
+
+      filhos.push(el('button', {
+        class: 'dgo-x', type: 'button', 'aria-label': t('fecharAnuncio'), title: t('fecharAnuncio'),
+        texto: '×', onclick: function () { FlagAnuncio.fechar(); montarFaixa(); }
+      }));
+    }
+
+    faixaEl = el('div', { class: 'dgo-faixa' + (querAnuncio ? '' : ' dgo-fina'), 'data-dgo-ui': '1' }, filhos);
+    bannerEl = faixaEl;
+    d.body.insertBefore(faixaEl, d.body.firstChild);
+
+    if (querAnuncio && !montarFaixa._contou) {
+      montarFaixa._contou = true;
+      Anuncios.lista().forEach(function (a) { Anuncios.registrar('exibicao', a.id); });
+    }
+    atualizarSeletorIdioma();
+    raiz.setTimeout(function () { ajustarTopo(faixaEl ? faixaEl.offsetHeight : 0); }, 30);
+  }
+
+  /* compatibilidade com o nome antigo */
+  function montarBanner() { montarFaixa(); }
 
   function ajustarTopo(altura) {
     d.documentElement.style.setProperty('--dgo-topo', altura + 'px');
@@ -871,24 +1481,139 @@
     });
   }
 
-  var Anuncios = {
-    registrar: function (tipo) {
-      try {
-        var hoje = new Date().toISOString().slice(0, 10);
-        var m = Guardar.ler('metricas-anuncio', {}, true) || {};
-        if (!m[hoje]) m[hoje] = { exibicao: 0, clique: 0 };
-        m[hoje][tipo] = (m[hoje][tipo] || 0) + 1;
-        var dias = Object.keys(m).sort().slice(-60), limpo = {};
-        dias.forEach(function (k) { limpo[k] = m[k]; });
-        Guardar.gravar('metricas-anuncio', limpo, true);
-      } catch (e) {}
+  /* ------------------------------------------------------------------
+     8-C. POP-UP DE ANUNCIO
+     Aparece na area logada, sorteando um app por vez, com espera antes
+     do X. Nunca para quem nao ve anuncios, nunca sobre uma tela cheia.
+     ------------------------------------------------------------------ */
+  var Popup = {
+    _timer: null,
+
+    momento: function () { return Sessao.tipo ? 'depois' : 'antes'; },
+
+    podeMostrar: function (momento) {
+      var p = cfg.anuncios.popup || {};
+      momento = momento || Popup.momento();
+      if (!cfg.anuncios.ativo || !p.ativo) return false;
+      if (momento === 'antes' && p.antesDoLogin === false) return false;
+      if (momento === 'depois' && p.depoisDoLogin === false) return false;
+      if (semAnuncios()) return false;
+      if (telaCheiaAberta()) return false;
+      if (modalEl) return false;                      /* nao atropela login/configuracoes */
+      if (!Anuncios.lista().length) return false;
+      if (p.umaVezPorSessao !== false) {
+        try { if (raiz.sessionStorage.getItem('dgo:' + cfg.app + ':popup:' + momento) === '1') return false; } catch (e) {}
+      }
+      if (p.intervaloHoras) {
+        var ultimo = Guardar.ler('popup-em', 0, true);
+        if (ultimo && (Date.now() - ultimo) < p.intervaloHoras * 3600000) return false;
+      }
+      return true;
     },
-    totais: function () {
-      var m = Guardar.ler('metricas-anuncio', {}, true) || {}, tot = { exibicao: 0, clique: 0 };
-      Object.keys(m).forEach(function (k) {
-        tot.exibicao += m[k].exibicao || 0; tot.clique += m[k].clique || 0;
+
+    sortear: function () {
+      var lista = Anuncios.lista();
+      if (lista.length === 1) return lista[0];
+      var anterior = Guardar.ler('popup-ultimo', '', true);
+      var candidatos = lista.filter(function (a) { return a.id !== anterior; });
+      if (!candidatos.length) candidatos = lista;
+      return candidatos[Math.floor(Math.random() * candidatos.length)];
+    },
+
+    agendar: function (momento) {
+      var p = cfg.anuncios.popup || {};
+      momento = momento || Popup.momento();
+      var atraso = 1000 * (momento === 'antes'
+        ? (p.atrasoAntesDoLogin === undefined ? 5 : p.atrasoAntesDoLogin)
+        : (p.atrasoAbertura === undefined ? 8 : p.atrasoAbertura));
+      if (Popup._timer) clearTimeout(Popup._timer);
+      Popup._timer = setTimeout(function () {
+        if (Popup.podeMostrar(momento)) { Popup.abrir(null, momento); return; }
+        /* se havia uma janela aberta na hora, tenta de novo daqui a pouco */
+        if (modalEl || telaCheiaAberta()) {
+          Popup._timer = setTimeout(function esperar() {
+            if (Popup.podeMostrar(momento)) Popup.abrir(null, momento);
+            else if (modalEl || telaCheiaAberta()) Popup._timer = setTimeout(esperar, 4000);
+          }, 4000);
+        }
+      }, Math.max(0, atraso));
+    },
+
+    abrir: function (anuncio, momento) {
+      var a = anuncio || Popup.sortear();
+      if (!a) return null;
+      var p = cfg.anuncios.popup || {};
+      var espera = (p.esperaSegundos === undefined ? 3 : p.esperaSegundos);
+      momento = momento || Popup.momento();
+
+      try { raiz.sessionStorage.setItem('dgo:' + cfg.app + ':popup:' + momento, '1'); } catch (e) {}
+      Guardar.gravar('popup-em', Date.now(), true);
+      Guardar.gravar('popup-ultimo', a.id, true);
+      Anuncios.registrar('exibicao', a.id);
+
+      var fecharBt = el('button', {
+        class: 'dgo-pop-x', type: 'button', disabled: '', 'aria-label': t('fechar'),
+        texto: String(espera)
       });
-      return tot;
+      var cor = a.cor || cfg.cor;
+      var icone = a.icone
+        ? el('img', { class: 'dgo-pop-ic', src: a.icone, alt: '' })
+        : el('div', { class: 'dgo-pop-ic', style: { borderColor: cor,
+              background: 'color-mix(in srgb, ' + cor + ' 20%, #0b1220)' }, texto: a.glifo || '●' });
+
+      var rotuloTxt = (cfg.anuncios.rotulo &&
+            (cfg.anuncios.rotulo[Idioma.atual] || cfg.anuncios.rotulo.pt)) || t('anuncioRotulo');
+      var selo = Anuncios.selo(a);
+
+      var arte = el('div', { class: 'dgo-pop-arte' }, [
+        el('div', { class: 'dgo-pop-halo' }),
+        icone
+      ]);
+
+      var corpo = el('div', { class: 'dgo-pop-corpo' }, [
+        el('div', { class: 'dgo-pop-rot dgo-pop-rot-topo', texto: rotuloTxt }),
+        el('div', { class: 'dgo-pop-nome' }, [
+          d.createTextNode(a.nome),
+          selo ? el('em', { class: 'dgo-selo', texto: selo }) : null
+        ]),
+        el('div', { class: 'dgo-pop-frase', texto: Anuncios.frase(a) }),
+        el('a', {
+          class: 'dgo-pop-bt', href: linkApp(a), target: '_blank', rel: 'noopener noreferrer',
+          onclick: function () { Anuncios.registrar('clique', a.id); }
+        }, [d.createTextNode(Anuncios.botao(a)), el('span', { class: 'dgo-pop-seta', texto: '\u2192' })]),
+        el('div', { class: 'dgo-pop-rot dgo-pop-rot-baixo', texto: rotuloTxt })
+      ]);
+
+      var caixa = el('div', { class: 'dgo-pop' }, [arte, corpo]);
+      caixa.style.setProperty('--c', cor);
+      caixa.style.setProperty('--c-suave', corSuave(cor, 0.22));
+      caixa.style.setProperty('--c-fraca', corSuave(cor, 0.10));
+
+      var envelope = el('div', { class: 'dgo-pop-env' }, [caixa, fecharBt]);
+      var fundo = el('div', { class: 'dgo-pop-fundo', 'data-dgo-ui': '1', role: 'dialog',
+                              'aria-modal': 'true' }, [envelope]);
+      d.body.appendChild(fundo);
+
+      var resta = espera;
+      var conta = setInterval(function () {
+        resta--;
+        if (resta > 0) { fecharBt.textContent = String(resta); return; }
+        clearInterval(conta);
+        fecharBt.removeAttribute('disabled');
+        fecharBt.textContent = '×';
+        fecharBt.classList.add('dgo-pronto');
+      }, 1000);
+
+      function fechar() {
+        clearInterval(conta);
+        if (fundo.parentNode) fundo.parentNode.removeChild(fundo);
+        d.removeEventListener('keydown', porTecla);
+      }
+      function porTecla(e) { if (e.key === 'Escape' && !fecharBt.disabled) fechar(); }
+      fecharBt.addEventListener('click', function () { if (!fecharBt.disabled) fechar(); });
+      fundo.addEventListener('click', function (e) { if (e.target === fundo && !fecharBt.disabled) fechar(); });
+      d.addEventListener('keydown', porTecla);
+      return fundo;
     }
   };
 
@@ -1149,8 +1874,11 @@
       Sessao.gravar();
       /* a cada novo login o anuncio volta a aparecer */
       FlagAnuncio.reabrir();
-      montarBanner._contou = false;
-      montarBanner();
+      montarFaixa._contou = false;
+      montarFaixa();
+      Niveis.revisar();
+      montarBarraAdmin();
+      Popup.agendar('depois');
       redesenharInterfaceDGO();
       if (typeof cfg.aoEntrar === 'function') { try { cfg.aoEntrar(Sessao.resumo()); } catch (e) {} }
       d.dispatchEvent(new CustomEvent('dgo:entrou', { detail: Sessao.resumo() }));
@@ -1165,7 +1893,10 @@
         raiz.sessionStorage.removeItem('dgo:' + cfg.app + ':sessao');
       } catch (e) {}
       Sessao.tipo = null; Sessao.usuario = null;
+      Guardar.apagar('admin-simular');
       montarBanner();
+      Niveis.revisar();
+      montarBarraAdmin();
       redesenharInterfaceDGO();
       if (typeof cfg.aoSair === 'function') { try { cfg.aoSair(); } catch (e) {} }
       d.dispatchEvent(new CustomEvent('dgo:saiu', {}));
@@ -1174,12 +1905,316 @@
     resumo: function () {
       return {
         tipo: Sessao.tipo,
+        nivel: (typeof Niveis !== 'undefined') ? Niveis.atual() : 'visitante',
         usuario: Sessao.usuario,
-        semAnuncios: Sessao.tipo === 'pagante' || Sessao.tipo === 'anunciante',
+        semAnuncios: semAnuncios(),
         guardaDados: Sessao.tipo !== 'visitante' && Sessao.tipo !== null
       };
     }
   };
+
+  /* ------------------------------------------------------------------
+     9-B. NIVEIS DE ACESSO:  Visitante -> Membro -> Premium
+     ------------------------------------------------------------------
+     Uma funcao so responde "esta pessoa pode usar este servico?".
+     Hoje ela olha o arquivo de configuracao e o nivel local. Quando
+     existir servidor, ela passa a perguntar para ele (DGO.niveis.backend)
+     e NADA MAIS no app muda.
+     ------------------------------------------------------------------ */
+  var ORDEM = { visitante: 0, membro: 1, premium: 2 };
+
+  var Niveis = {
+    backend: null,
+    _servicos: null,
+
+    /* o nivel efetivo de quem esta usando, respeitando a simulacao do admin */
+    atual: function () {
+      var fingido = Guardar.ler('admin-simular', null);
+      if (fingido && Sessao.tipo === 'admin') return fingido;
+      switch (Sessao.tipo) {
+        case 'premium': return 'premium';
+        case 'admin': return 'premium';
+        case 'pagante': return 'membro';      /* nome antigo */
+        case 'membro': return 'membro';
+        case 'anunciante': return 'membro';
+        default: return 'visitante';
+      }
+    },
+
+    ehAdmin: function () { return Sessao.tipo === 'admin'; },
+
+    servicos: function () {
+      if (Niveis._servicos) return Niveis._servicos;
+      var guardado = Guardar.ler('servicos', null, false);
+      var base = (cfg.niveis.servicos || []).map(function (s) {
+        var copia = {};
+        for (var k in s) copia[k] = s[k];
+        if (guardado && guardado[s.id]) copia.nivel = guardado[s.id];
+        return copia;
+      });
+      Niveis._servicos = base;
+      return base;
+    },
+
+    servico: function (id) {
+      var l = Niveis.servicos(), i;
+      for (i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+      return null;
+    },
+
+    nivelDoServico: function (id) {
+      var s = Niveis.servico(id);
+      return (s && s.nivel) || cfg.niveis.padraoServico || 'visitante';
+    },
+
+    definirNivelDoServico: function (id, nivel) {
+      var s = Niveis.servico(id);
+      if (s) s.nivel = nivel;
+      var guardado = Guardar.ler('servicos', {}, false) || {};
+      guardado[id] = nivel;
+      Guardar.gravar('servicos', guardado, false);
+      d.dispatchEvent(new CustomEvent('dgo:niveis', { detail: { servico: id, nivel: nivel } }));
+    },
+
+    /* carrega servicos.json da raiz, se existir — e a fonte da verdade */
+    carregarArquivo: function () {
+      if (!cfg.niveis.arquivo) return Promise.resolve(false);
+      return fetch(cfg.niveis.arquivo, { cache: 'no-cache' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          var lista = Array.isArray(j) ? j : (j && j.servicos);
+          if (!lista || !lista.length) return false;
+          cfg.niveis.servicos = lista;
+          Niveis._servicos = null;
+          d.dispatchEvent(new CustomEvent('dgo:niveis', { detail: { origem: 'arquivo' } }));
+          return true;
+        })
+        .catch(function () { return false; });
+    },
+
+    /* A PERGUNTA UNICA */
+    pode: function (idServico) {
+      if (!cfg.niveis.ativo) return true;
+      if (Niveis.backend && typeof Niveis.backend.pode === 'function') {
+        try { return !!Niveis.backend.pode(idServico, Niveis.atual()); } catch (e) {}
+      }
+      var exigido = Niveis.nivelDoServico(idServico);
+      return (ORDEM[Niveis.atual()] || 0) >= (ORDEM[exigido] || 0);
+    },
+
+    /* roda a acao se puder; se nao, mostra o convite certo */
+    exigir: function (idServico, acao, opcoes) {
+      if (Niveis.pode(idServico)) {
+        if (typeof acao === 'function') acao();
+        return true;
+      }
+      Niveis.convite(idServico, opcoes);
+      return false;
+    },
+
+    rotulo: function (nivel) {
+      return nivel === 'premium' ? t('premium') : nivel === 'membro' ? t('membro') : t('visitante');
+    },
+
+    /* o aviso de bloqueio: cartao no celular, janela no computador */
+    convite: function (idServico, opcoes) {
+      opcoes = opcoes || {};
+      var s = Niveis.servico(idServico) || {};
+      var exigido = Niveis.nivelDoServico(idServico);
+      var nome = s.nome ? (s.nome[Idioma.atual] || s.nome.pt) : (opcoes.nome || idServico);
+      var desc = s.descricao ? (s.descricao[Idioma.atual] || s.descricao.pt) : '';
+
+      var caixa = el('div', { class: 'dgo-caixa', style: { maxWidth: '380px' } });
+      caixa.appendChild(el('div', { class: 'dgo-cadeado', texto: '🔒' }));
+      caixa.appendChild(el('h2', { texto: nome }));
+      if (desc) caixa.appendChild(el('p', { texto: desc }));
+      caixa.appendChild(aviso(
+        exigido === 'premium' ? t('sohPremium') : t('sohMembro'), 'info'));
+
+      if (exigido === 'membro' && !Sessao.tipo) {
+        caixa.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('criarConta'),
+          onclick: function () { fecharModal(); abrirLogin('pagante'); } }));
+      } else if (exigido === 'premium') {
+        caixa.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('virarPremium'),
+          onclick: function () {
+            fecharModal();
+            if (typeof cfg.niveis.aoQuererPremium === 'function') cfg.niveis.aoQuererPremium(idServico);
+            else abrirComoVirarPremium();
+          } }));
+      }
+      caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('entendi'),
+        onclick: fecharModal }));
+      return abrirModal(caixa);
+    },
+
+    /* marca de agua discreta nos botoes bloqueados */
+    marcar: function (seletorOuNo, idServico) {
+      var nos = (typeof seletorOuNo === 'string') ? d.querySelectorAll(seletorOuNo) : [seletorOuNo];
+      Array.prototype.forEach.call(nos, function (n) {
+        if (!n) return;
+        var liberado = Niveis.pode(idServico);
+        n.classList.toggle('dgo-bloqueado', !liberado);
+        if (!liberado) {
+          n.setAttribute('data-dgo-servico', idServico);
+          n.setAttribute('title', t('sohPremium'));
+        } else {
+          n.removeAttribute('data-dgo-servico');
+        }
+      });
+    },
+
+    /* passa por todos os elementos com data-servico="..." e marca */
+    revisar: function () {
+      Array.prototype.forEach.call(d.querySelectorAll('[data-servico]'), function (n) {
+        Niveis.marcar(n, n.getAttribute('data-servico'));
+      });
+    }
+  };
+
+  function abrirComoVirarPremium() {
+    var caixa = el('div', { class: 'dgo-caixa', style: { maxWidth: '380px' } });
+    caixa.appendChild(el('h2', { texto: t('virarPremium') }));
+    caixa.appendChild(aviso(t('premiumSemCobranca'), 'info'));
+    if (cfg.email.formulario) {
+      var cE = campo(t('email'), { type: 'email', inputmode: 'email' });
+      caixa.appendChild(cE);
+      var msg = el('div');
+      caixa.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('enviarPedido'),
+        onclick: function () {
+          var b = this; b.disabled = true;
+          Email.enviarFormulario({ assunto: t('virarPremium') + ' - ' + nomeApp(),
+                                   mensagem: t('virarPremium'), responderPara: cE._input.value.trim() })
+            .then(function () { msg.innerHTML = ''; msg.appendChild(aviso(t('pedidoEnviado'), 'ok')); })
+            .catch(function () { msg.innerHTML = ''; msg.appendChild(aviso(t('pedidoFalhou'), 'erro')); })
+            .then(function () { b.disabled = false; });
+        } }));
+      caixa.appendChild(msg);
+    }
+    caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('fechar'), onclick: fecharModal }));
+    return abrirModal(caixa);
+  }
+
+  /* ---------------- painel do administrador ---------------- */
+  function abrirAdmin() {
+    if (!Niveis.ehAdmin()) { abrirLogin('admin'); return null; }
+
+    function montar() {
+      var caixa = el('div', { class: 'dgo-caixa dgo-larga' });
+      caixa.appendChild(el('h2', { texto: t('painelAdmin') }));
+      caixa.appendChild(aviso(t('adminNaoEhSeguranca'), 'info'));
+
+      /* ver o app como... */
+      caixa.appendChild(el('h3', { texto: t('verComo') }));
+      var atual = Guardar.ler('admin-simular', null) || 'premium';
+      var linha = el('div', { class: 'dgo-linha' });
+      ['visitante', 'membro', 'premium'].forEach(function (n) {
+        linha.appendChild(el('button', {
+          class: 'dgo-b' + (atual === n ? '' : ' dgo-b2'), type: 'button', texto: Niveis.rotulo(n),
+          onclick: function () {
+            Guardar.gravar('admin-simular', n);
+            montarFaixa(); Niveis.revisar(); montarBarraAdmin();
+            abrirAdmin();
+          }
+        }));
+      });
+      caixa.appendChild(linha);
+
+      /* servicos */
+      caixa.appendChild(el('h3', { texto: t('servicos') }));
+      var lista = Niveis.servicos();
+      if (!lista.length) caixa.appendChild(aviso(t('semServicos'), 'info'));
+      lista.forEach(function (s) {
+        var nome = s.nome ? (s.nome[Idioma.atual] || s.nome.pt) : s.id;
+        var desc = s.descricao ? (s.descricao[Idioma.atual] || s.descricao.pt) : '';
+        var sel = el('select');
+        [['visitante', t('visitante')], ['membro', t('membro')], ['premium', t('premium')]].forEach(function (p) {
+          var o = el('option', { value: p[0], texto: p[1] });
+          if (Niveis.nivelDoServico(s.id) === p[0]) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.addEventListener('change', function () {
+          Niveis.definirNivelDoServico(s.id, sel.value);
+          Niveis.revisar();
+        });
+        caixa.appendChild(el('div', {
+          style: { display: 'flex', gap: '10px', alignItems: 'center', padding: '9px 0',
+                   borderBottom: '1px solid rgba(255,255,255,.08)' }
+        }, [
+          el('div', { style: { flex: '1', minWidth: '0' } }, [
+            el('div', { style: { color: '#e2e8f0', fontSize: '14px', fontWeight: '600' }, texto: nome }),
+            desc ? el('div', { class: 'dgo-mini', texto: desc }) : null
+          ]),
+          el('div', { style: { flex: '0 0 auto', width: '130px' } }, [sel])
+        ]));
+      });
+
+      /* exportar servicos.json */
+      caixa.appendChild(el('div', { class: 'dgo-sep' }));
+      caixa.appendChild(el('button', {
+        class: 'dgo-b', type: 'button', texto: t('baixarServicos'),
+        onclick: function () {
+          Nuvem.salvarArquivo({ servicos: Niveis.servicos() }, cfg.niveis.arquivo || 'servicos.json');
+        }
+      }));
+      caixa.appendChild(el('div', { class: 'dgo-mini', texto: t('servicosComoSubir') }));
+
+      /* contas */
+      var contas = Contas.todas();
+      var emails = Object.keys(contas);
+      if (emails.length) {
+        caixa.appendChild(el('h3', { texto: t('contas') }));
+        emails.forEach(function (e) {
+          var c = contas[e];
+          var selC = el('select');
+          [['visitante', t('visitante')], ['pagante', t('membro')], ['premium', t('premium')],
+           ['anunciante', t('anunciante')], ['admin', t('admin')]].forEach(function (p) {
+            var o = el('option', { value: p[0], texto: p[1] });
+            if ((c.tipo || 'pagante') === p[0]) o.selected = true;
+            selC.appendChild(o);
+          });
+          selC.addEventListener('change', function () {
+            var todas = Contas.todas();
+            todas[e].tipo = selC.value;
+            Contas.gravarTodas(todas);
+          });
+          caixa.appendChild(el('div', {
+            style: { display: 'flex', gap: '10px', alignItems: 'center', padding: '7px 0',
+                     borderBottom: '1px solid rgba(255,255,255,.08)' }
+          }, [
+            el('div', { style: { flex: '1', minWidth: '0' } }, [
+              el('div', { style: { color: '#e2e8f0', fontSize: '13.5px' }, texto: c.apelido || e }),
+              el('div', { class: 'dgo-mini', texto: e })
+            ]),
+            el('div', { style: { flex: '0 0 auto', width: '130px' } }, [selC])
+          ]));
+        });
+      }
+
+      caixa.appendChild(el('div', { class: 'dgo-sep' }));
+      caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('fechar'), onclick: fecharModal }));
+      return caixa;
+    }
+    return abrirModal(montar(), abrirAdmin);
+  }
+
+  /* faixa de aviso quando o admin esta simulando um nivel */
+  var barraAdminEl = null;
+  function montarBarraAdmin() {
+    if (barraAdminEl && barraAdminEl.parentNode) barraAdminEl.parentNode.removeChild(barraAdminEl);
+    barraAdminEl = null;
+    if (!Niveis.ehAdmin()) return;
+    var fingido = Guardar.ler('admin-simular', null);
+    if (!fingido) return;
+    barraAdminEl = el('div', { class: 'dgo-admin-barra', 'data-dgo-ui': '1' }, [
+      el('span', { texto: t('modoTeste') + ': ' + Niveis.rotulo(fingido) }),
+      el('button', { type: 'button', texto: t('sairDoTeste'), onclick: function () {
+        Guardar.apagar('admin-simular');
+        montarFaixa(); Niveis.revisar(); montarBarraAdmin();
+      } }),
+      el('button', { type: 'button', texto: t('painelAdmin'), onclick: abrirAdmin })
+    ]);
+    d.body.appendChild(barraAdminEl);
+  }
 
   /* ---------------- biometria (WebAuthn) ---------------- */
   var Biometria = {
@@ -1342,7 +2377,97 @@
       return c;
     },
 
+    /* ---- motor hospedado no repositorio: sem internet, sem CDN ---- */
+    _local: null, _workerLocal: null, _fila: null,
+
+    temLocal: function () {
+      if (OCR._local !== null) return Promise.resolve(OCR._local);
+      if (cfg.ocr.local === false || !cfg.ocr.worker) { OCR._local = false; return Promise.resolve(false); }
+      if (cfg.ocr.local === true) { OCR._local = true; return Promise.resolve(true); }
+      if (typeof Worker !== 'function' || raiz.location.protocol === 'file:') {
+        OCR._local = false; return Promise.resolve(false);
+      }
+      return fetch(cfg.ocr.worker, { method: 'GET' })
+        .then(function (r) { OCR._local = !!r.ok; return OCR._local; })
+        .catch(function () { OCR._local = false; return false; });
+    },
+
+    motorJaBaixado: function () {
+      if (!raiz.caches) return Promise.resolve(false);
+      return raiz.caches.match('tesseract-core-simd-lstm.wasm.js')
+        .then(function (r) { return r ? true : raiz.caches.match('tesseract-core-lstm.wasm.js'); })
+        .then(function (r) { return !!r; }).catch(function () { return false; });
+    },
+
+    lerLocal: function (fonte, aoProgredir) {
+      if (OCR._workerLocal) return OCR._lerLocalAgora(fonte, aoProgredir);
+      /* primeira vez nesta sessao: o motor pesa ~11 MB - respeita a regra de rede */
+      return OCR.motorJaBaixado().then(function (ja) {
+        if (ja) return true;
+        return Rede.pedirPesado(t('escanear'), 11);
+      }).then(function (pode) {
+        if (!pode) throw new Error('so-wifi');
+        return OCR._lerLocalAgora(fonte, aoProgredir);
+      });
+    },
+
+    _lerLocalAgora: function (fonte, aoProgredir) {
+      return new Promise(function (ok, erro) {
+        var canvas = OCR.tratar(fonte);
+        var paraBlob = canvas.toBlob
+          ? new Promise(function (r) { canvas.toBlob(r, 'image/png'); })
+          : Promise.resolve(null);
+        paraBlob.then(function (blob) {
+          if (!blob) { erro(new Error('sem-imagem')); return; }
+          return blob.arrayBuffer();
+        }).then(function (buf) {
+          if (!buf) return;
+          if (!OCR._workerLocal) {
+            OCR._workerLocal = new Worker(cfg.ocr.worker);
+            OCR._workerLocal.onerror = function () {
+              OCR._local = false;
+              if (OCR._fila) { var f = OCR._fila; OCR._fila = null; f.erro(new Error('worker-falhou')); }
+              try { OCR._workerLocal.terminate(); } catch (e) {}
+              OCR._workerLocal = null;
+            };
+            OCR._workerLocal.onmessage = function (ev) {
+              var m = ev.data || {};
+              if (!OCR._fila) return;
+              if (m.tipo === 'estado') {
+                var p = m.etapa === 'lendo' ? 0.7 : m.etapa === 'idioma' ? 0.4 : 0.15;
+                if (OCR._fila.aoProgredir) OCR._fila.aoProgredir(p, m.etapa === 'lendo' ? 'recognizing text' : 'loading');
+                return;
+              }
+              var f = OCR._fila; OCR._fila = null;
+              if (m.tipo === 'pronto') f.ok({ texto: m.texto, confianca: m.confianca });
+              else f.erro(new Error(m.mensagem || 'falhou'));
+            };
+          }
+          OCR._fila = { ok: ok, erro: erro, aoProgredir: aoProgredir };
+          OCR._workerLocal.postMessage({ tipo: 'ler', imagem: buf, idiomas: cfg.ocr.idiomas }, [buf]);
+        }).catch(erro);
+      });
+    },
+
     ler: function (fonte, aoProgredir) {
+      return OCR.temLocal().then(function (local) {
+        if (local) {
+          return OCR.lerLocal(fonte, aoProgredir).then(function (r) {
+            return {
+              texto: texto(r.texto).replace(/[ \t]+\n/g, '\n').trim(),
+              confianca: r.confianca || 0,
+              linhas: texto(r.texto).split('\n').filter(function (l) { return l.trim(); })
+            };
+          }).catch(function (e) {
+            if (String(e && e.message) === 'worker-falhou') return OCR.lerPelaBiblioteca(fonte, aoProgredir);
+            throw e;
+          });
+        }
+        return OCR.lerPelaBiblioteca(fonte, aoProgredir);
+      });
+    },
+
+    lerPelaBiblioteca: function (fonte, aoProgredir) {
       return OCR.motor(aoProgredir).then(function (w) {
         return w.recognize(OCR.tratar(fonte));
       }).then(function (r) {
@@ -1438,6 +2563,10 @@
     },
     pararCamera: function () {
       if (OCR._stream) { OCR._stream.getTracks().forEach(function (f) { f.stop(); }); OCR._stream = null; }
+    },
+
+    ondeEsta: function () {
+      return OCR._local === true ? 'repositorio' : OCR._local === false ? 'internet' : 'nao-verificado';
     }
   };
 
@@ -1721,17 +2850,59 @@
   }
   function redesenharInterfaceDGO() {
     if (modalEl && typeof modalEl._recriar === 'function') { var f = modalEl._recriar; fecharModal(); f(); }
-    if (bannerEl) { /* o texto do placeholder muda com o idioma */
-      var img = bannerEl.querySelector('img');
-      if (img && !cfg.anuncios.imagem) img.src = imagemPlaceholder();
-    }
+    /* a faixa de anúncio é refeita no idioma novo (antes chamava imagemPlaceholder(), que não existe
+       mais, e a troca de idioma quebrava com anúncio na tela — achado no CifrasONE, 10/Out/2026) */
+    if (bannerEl) montarFaixa();
   }
   function campo(rotulo, props) {
     var i = el('input', props || { type: 'text' });
     var l = el('label', { class: 'dgo-campo' }, [el('span', { texto: rotulo }), i]);
     l._input = i;
+    if (i.type === 'password') Senha.olho(i);
     return l;
   }
+
+  /* ------------------------------------------------------------------
+     15b. CAMPO DE SENHA COM 👁 — padrão de TODO campo de senha de TODO app
+     Botão dentro do campo alterna type password/text; aria-label
+     "Mostrar senha"/"Esconder senha" (PT/EN), aria-pressed, funciona por
+     teclado (é um <button>). Volta a esconder ao enviar o formulário
+     (submit do <form> ou Enter no campo) e em DGO.senha.esconder().
+     Uso: DGO.senha.olho(input) · DGO.senha.aplicar(raiz) em campos prontos.
+     ------------------------------------------------------------------ */
+  var Senha = {
+    olho: function (input) {
+      if (!input || input.tagName !== 'INPUT' || input._olho) return input;
+      var caixa = el('span', { class: 'dgo-senha', 'data-dgo-ignorar': '' });
+      var bt = el('button', { type: 'button', class: 'dgo-senha-olho', 'aria-pressed': 'false' });
+      function pintar() {
+        var visivel = input.type === 'text';
+        bt.textContent = visivel ? '🙈' : '👁';
+        bt.setAttribute('aria-label', t(visivel ? 'esconderSenha' : 'mostrarSenha'));
+        bt.title = bt.getAttribute('aria-label');
+        bt.setAttribute('aria-pressed', visivel ? 'true' : 'false');
+      }
+      function esconder() { if (input.type !== 'password') { input.type = 'password'; pintar(); } }
+      bt.addEventListener('click', function () { input.type = input.type === 'password' ? 'text' : 'password'; pintar(); });
+      if (input.parentNode) input.parentNode.insertBefore(caixa, input);
+      caixa.appendChild(input); caixa.appendChild(bt);
+      input._olho = { esconder: esconder, pintar: pintar };
+      var form = input.form || (input.closest ? input.closest('form') : null);
+      if (form) form.addEventListener('submit', esconder);
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') esconder(); });
+      d.addEventListener('dgo:idioma', pintar);
+      pintar();
+      return input;
+    },
+    /* põe o 👁 em todo campo de senha já na tela (ou dentro de `raiz`) */
+    aplicar: function (raiz) {
+      Array.prototype.slice.call((raiz || d).querySelectorAll('input[type="password"]')).forEach(function (i) { if (!i._olho) Senha.olho(i); });
+    },
+    /* volta a esconder todas (chamar ao enviar formulários sem <form>) */
+    esconder: function (raiz) {
+      Array.prototype.slice.call((raiz || d).querySelectorAll('.dgo-senha>input')).forEach(function (i) { if (i._olho) i._olho.esconder(); });
+    }
+  };
   function aviso(txt, tipo) { return el('div', { class: 'dgo-aviso ' + (tipo || 'info'), texto: txt }); }
 
   /* ------------------------------------------------------------------
@@ -1749,7 +2920,7 @@
       var abas = el('div', { class: 'dgo-abas' });
       var lista = [];
       if (cfg.login.permitirVisitante) lista.push(['visitante', t('visitante')]);
-      if (cfg.login.permitirPagante) lista.push(['pagante', t('assinante')]);
+      if (cfg.login.permitirPagante) lista.push(['pagante', t('membro')]);
       if (cfg.login.permitirAnunciante) lista.push(['anunciante', t('anunciante')]);
       lista.forEach(function (par) {
         abas.appendChild(el('button', {
@@ -1770,7 +2941,7 @@
         }));
       } else {
         var ehAnunciante = (aba === 'anunciante');
-        corpo.appendChild(aviso(ehAnunciante ? t('avisoAnunciante') : t('avisoAssinante'), 'info'));
+        corpo.appendChild(aviso(ehAnunciante ? t('avisoAnunciante') : t('avisoMembro'), 'info'));
 
         var modoCriar = { v: false };
         var cApelido = campo(t('apelido'), { type: 'text', autocomplete: 'username',
@@ -1853,7 +3024,9 @@
             return;
           }
           Contas.conferir(ident, senha).then(function (c) {
-            Sessao.entrar(c.tipo || aba, { email: c.email, nome: c.apelido || c.nome, apelido: c.apelido });
+            var tipo = c.tipo || aba;
+            if ((cfg.login.emailsAdmin || []).indexOf(c.email) !== -1) tipo = 'admin';
+            Sessao.entrar(tipo, { email: c.email, nome: c.apelido || c.nome, apelido: c.apelido });
             fecharModal();
             if (cfg.login.biometria && Biometria.suportada() && !Biometria.registrada()) perguntarBiometria(c.email);
           }).catch(function (e) { mostrar(erroEmTexto(e)); }).then(fim, fim);
@@ -2110,20 +3283,37 @@
 
     function lerFonte(fonte) {
       progresso(0.02, '');
-      var TF = raiz.DGO && raiz.DGO.tarefa; // tarefas.js (diretriz de tarefas longas): tela acesa, pílula, continua ao navegar
-      var rodar = function (andamento) { return OCR.ler(fonte, function (p, st) { if (caixa.isConnected) progresso(p, st); if (andamento) andamento(p); }); };
-      var falhou = function () { if (!caixa.isConnected) return; estado.innerHTML = ''; estado.appendChild(aviso(t('semCamera'), 'erro')); barra.style.display = 'none'; };
-      if (TF) TF.iniciar({ id: 'dgo-ocr', titulo: t('lendo'), executar: rodar, aindaNaTela: function () { return caixa.isConnected; },
-        aoAbrir: function (r) { if (caixa.isConnected) mostrarResultado(r); else abrirOCR(Object.assign({}, opcoes, { resultadoInicial: r })); } }).catch(falhou);
-      else rodar(null).then(mostrarResultado).catch(falhou);
+      Tarefa.iniciar({ id: 'dgo-ocr', titulo: t('lendo'),
+        executar: function (andamento) { return OCR.ler(fonte, function (m) { if (caixa.isConnected) progresso(m.progress, m.status); andamento(m.progress); }); },
+        aindaNaTela: function () { return caixa.isConnected; },
+        aoAbrir: function (r) { if (caixa.isConnected) mostrarResultado(r); else abrirOCR(Object.assign({}, opcoes, { resultadoInicial: r })); }
+      }).catch(function (e) {
+        if (!caixa.isConnected) return;
+        estado.innerHTML = '';
+        estado.appendChild(aviso(String(e && e.message) === 'so-wifi' ? t('redeSoWifi') : t('semCamera'), 'erro'));
+        barra.style.display = 'none';
+      });
     }
     if (opcoes.resultadoInicial) setTimeout(function () { mostrarResultado(opcoes.resultadoInicial); }, 0);
 
     function usarCamera() {
       limpar();
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        area.appendChild(aviso(t('semCamera'), 'erro')); return;
+        area.appendChild(aviso(t('semCamera'), 'erro'));
+        Compat.exigir('camera', { motivo: MOTIVO_OCR });
+        area.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('escolherImagem'), onclick: escolher }));
+        return;
       }
+      /* câmera bloqueada: explica como liberar (sem pedir nada só para conferir) e deixa escolher uma foto */
+      Compat.exigir('camera', { motivo: MOTIVO_OCR }).then(function (pode) {
+        if (!caixa.isConnected) return;
+        if (!pode) { area.appendChild(aviso(t('semCamera'), 'erro')); area.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('escolherImagem'), onclick: escolher })); return; }
+        abrirDeVerdade();
+      });
+    }
+    var MOTIVO_OCR = { pt: 'Para ler o texto de uma foto, o app usa a câmera. Você também pode escolher uma foto já tirada.',
+                       en: 'To read the text in a photo, the app uses the camera. You can also pick a photo you already took.' };
+    function abrirDeVerdade() {
       OCR.abrirCamera().then(function (stream) {
         OCR._stream = stream;
         video = el('video', { class: 'dgo-video', autoplay: '', playsinline: '', muted: '' });
@@ -2146,6 +3336,7 @@
         area.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('cancelar'), onclick: inicio }));
       }).catch(function () {
         area.appendChild(aviso(t('semCamera'), 'erro'));
+        Compat.exigir('camera', { motivo: MOTIVO_OCR });     /* a pessoa acabou de negar: mostra como liberar */
         area.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('escolherImagem'), onclick: escolher }));
       });
     }
@@ -2179,13 +3370,16 @@
   /* ------------------------------------------------------------------
      18. CONFIGURACOES (painel central; cada app mostra so o que usa)
      ------------------------------------------------------------------ */
-  var SECOES_PADRAO = ['idioma', 'conta', 'notificacoes', 'nuvem', 'ocr', 'app'];
+  var SECOES_PADRAO = ['compat', 'idioma', 'conta', 'notificacoes', 'ia', 'rede', 'nuvem', 'ocr', 'app'];
 
   function montarConfiguracoes(opcoes) {
     opcoes = opcoes || {};
     var secoes = opcoes.secoes || SECOES_PADRAO;
     var raizEl = el('div', { 'data-dgo-ui': '1' });
     function tem(s) { return secoes.indexOf(s) !== -1; }
+
+    /* "O seu aparelho": no topo, e so quando falta algo (diretriz "Compatibilidade") */
+    if (tem('compat')) { var quadroCompat = el('div'); raizEl.appendChild(quadroCompat); Compat.quadro(quadroCompat); }
 
     if (tem('idioma')) {
       raizEl.appendChild(el('h3', { texto: t('idioma') }));
@@ -2293,6 +3487,41 @@
         : 'O app so enxerga a pasta privada dele dentro do seu drive.' }));
     }
 
+    if (tem('rede')) {
+      raizEl.appendChild(el('h3', { texto: t('redeTitulo') }));
+      raizEl.appendChild(el('div', { class: 'dgo-mini', texto: t('redeAgora') + ': ' + Rede.rotuloTipo() +
+        (Rede.economia() ? '  ·  ' + (Idioma.atual === 'en' ? 'data saver on' : 'economia de dados ligada') : '') }));
+      [['pesado', t('redePesado')], ['ia', t('redeIA')]].forEach(function (par) {
+        var sel = el('select');
+        [['sempre', t('redeSempre')], ['wifi', t('redeWifi')], ['nunca', t('redeNunca')]].forEach(function (o) {
+          var op = el('option', { value: o[0], texto: o[1] });
+          if (Rede.preferencia(par[0]) === o[0]) op.selected = true;
+          sel.appendChild(op);
+        });
+        sel.addEventListener('change', function () { Rede.definir(par[0], sel.value); });
+        raizEl.appendChild(el('label', { class: 'dgo-campo' }, [el('span', { texto: par[1] }), sel]));
+      });
+      if (Rede.tipo() === 'desconhecido') {
+        raizEl.appendChild(el('div', { class: 'dgo-mini', texto: Idioma.atual === 'en'
+          ? 'This browser does not say whether it is on Wi-Fi or data. "Wi-Fi only" then blocks only when the browser asks for data saving.'
+          : 'Este navegador não diz se está no Wi-Fi ou em dados. "Só no Wi-Fi" então só bloqueia quando o navegador pede economia de dados.' }));
+      }
+    }
+
+    if (tem('ia') && cfg.ia.ativo) {
+      raizEl.appendChild(el('h3', { texto: t('perguntarIA') }));
+      var lIA = el('div', { class: 'dgo-linha' });
+      lIA.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('perguntarIA'),
+        onclick: abrirIA }));
+      lIA.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('cofreChaves'),
+        onclick: abrirChaves }));
+      raizEl.appendChild(lIA);
+      var prontos = IA.provedoresProntos();
+      raizEl.appendChild(el('div', { class: 'dgo-mini', texto: prontos.length
+        ? (t('qualUsar') + ': ' + PROVEDORES[IA.provedor()].nome)
+        : t('semChave') }));
+    }
+
     if (tem('ocr') && cfg.ocr.ativo) {
       raizEl.appendChild(el('h3', { texto: t('escanear') }));
       raizEl.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('usarCamera'),
@@ -2311,10 +3540,16 @@
         lApp.appendChild(el('div', { class: 'dgo-mini', texto: t('appInstalado') }));
       }
       raizEl.appendChild(lApp);
+      /* link para a pagina central, em outra aba (diretriz "Padrao comum": link para o Portal) */
+      raizEl.appendChild(el('a', { class: 'dgo-b dgo-b2', href: siteBase(), target: '_blank', rel: 'noopener', texto: t('todosApps'),
+        style: { textDecoration: 'none', boxSizing: 'border-box' } }));
       raizEl.appendChild(el('div', { class: 'dgo-mini', texto:
         t('versao') + ' ' + (cfg.versaoApp || '-') + '   |   Diretrizes ' + VERSAO +
         '   |   ' + Plataforma.qual() }));
     }
+
+    /* ⚙ → Ajuda → 💬 Feedback (bloco "Feedback", DGO.feedback) */
+    if (tem('feedback') || tem('app')) Feedback.secaoConfig(raizEl);
 
     if (opcoes.destino) {
       var dest = typeof opcoes.destino === 'string' ? $(opcoes.destino) : opcoes.destino;
@@ -2851,6 +4086,1326 @@
   }
 
   /* ------------------------------------------------------------------
+     19-C. MOTOR DE WIZARD
+     ------------------------------------------------------------------
+     A diretriz e oferecer a capacidade, nao um wizard pronto. Aqui esta
+     o que e igual em qualquer wizard: sequencia, avancar e voltar,
+     barra de progresso, pular, guardar o que ja foi respondido, retomar
+     de onde parou e as duas linguas. Cada app declara os passos.
+
+       DGO.wizard.definir('cadastro', {
+         titulo: { pt:'Vamos comecar', en:'Let us start' },
+         umaVezSo: true,
+         passos: [
+           { id:'idade', titulo:{pt:'Para quem e a historia?'},
+             campos:[ { id:'faixa', tipo:'escolha', rotulo:{pt:'Idade'},
+                        opcoes:[ {valor:'2-5', rotulo:{pt:'2 a 5 anos'}} ] } ] }
+         ],
+         aoConcluir: function (dados) { ... }
+       });
+       DGO.wizard.abrir('cadastro');
+     ------------------------------------------------------------------ */
+  var Wizard = {
+    _defs: {},
+
+    definir: function (id, def) {
+      Wizard._defs[id] = def || {};
+      if (def && def.abrirNaPrimeiraVez && !Wizard.feito(id)) {
+        setTimeout(function () { Wizard.abrir(id); }, (def.atraso || 1) * 1000);
+      }
+      return id;
+    },
+
+    def: function (id) { return Wizard._defs[id] || null; },
+    feito: function (id) { return !!prefLer('wizard:' + id + ':feito', false); },
+    dados: function (id) { return prefLer('wizard:' + id + ':dados', {}) || {}; },
+    reiniciar: function (id) {
+      prefGravar('wizard:' + id + ':feito', false);
+      prefGravar('wizard:' + id + ':dados', {});
+      prefGravar('wizard:' + id + ':passo', 0);
+    },
+
+    txt: function (v, padrao) {
+      if (v === undefined || v === null) return padrao || '';
+      if (typeof v === 'string') return v;
+      return v[Idioma.atual] || v.pt || padrao || '';
+    },
+
+    abrir: function (id, passoInicial) {
+      var def = Wizard.def(id);
+      if (!def || !def.passos || !def.passos.length) return null;
+      if (def.umaVezSo && Wizard.feito(id) && passoInicial === undefined) return null;
+
+      var dados = Wizard.dados(id);
+      var i = (passoInicial !== undefined) ? passoInicial : (prefLer('wizard:' + id + ':passo', 0) || 0);
+      if (i >= def.passos.length) i = 0;
+
+      function guardar() {
+        prefGravar('wizard:' + id + ':dados', dados);
+        prefGravar('wizard:' + id + ':passo', i);
+      }
+
+      function concluir(pulou) {
+        prefGravar('wizard:' + id + ':feito', true);
+        prefGravar('wizard:' + id + ':passo', 0);
+        guardar();
+        fecharModal();
+        if (pulou && typeof def.aoPular === 'function') { try { def.aoPular(dados); } catch (e) {} }
+        if (!pulou && typeof def.aoConcluir === 'function') { try { def.aoConcluir(dados); } catch (e) {} }
+        d.dispatchEvent(new CustomEvent('dgo:wizard', {
+          detail: { wizard: id, concluido: !pulou, pulado: !!pulou, dados: dados }
+        }));
+      }
+
+      function montar() {
+        var passo = def.passos[i];
+        var caixa = el('div', { class: 'dgo-caixa' });
+
+        /* cabecalho: titulo do wizard + progresso */
+        if (def.titulo) caixa.appendChild(el('div', { class: 'dgo-wz-topo', texto: Wizard.txt(def.titulo) }));
+        var barra = el('div', { class: 'dgo-wz-barra' });
+        def.passos.forEach(function (x, n) {
+          barra.appendChild(el('i', { class: n <= i ? 'dgo-on' : '' }));
+        });
+        caixa.appendChild(barra);
+        caixa.appendChild(el('div', { class: 'dgo-mini',
+          texto: (i + 1) + ' / ' + def.passos.length }));
+
+        if (passo.titulo) caixa.appendChild(el('h2', { texto: Wizard.txt(passo.titulo) }));
+        if (passo.texto) caixa.appendChild(el('p', { texto: Wizard.txt(passo.texto) }));
+        if (passo.html) caixa.appendChild(el('div', { html: passo.html }));
+
+        var entradas = [];
+        (passo.campos || []).forEach(function (c) {
+          var valor = (dados[c.id] !== undefined) ? dados[c.id] : (c.padrao !== undefined ? c.padrao : '');
+          var ent;
+          if (c.tipo === 'escolha') {
+            ent = el('select');
+            (c.opcoes || []).forEach(function (o) {
+              var op = el('option', { value: o.valor, texto: Wizard.txt(o.rotulo, o.valor) });
+              if (String(valor) === String(o.valor)) op.selected = true;
+              ent.appendChild(op);
+            });
+          } else if (c.tipo === 'sim-nao') {
+            ent = el('input', { type: 'checkbox' });
+            ent.checked = !!valor;
+            ent.style.width = '20px'; ent.style.height = '20px'; ent.style.accentColor = cfg.cor;
+          } else if (c.tipo === 'texto-longo') {
+            ent = el('textarea', { rows: 4 });
+            ent.value = valor;
+          } else {
+            var TIPOS = { texto: 'text', senha: 'password', email: 'email', numero: 'number',
+                          data: 'date', hora: 'time', telefone: 'tel', link: 'url', cor: 'color' };
+            ent = el('input', { type: TIPOS[c.tipo] || c.tipo || 'text' });
+            ent.value = valor;
+            if (c.dica) ent.setAttribute('placeholder', Wizard.txt(c.dica));
+            if (c.tipo === 'email') ent.setAttribute('inputmode', 'email');
+            if (c.tipo === 'numero') ent.setAttribute('inputmode', 'decimal');
+          }
+          var rotulo = Wizard.txt(c.rotulo, c.id);
+          var linha;
+          if (c.tipo === 'sim-nao') {
+            linha = el('label', { style: { display: 'flex', gap: '10px', alignItems: 'center',
+                                           margin: '8px 0', cursor: 'pointer' } },
+                       [ent, el('span', { style: { fontSize: '14px', color: '#e2e8f0' }, texto: rotulo })]);
+          } else {
+            linha = el('label', { class: 'dgo-campo' }, [el('span', { texto: rotulo }), ent]);
+          }
+          if (c.ajuda) linha.appendChild(el('div', { class: 'dgo-mini', texto: Wizard.txt(c.ajuda) }));
+          caixa.appendChild(linha);
+          entradas.push({ campo: c, ent: ent });
+        });
+
+        var msg = el('div');
+
+        function colher() {
+          var faltou = null;
+          entradas.forEach(function (x) {
+            var v = (x.campo.tipo === 'sim-nao') ? x.ent.checked : x.ent.value;
+            if (x.campo.obrigatorio && (v === '' || v === null || v === undefined)) {
+              faltou = faltou || Wizard.txt(x.campo.rotulo, x.campo.id);
+            }
+            dados[x.campo.id] = v;
+          });
+          return faltou;
+        }
+
+        var acoes = el('div', { class: 'dgo-linha' });
+        if (i > 0) {
+          acoes.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('wzVoltar'),
+            onclick: function () { colher(); i--; guardar(); abrirModal(montar(), function () { Wizard.abrir(id, i); }); } }));
+        }
+        acoes.appendChild(el('button', {
+          class: 'dgo-b', type: 'button',
+          texto: (i === def.passos.length - 1) ? t('wzConcluir') : t('wzAvancar'),
+          onclick: function () {
+            var faltou = colher();
+            if (faltou) { msg.innerHTML = ''; msg.appendChild(aviso(t('wzObrigatorio') + ' ' + faltou, 'erro')); return; }
+            if (typeof passo.aoSair === 'function') { try { passo.aoSair(dados); } catch (e) {} }
+            if (i === def.passos.length - 1) { concluir(false); return; }
+            i++; guardar();
+            abrirModal(montar(), function () { Wizard.abrir(id, i); });
+          }
+        }));
+        caixa.appendChild(acoes);
+        caixa.appendChild(msg);
+
+        if (def.pularVisivel !== false) {
+          caixa.appendChild(el('button', {
+            class: 'dgo-b dgo-b2', type: 'button', texto: t('wzPular'),
+            style: { background: 'transparent', border: '0', color: '#94a3b8', minHeight: '36px' },
+            onclick: function () { colher(); concluir(true); }
+          }));
+        }
+
+        if (typeof passo.aoEntrar === 'function') { try { passo.aoEntrar(dados); } catch (e) {} }
+        return caixa;
+      }
+
+      return abrirModal(montar(), function () { Wizard.abrir(id, i); });
+    }
+  };
+
+  /* ------------------------------------------------------------------
+     19-D. COFRE DE CHAVES E WIDGET DE IA
+     ------------------------------------------------------------------
+     Os repositórios são publicos: nenhuma chave pode morar no codigo.
+     Entao a chave e da pessoa, colada uma vez e guardada no navegador.
+     Como os apps moram todos no mesmo endereco (solverone.com.br), o cofre e um so
+     e vale para os tres: cola no InvestifyONE, funciona no Contador.
+
+     A chave NAO viaja para lugar nenhum a nao ser para o proprio
+     provedor (Google, OpenAI, Anthropic). Nao passa por servidor meu.
+     ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------
+     PROVEDORES DE IA
+     ------------------------------------------------------------------
+     Quase todos falam o mesmo formato (o da OpenAI): endereco/chat/completions
+     com a chave no cabecalho. Entao existe UM adaptador generico com o
+     endereco configuravel, e so o Gemini e a Anthropic tem adaptador proprio.
+     Provedor novo no futuro = uma entrada nesta lista, ou o "Personalizado"
+     com o endereco colado pela pessoa. Nada de codigo novo.
+
+     gratis: tem plano sem pagar (limites conferidos em set/2026 - podem mudar)
+     onde:   onde criar a chave
+     base:   endereco da API (formato OpenAI), sem barra no fim
+     ------------------------------------------------------------------ */
+  function lerResposta(r) {
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      if (!r.ok) {
+        var m = (j && (j.error && (j.error.message || j.error.type))) || (j && j.message) || ('HTTP ' + r.status);
+        var e = new Error(m); e.status = r.status; throw e;
+      }
+      return j;
+    });
+  }
+
+  /* adaptador generico, formato OpenAI */
+  function chamarCompativel(base, chave, modelo, sistema, mensagens, extras, limite) {
+    var msgs = [];
+    if (sistema) msgs.push({ role: 'system', content: sistema });
+    mensagens.forEach(function (m) {
+      msgs.push({ role: m.papel === 'ia' ? 'assistant' : 'user', content: m.texto });
+    });
+    var cab = { 'Content-Type': 'application/json' };
+    if (chave) cab.Authorization = 'Bearer ' + chave;
+    if (extras) for (var k in extras) cab[k] = extras[k];
+    return fetch(base + '/chat/completions', {
+      method: 'POST', headers: cab,
+      body: JSON.stringify({ model: modelo, messages: msgs, max_tokens: limite || 900 })
+    }).then(lerResposta).then(function (j) {
+      return ((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '').trim();
+    });
+  }
+  function listarCompativel(base, chave, extras) {
+    var cab = {};
+    if (chave) cab.Authorization = 'Bearer ' + chave;
+    if (extras) for (var k in extras) cab[k] = extras[k];
+    return fetch(base + '/models', { headers: cab }).then(lerResposta).then(function (j) {
+      var lista = Array.isArray(j) ? j : (j.data || j.models || []);
+      return lista.map(function (m) {
+        var id = m.id || m.name || '';
+        var gratis = /:free$/.test(id) ||
+          (m.pricing && String(m.pricing.prompt) === '0' && String(m.pricing.completion) === '0');
+        return { id: id, nome: m.name || id, gratis: !!gratis };
+      }).filter(function (m) { return m.id; });
+    });
+  }
+
+  function cabecalhosOpenRouter() {
+    /* a OpenRouter pede para o site se identificar (nao e segredo, e atribuicao) */
+    return { 'HTTP-Referer': raiz.location.origin, 'X-Title': nomeApp() };
+  }
+
+  var PROVEDORES = {
+    openrouter: {
+      nome: 'OpenRouter', gratis: true, ordem: 3,
+      onde: 'https://openrouter.ai/keys',
+      base: 'https://openrouter.ai/api/v1',
+      modelo: 'openrouter/free',      /* roteador que escolhe um modelo gratis disponivel */
+      nota: { pt: 'Modelos com ":free" no nome. Grátis: 20 pedidos por minuto e 50 por dia (1000 por dia se um dia comprar 10 dólares de crédito). Um cadastro, várias IAs.',
+              en: 'Models ending in ":free". Free: 20 requests per minute and 50 per day (1000 per day if you ever buy 10 dollars of credit). One sign-up, many AIs.' },
+      chamar: function (chave, modelo, sistema, msgs, limite) { return chamarCompativel(this.base, chave, modelo, sistema, msgs, cabecalhosOpenRouter(), limite); },
+      listar: function (chave) { return listarCompativel(this.base, chave, cabecalhosOpenRouter()); }
+    },
+    groq: {
+      nome: 'Groq', gratis: true, ordem: 2,
+      onde: 'https://console.groq.com/keys',
+      base: 'https://api.groq.com/openai/v1',
+      modelo: 'llama-3.3-70b-versatile',
+      nota: { pt: 'Muito rápido. Plano grátis com cerca de 30 pedidos por minuto e 1.000 por dia no modelo comum.',
+              en: 'Very fast. Free plan around 30 requests per minute and 1,000 per day on the common model.' },
+      chamar: function (chave, modelo, sistema, msgs, limite) { return chamarCompativel(this.base, chave, modelo, sistema, msgs, null, limite); },
+      listar: function (chave) { return listarCompativel(this.base, chave); }
+    },
+    gemini: {
+      nome: 'Google Gemini', gratis: true, ordem: 1,
+      onde: 'https://aistudio.google.com/apikey',
+      modelo: 'gemini-3.8-flash',   /* o Google aposenta modelos; se este sair, o app troca sozinho pelo que a chave aceita */
+      nota: { pt: 'Plano grátis com limites que o Google mostra no AI Studio. Confira o aviso de privacidade ao criar a chave.',
+              en: 'Free plan with limits shown by Google in AI Studio. Check the privacy notice when creating the key.' },
+      chamar: function (chave, modelo, sistema, mensagens, limite) {
+        var corpo = {
+          contents: mensagens.map(function (m) {
+            return { role: m.papel === 'ia' ? 'model' : 'user', parts: [{ text: m.texto }] };
+          })
+        };
+        if (sistema) corpo.systemInstruction = { parts: [{ text: sistema }] };
+        if (limite) corpo.generationConfig = { maxOutputTokens: limite };
+        return fetch('https://generativelanguage.googleapis.com/v1beta/models/' +
+                     encodeURIComponent(modelo) + ':generateContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
+          body: JSON.stringify(corpo)
+        }).then(lerResposta).then(function (j) {
+          var c = j.candidates && j.candidates[0];
+          var partes = c && c.content && c.content.parts;
+          return (partes || []).map(function (x) { return x.text || ''; }).join('').trim();
+        });
+      },
+      listar: function (chave) {
+        return fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+          headers: { 'x-goog-api-key': chave }
+        }).then(lerResposta).then(function (j) {
+          return (j.models || []).filter(function (m) {
+            return (m.supportedGenerationMethods || []).indexOf('generateContent') !== -1;
+          }).map(function (m) {
+            return { id: String(m.name || '').replace(/^models\//, ''), nome: m.displayName || m.name, gratis: true };
+          });
+        });
+      }
+    },
+    mistral: {
+      nome: 'Mistral', gratis: true, ordem: 4,
+      onde: 'https://console.mistral.ai/api-keys',
+      base: 'https://api.mistral.ai/v1',
+      modelo: 'mistral-small-latest',
+      nota: { pt: 'Tem plano grátis com limites apertados; os números aparecem dentro da conta depois de entrar.',
+              en: 'Has a free plan with tight limits; the numbers show inside the account after signing in.' },
+      chamar: function (chave, modelo, sistema, msgs, limite) { return chamarCompativel(this.base, chave, modelo, sistema, msgs, null, limite); },
+      listar: function (chave) { return listarCompativel(this.base, chave); }
+    },
+    openai: {
+      nome: 'OpenAI', gratis: false, ordem: 10,
+      onde: 'https://platform.openai.com/api-keys',
+      base: 'https://api.openai.com/v1',
+      modelo: 'gpt-4o-mini',
+      nota: { pt: 'Pago por uso, sem plano grátis.', en: 'Pay per use, no free plan.' },
+      chamar: function (chave, modelo, sistema, msgs, limite) { return chamarCompativel(this.base, chave, modelo, sistema, msgs, null, limite); },
+      listar: function (chave) { return listarCompativel(this.base, chave); }
+    },
+    anthropic: {
+      nome: 'Anthropic Claude', gratis: false, ordem: 11,
+      onde: 'https://console.anthropic.com/settings/keys',
+      modelo: 'claude-3-5-haiku-20241022',
+      nota: { pt: 'Pago por uso, sem plano grátis.', en: 'Pay per use, no free plan.' },
+      chamar: function (chave, modelo, sistema, mensagens, limite) {
+        var corpo = {
+          model: modelo, max_tokens: limite || 900,
+          messages: mensagens.map(function (m) {
+            return { role: m.papel === 'ia' ? 'assistant' : 'user', content: m.texto };
+          })
+        };
+        if (sistema) corpo.system = sistema;
+        return fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': chave,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify(corpo)
+        }).then(lerResposta).then(function (j) {
+          return ((j.content || []).map(function (x) { return x.text || ''; }).join('')).trim();
+        });
+      },
+      listar: function (chave) {
+        return fetch('https://api.anthropic.com/v1/models', {
+          headers: { 'x-api-key': chave, 'anthropic-version': '2023-06-01',
+                     'anthropic-dangerous-direct-browser-access': 'true' }
+        }).then(lerResposta).then(function (j) {
+          return (j.data || []).map(function (m) { return { id: m.id, nome: m.display_name || m.id, gratis: false }; });
+        });
+      }
+    },
+    personalizado: {
+      nome: 'Outro (formato OpenAI)', gratis: null, ordem: 13,
+      onde: '',
+      base: '',                          /* a pessoa cola o endereco */
+      modelo: '',
+      nota: { pt: 'Qualquer serviço que fale o formato da OpenAI: Cerebras, Together, Hugging Face, um Ollama na sua rede… Cole o endereço da API e o nome do modelo.',
+              en: 'Any service speaking the OpenAI format: Cerebras, Together, Hugging Face, an Ollama on your network… Paste the API address and the model name.' },
+      chamar: function (chave, modelo, sistema, msgs, limite) {
+        var base = IA.baseDe('personalizado');
+        if (!base) return Promise.reject(new Error('sem-endereco'));
+        return chamarCompativel(base, chave, modelo, sistema, msgs, null, limite);
+      },
+      listar: function (chave) {
+        var base = IA.baseDe('personalizado');
+        if (!base) return Promise.reject(new Error('sem-endereco'));
+        return listarCompativel(base, chave);
+      }
+    }
+  };
+
+  /* ---- cofre comum (cofre.js, 1.10.0) ---- */
+  function cofreComum() { var C = raiz.SolverCofre; return (C && C.__carregado) ? C : null; }
+  var _avisouSemCofre = false;
+  function avisarSemCofre() {
+    if (_avisouSemCofre) return; _avisouSemCofre = true;
+    try { console.warn('[DGO ' + VERSAO + '] cofre.js não está nesta página: as chaves de IA continuam no jeito antigo (texto aberto em dgo:global:chaves-ia). Carregue <script src="cofre.js"></script> antes do diretrizes.js.'); } catch (e) {}
+  }
+  var _cofreLigado = false;
+  function ligarCofreComum() {
+    var C = cofreComum();
+    if (!C) { avisarSemCofre(); return; }
+    if (cfg.cofre && cfg.cofre.fontes && cfg.cofre.fontes.length) C.registrarFontes(cfg.cofre.fontes);
+    if (C.aberto()) C.migrar().catch(function () {});     /* abriu antes do app dizer onde guardava as chaves */
+    if (_cofreLigado) return; _cofreLigado = true;
+    d.addEventListener('cofre:mudou', function (e) {
+      var nome = (e.detail && e.detail.nome) || '';
+      if (nome === '*' || nome.indexOf('ia:') === 0) d.dispatchEvent(new CustomEvent('dgo:ia-chaves', { detail: { provedor: nome === '*' ? '' : nome.slice(3), tem: !!(e.detail && e.detail.tem) } }));
+    });
+    ['cofre:aberto', 'cofre:trancado'].forEach(function (ev) {
+      d.addEventListener(ev, function () { d.dispatchEvent(new CustomEvent('dgo:ia-chaves', { detail: { provedor: '', cofre: ev.slice(6) } })); });
+    });
+  }
+
+  var IA = {
+    _conversa: [],
+    cofreBackend: null,      /* futuro: { ler(), gravar(obj) } para sincronizar entre aparelhos */
+
+    /* ---- cofre, compartilhado entre os apps (mesma origem) ----
+       1.10.0: com o cofre.js na pagina, a chave mora SO no SolverCofre ('ia:<provedor>'), trancada por PIN.
+       Sem ele, o jeito antigo (dgo:global:chaves-ia em texto aberto) continua, com aviso no console. */
+    chaves: function () { if (cofreComum()) return {}; avisarSemCofre(); return Guardar.ler('chaves-ia', {}, true) || {}; },
+    /* sem esperar: o que ja esta aberto ('' com o cofre trancado) */
+    chave: function (prov) { var C = cofreComum(); return C ? String(C.lerAgora('ia:' + prov) || '') : (IA.chaves()[prov] || ''); },
+    /* Promise: se o cofre estiver trancado, pede o PIN e responde depois */
+    lerChave: function (prov) {
+      var C = cofreComum();
+      if (!C) return Promise.resolve(IA.chave(prov));
+      return C.ler('ia:' + prov, { motivo: { pt: 'Para usar a IA (' + nomeProv(PROVEDORES[prov] || { nome: prov }) + ') com a chave guardada.', en: 'To use the AI (' + nomeProv(PROVEDORES[prov] || { nome: prov }) + ') with the saved key.' } })
+        .then(function (v) { return String(v || ''); });
+    },
+    definirChave: function (prov, valor) {
+      var C = cofreComum();
+      if (C) {
+        /* o aviso dgo:ia-chaves sai pelo evento cofre:mudou (ver ligarCofreComum) */
+        return (valor ? C.gravar('ia:' + prov, String(valor).trim(), { motivo: { pt: 'Para guardar a chave de IA com proteção.', en: 'To keep the AI key protected.' } }) : C.apagar('ia:' + prov));
+      }
+      var c = IA.chaves();
+      if (valor) c[prov] = String(valor).trim(); else delete c[prov];
+      Guardar.gravar('chaves-ia', c, true);
+      if (IA.cofreBackend && IA.cofreBackend.gravar) { try { IA.cofreBackend.gravar(c); } catch (e) {} }
+      d.dispatchEvent(new CustomEvent('dgo:ia-chaves', { detail: { provedor: prov, tem: !!valor } }));
+      return true;
+    },
+    temChave: function (prov) {
+      prov = prov || IA.provedor();
+      if (PROVEDORES[prov] && PROVEDORES[prov].semChave) return true;
+      /* um proxy no servidor dispensa chave no navegador */
+      if (IA.proxyDe(prov)) return true;
+      var C = cofreComum();
+      if (C) return C.tem('ia:' + prov);       /* sabe sem abrir: o cofre guarda os nomes em claro, nunca os valores */
+      return !!IA.chave(prov);
+    },
+
+    /* ---- provedor e modelo escolhidos (valem para todos os apps) ---- */
+    provedor: function () {
+      var p = Guardar.ler('ia-provedor', null, true) || cfg.ia.provedorPadrao || 'openrouter';
+      if (!PROVEDORES[p]) p = 'openrouter';
+      return p;
+    },
+    definirProvedor: function (p) { if (PROVEDORES[p]) Guardar.gravar('ia-provedor', p, true); },
+    modelo: function (prov) {
+      prov = prov || IA.provedor();
+      var escolhido = (Guardar.ler('ia-modelos', {}, true) || {})[prov];
+      return escolhido || (cfg.ia.modelos && cfg.ia.modelos[prov]) || PROVEDORES[prov].modelo || '';
+    },
+    definirModelo: function (prov, modelo) {
+      var m = Guardar.ler('ia-modelos', {}, true) || {};
+      if (modelo) m[prov] = modelo; else delete m[prov];
+      Guardar.gravar('ia-modelos', m, true);
+    },
+    baseDe: function (prov) {
+      var extras = Guardar.ler('ia-enderecos', {}, true) || {};
+      return String(extras[prov] || (cfg.ia.enderecos && cfg.ia.enderecos[prov]) || PROVEDORES[prov].base || '')
+        .replace(/\/+$/, '');
+    },
+    definirBase: function (prov, url) {
+      var e = Guardar.ler('ia-enderecos', {}, true) || {};
+      if (url) e[prov] = String(url).trim().replace(/\/+$/, ''); else delete e[prov];
+      Guardar.gravar('ia-enderecos', e, true);
+    },
+    /* futuro: um servidor seu que guarda a chave e repassa o pedido */
+    proxyDe: function (prov) { return (cfg.ia.proxy && cfg.ia.proxy[prov]) || ''; },
+
+    provedoresProntos: function () {
+      completarProvedores();
+      return Object.keys(PROVEDORES).filter(function (p) { return !PROVEDORES[p].soVoz && IA.temChave(p); })
+        .sort(function (a, b) { return (PROVEDORES[a].ordem || 9) - (PROVEDORES[b].ordem || 9); });
+    },
+    provedoresOrdenados: function () {
+      completarProvedores();
+      return Object.keys(PROVEDORES).filter(function (p) { return !PROVEDORES[p].soVoz; }).sort(function (a, b) { return (PROVEDORES[a].ordem || 9) - (PROVEDORES[b].ordem || 9); });
+    },
+
+    listarModelos: function (prov) {
+      prov = prov || IA.provedor();
+      var pr = PROVEDORES[prov];
+      if (!pr || !pr.listar) return Promise.resolve([]);
+      return IA.lerChave(prov).then(function (k) { return pr.listar(k); }).then(function (lista) {
+        var cache = Guardar.ler('ia-lista-modelos', {}, true) || {};
+        cache[prov] = { em: Date.now(), modelos: lista.slice(0, 400) };
+        Guardar.gravar('ia-lista-modelos', cache, true);
+        return lista;
+      });
+    },
+
+    contexto: function () {
+      var base = cfg.ia.contexto;
+      var texto0 = (typeof base === 'function') ? base() : base;
+      texto0 = (texto0 && typeof texto0 === 'object') ? (texto0[Idioma.atual] || texto0.pt) : texto0;
+      var idioma = Idioma.atual === 'en'
+        ? 'Answer in English, briefly and plainly.'
+        : 'Responda em português do Brasil, com frases curtas e sem jargão.';
+      return 'Você ajuda dentro do app "' + nomeApp() + '". ' + (texto0 || '') + ' ' + idioma;
+    },
+
+    /* ---- uso direto, sem interface ---- */
+    perguntar: function (pergunta, opcoes) {
+      opcoes = opcoes || {};
+      if (opcoes.insistir) return IA.perguntarInsistindo(pergunta, opcoes);
+      var prov = opcoes.provedor || IA.provedor();
+      var pr = PROVEDORES[prov];
+      if (!pr) return Promise.reject(new Error('provedor-desconhecido'));
+      if (!navigator.onLine) return Promise.reject(new Error('sem-internet'));
+      if (!Rede.podeUsarIA()) return Promise.reject(new Error('so-wifi'));
+      var msgs = opcoes.historico || [{ papel: 'pessoa', texto: pergunta }];
+      var modelo = opcoes.modelo || IA.modelo(prov);
+      var sistema = opcoes.contexto || IA.contexto();
+
+      var proxy = IA.proxyDe(prov);
+      if (proxy) {
+        /* o servidor guarda a chave; o navegador so manda a pergunta */
+        return fetch(proxy, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provedor: prov, modelo: modelo, sistema: sistema, mensagens: msgs, app: cfg.app, limite: opcoes.limite || null })
+        }).then(lerResposta).then(function (j) { return String(j.texto || j.resposta || '').trim(); });
+      }
+      /* 1.10.0: a chave vem do cofre comum (pede o PIN se estiver trancado) */
+      return IA.lerChave(prov).then(function (chave) {
+        if (!chave && prov !== 'personalizado') throw new Error('sem-chave');
+        /* opcoes.limite: tamanho maximo da resposta (textos longos, como termos) */
+        return pr.chamar(chave, modelo, sistema, msgs, opcoes.limite).catch(function (e) {
+          /* Modelo aposentado pelo provedor (o Google faz isso sem aviso): escolhe outro
+             entre os que a chave aceita, guarda e tenta de novo uma vez. */
+          if (opcoes._semTroca || !IA.modeloSumiu(e) || !pr.listar) throw e;
+          return IA.trocarModeloSozinho(prov, modelo, e).then(function (novo) {
+            if (!novo) throw e;
+            return IA.perguntar(pergunta, Object.assign({}, opcoes, { modelo: novo, _semTroca: true }));
+          });
+        });
+      });
+    },
+
+    /* ---- insistir (1.7.0; diretriz "IA": 503/429 → esperar 6, 15 e 30 s, depois outro provedor) ----
+       Só com { insistir: true }: quem não pede continua igual (o rootify-ia-termos.js tem a insistência dele).
+       Erro passageiro = 429 (limite por agora), 503/529 (sobrecarregado) ou resposta vazia.
+       opcoes.esperas: segundos de cada espera (padrão [6, 15, 30]; os testes usam frações)
+       opcoes.aoEsperar(segundos, { tentativa, de, provedor }): contagem regressiva, uma vez por segundo
+       opcoes.aoTrocar(nome, id): ainda falhou e há OUTRO provedor com chave no cofre → tenta uma vez com ele
+       opcoes.sinal: AbortSignal (o ✕ da pílula do Fundo para a espera na hora) */
+    passageiro: function (e) { return !!e && (e.vazia === true || e.status === 429 || e.status === 503 || e.status === 529); },
+    perguntarInsistindo: function (pergunta, opcoes) {
+      var esperas = Array.isArray(opcoes.esperas) ? opcoes.esperas : [6, 15, 30];
+      var prov = opcoes.provedor || IA.provedor();
+      var base = Object.assign({}, opcoes, { insistir: false });
+      function uma(o) {
+        return IA.perguntar(pergunta, o).then(function (r) {
+          var txt = typeof r === 'string' ? r : (r && (r.texto || r.resposta)) || '';
+          if (!String(txt).trim()) { var e = new Error('resposta-vazia'); e.vazia = true; throw e; }
+          return r;
+        });
+      }
+      function tentar(i) {
+        return uma(base).catch(function (e) {
+          if (!IA.passageiro(e) || i >= esperas.length) throw e;
+          return IA.esperar(esperas[i], opcoes, { tentativa: i + 1, de: esperas.length, provedor: prov }).then(function () { return tentar(i + 1); });
+        });
+      }
+      return tentar(0).catch(function (e) {
+        if (!IA.passageiro(e)) throw e;
+        var outro = IA.provedoresProntos().filter(function (p) { return p !== prov; })[0];
+        if (!outro) throw e;
+        if (typeof opcoes.aoTrocar === 'function') { try { opcoes.aoTrocar(nomeProv(PROVEDORES[outro]), outro); } catch (x) {} }
+        var o2 = Object.assign({}, base, { provedor: outro });
+        delete o2.modelo;                 /* o modelo pedido era do provedor anterior */
+        return uma(o2);
+      });
+    },
+    esperar: function (seg, opcoes, info) {
+      return new Promise(function (ok, falha) {
+        var fim = Date.now() + seg * 1000, sinal = opcoes.sinal, tique = null, relogio = null;
+        function avisa(n) { if (typeof opcoes.aoEsperar === 'function') { try { opcoes.aoEsperar(n, info); } catch (x) {} } }
+        function parou() { clearTimeout(relogio); clearInterval(tique); var e = new Error('cancelado'); e.cancelado = true; e.name = 'AbortError'; falha(e); }
+        if (sinal && sinal.aborted) return parou();
+        avisa(Math.max(1, Math.ceil(seg)));
+        tique = setInterval(function () { avisa(Math.max(1, Math.ceil((fim - Date.now()) / 1000))); }, 1000);
+        relogio = setTimeout(function () { clearInterval(tique); ok(); }, seg * 1000);
+        if (sinal && sinal.addEventListener) sinal.addEventListener('abort', parou);
+      });
+    },
+
+    /* ---- modelo que saiu do ar: detectar, escolher outro, explicar ---- */
+    modeloSumiu: function (e) {
+      var m = String(e && e.message || '');
+      return e && (e.status === 404 || /no longer available|not found|not supported|deprecated|does not exist|is not available|unsupported model|decommissioned/i.test(m));
+    },
+    /* preferido: o que o proprio provedor sugeriu na mensagem de erro (ex.: "use models/gemini-3.8-flash");
+       senao, o "flash"/"mini"/"small" mais novo da lista (gratis primeiro); senao, o primeiro da lista */
+    escolherModelo: function (lista, sugerido, atual) {
+      var ids = lista.map(function (m) { return m.id; }).filter(function (id) { return id !== atual; });
+      if (sugerido && ids.indexOf(sugerido) !== -1) return sugerido;
+      if (sugerido && !lista.length) return sugerido;
+      function nota(id) {
+        var n = 0; if (/flash|mini|small|haiku|lite/i.test(id)) n += 100; if (/preview|exp|beta/i.test(id)) n -= 30; if (/tts|image|embedding|audio|vision|thinking/i.test(id)) n -= 200;
+        var v = /(\d+)(?:\.(\d+))?/.exec(id); if (v) n += (+v[1]) * 10 + (+(v[2] || 0)); return n;
+      }
+      var gratis = lista.filter(function (m) { return m.gratis && m.id !== atual; });
+      var base = (gratis.length ? gratis : lista.filter(function (m) { return m.id !== atual; })).slice().sort(function (a, b) { return nota(b.id) - nota(a.id); });
+      return base.length ? base[0].id : '';
+    },
+    trocarModeloSozinho: function (prov, atual, e) {
+      var sug = /models\/([a-z0-9._-]+)/i.exec(String(e && e.message || ''));
+      var sugerido = sug ? sug[1] : '';
+      return IA.listarModelos(prov).catch(function () { return []; }).then(function (lista) {
+        var novo = IA.escolherModelo(lista, sugerido, atual);
+        if (!novo || novo === atual) return '';
+        IA.definirModelo(prov, novo);
+        IA._ultimaTroca = { provedor: prov, de: atual, para: novo, quando: Date.now() };
+        try { d.dispatchEvent(new CustomEvent('dgo:ia-modelo', { detail: { provedor: prov, de: atual, para: novo } })); } catch (e2) {}
+        return novo;
+      });
+    },
+    /* erro da IA em linguagem de gente, no idioma da pessoa (nunca a mensagem crua em ingles) */
+    explicarErro: function (e) {
+      var en = Idioma.atual === 'en', m = String(e && e.message || e || ''), st = e && e.status;
+      function T2(pt, en2) { return en ? en2 : pt; }
+      if (m === 'cofre-trancado') return T2('O cofre de chaves ficou trancado. Abra com o seu PIN para usar a IA.', 'The key vault stayed locked. Open it with your PIN to use the AI.');
+      if (m === 'sem-chave') return T2('Falta a chave da IA. Abra o cofre de chaves e cole uma grátis.', 'The AI key is missing. Open the key vault and paste a free one.');
+      if (m === 'sem-internet') return T2('Sem internet.', 'No internet.');
+      if (m === 'so-wifi') return T2('A IA está marcada para usar só no Wi-Fi (Configurações → Rede).', 'AI is set to Wi-Fi only (Settings → Network).');
+      if (m === 'provedor-desconhecido') return T2('Provedor de IA desconhecido.', 'Unknown AI provider.');
+      if (m === 'resposta-vazia') return T2('A IA respondeu em branco. Tente de novo em instantes ou use outra IA.', 'The AI answered with nothing. Try again in a moment or use another AI.');
+      if (IA.modeloSumiu(e)) {
+        var mod = /models\/([a-z0-9._-]+)/i.exec(m) || /model\s+[“"']?([a-z0-9._-]+)/i.exec(m), qual = mod ? mod[1] : '';
+        return T2('O modelo ' + (qual ? '“' + qual + '” ' : '') + 'foi aposentado pelo provedor e não achei outro para trocar sozinho. Abra o cofre de chaves e toque em “Ver modelos que esta chave aceita”.',
+                  'The model ' + (qual ? '“' + qual + '” ' : '') + 'was retired by the provider and I could not find another to switch to on my own. Open the key vault and tap “See models this key accepts”.');
+      }
+      if (st === 401 || st === 403) return T2('A chave foi recusada pelo provedor. Confira no cofre de chaves (pode ter vencido ou sido apagada).', 'The provider rejected the key. Check the key vault (it may have expired or been deleted).');
+      if (st === 429) return T2('Limite de pedidos da IA atingido por agora. Espere um pouco ou use outra IA.', 'AI request limit reached for now. Wait a bit or use another AI.');
+      if (st === 400) return T2('O provedor recusou o pedido (' + m.slice(0, 120) + ').', 'The provider refused the request (' + m.slice(0, 120) + ').');
+      if (st >= 500) return T2('O provedor de IA está fora do ar ou sobrecarregado. Tente de novo em instantes.', 'The AI provider is down or overloaded. Try again in a moment.');
+      if (/fetch|network|failed to fetch/i.test(m)) return T2('Não deu para falar com o provedor: rede, bloqueio do navegador ou endereço errado.', 'Could not reach the provider: network, browser block or wrong address.');
+      return T2('A IA não respondeu: ', 'The AI did not answer: ') + m.slice(0, 160);
+    },
+
+    limparConversa: function () { IA._conversa = []; }
+  };
+
+  /* ------------------------------------------------------------------
+     REDE: wifi ou dados moveis? A pessoa decide o que pode baixar onde.
+     A API de rede so existe no Chrome/Android; no iPhone e no Firefox a
+     resposta e "nao sei" - e nesse caso a regra e nao bloquear, so
+     respeitar o modo economia de dados quando o navegador avisa.
+     ------------------------------------------------------------------ */
+  var Rede = {
+    tipo: function () {
+      if (navigator.onLine === false) return 'offline';
+      var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (!c) return 'desconhecido';
+      if (c.type === 'wifi' || c.type === 'ethernet') return 'wifi';
+      if (c.type === 'cellular') return 'dados';
+      if (c.type === 'none') return 'offline';
+      return 'desconhecido';
+    },
+    economia: function () {
+      var c = navigator.connection;
+      return !!(c && c.saveData);
+    },
+    preferencia: function (chave) {
+      var padrao = cfg.rede && cfg.rede[chave];
+      return prefLer('rede:' + chave, padrao || 'sempre');
+    },
+    definir: function (chave, valor) { prefGravar('rede:' + chave, valor); },
+
+    /* 'sempre' | 'wifi' | 'nunca' -> pode fazer agora? */
+    permite: function (chave) {
+      var pref = Rede.preferencia(chave);
+      var tipo = Rede.tipo();
+      if (tipo === 'offline') return false;
+      if (pref === 'nunca') return false;
+      if (pref === 'sempre') return true;
+      /* pref === 'wifi' */
+      if (tipo === 'wifi') return true;
+      if (tipo === 'dados') return false;
+      return !Rede.economia();          /* desconhecido: deixa, a menos que o navegador peca economia */
+    },
+    podeBaixarPesado: function () { return Rede.permite('pesado'); },
+    podeUsarIA: function () { return Rede.permite('ia'); },
+
+    /* pergunta antes de um download grande, quando a preferencia for 'wifi' e a rede for dados */
+    pedirPesado: function (descricao, tamanhoMB) {
+      if (Rede.podeBaixarPesado()) return Promise.resolve(true);
+      if (Rede.tipo() === 'offline') return Promise.resolve(false);
+      return new Promise(function (ok) {
+        var caixa = el('div', { class: 'dgo-caixa', style: { maxWidth: '380px' } });
+        caixa.appendChild(el('h2', { texto: t('redeAviso') }));
+        caixa.appendChild(el('p', { texto: (descricao || '') + (tamanhoMB ? ' (' + tamanhoMB + ' MB)' : '') }));
+        caixa.appendChild(aviso(t('redeSoWifi'), 'info'));
+        caixa.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('redeBaixarAgora'),
+          onclick: function () { fecharModal(); ok(true); } }));
+        caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('redeEsperarWifi'),
+          onclick: function () { fecharModal(); ok(false); } }));
+        abrirModal(caixa);
+      });
+    },
+
+    rotuloTipo: function () {
+      var tp = Rede.tipo();
+      return tp === 'wifi' ? 'Wi-Fi' : tp === 'dados' ? t('redeDados') : tp === 'offline' ? t('redeOffline') : t('redeDesconhecida');
+    }
+  };
+
+  /* ---------------- tela do cofre de chaves ---------------- */
+  function notaProvedor(pr) {
+    if (!pr.nota) return '';
+    return (typeof pr.nota === 'string') ? pr.nota : (pr.nota[Idioma.atual] || pr.nota.pt || '');
+  }
+  function seloProvedor(pr) {
+    if (pr.gratis === true) return el('em', { class: 'dgo-selo dgo-selo-ok', texto: t('gratis') });
+    if (pr.gratis === false) return el('em', { class: 'dgo-selo dgo-selo-pago', texto: t('pago') });
+    return null;
+  }
+
+  /* ------------------------------------------------------------------
+     GUIA DE CHAVES: o que cada provedor faz, como pegar a chave (passo a
+     passo para leigo), limites do plano gratis e teste da chave.
+     Cada app herda isto: e o mesmo cofre e o mesmo guia em todos.
+     Os passos vem com uma ilustracao desenhada; para trocar por um print
+     de verdade, basta por na raiz do app um arquivo guia-<provedor>-<n>.png
+     (ex.: guia-groq-2.png) - se existir, ele aparece no lugar do desenho.
+     ------------------------------------------------------------------ */
+  var CAPS = {
+    texto: { icone: '✍️', pt: 'Texto e escrita', en: 'Text and writing',
+             expl: { pt: 'Perguntar, escrever, resumir, melhorar textos, sugerir respostas.', en: 'Ask, write, summarise, improve texts, suggest replies.' } },
+    stt:   { icone: '🎤', pt: 'Voz → texto', en: 'Speech → text',
+             expl: { pt: 'Transcrever áudio e ditado (quando o navegador não devolve o texto).', en: 'Transcribe audio and dictation (when the browser gives no text).' } },
+    tts:   { icone: '🔊', pt: 'Texto → voz', en: 'Text → speech',
+             expl: { pt: 'Ler histórias, tutoriais e avisos em voz alta com voz natural.', en: 'Read stories, tutorials and notices aloud with a natural voice.' } },
+    visao: { icone: '🖼️', pt: 'Imagens e documentos', en: 'Images and documents',
+             expl: { pt: 'Entender fotos, rótulos, exames e PDFs (OCR com IA).', en: 'Understand photos, labels, lab results and PDFs (AI OCR).' } }
+  };
+
+  /* passos comuns, para nao repetir texto em cada provedor */
+  function P(pt, en, ilu) { return { pt: pt, en: en, ilu: ilu || 'site' }; }
+  function passosPadrao(nome, botaoConta, botaoChave, rotuloNome, extra) {
+    var ps = [
+      P('Toque em “Abrir o site”. Ele abre em outra aba; esta tela continua aqui esperando.',
+        'Tap “Open the site”. It opens in another tab; this screen stays here waiting.', 'abrir'),
+      P('Crie a conta (ou entre): ' + botaoConta + '. Use um e-mail seu; não precisa de cartão.',
+        'Create the account (or sign in): ' + botaoConta + '. Use your own e-mail; no card needed.', 'conta'),
+      P('Na página de chaves, toque em “' + botaoChave + '”.' + (rotuloNome ? ' Se pedir um nome, escreva “' + rotuloNome + '”.' : ''),
+        'On the keys page, tap “' + botaoChave + '”.' + (rotuloNome ? ' If it asks for a name, type “' + rotuloNome + '”.' : ''), 'botao'),
+      P('A chave aparece UMA vez. Toque no botão de copiar ao lado dela (não feche antes de copiar).',
+        'The key shows ONCE. Tap the copy button next to it (do not close before copying).', 'copiar'),
+      P('Volte para esta aba, cole a chave no campo abaixo e toque em “Salvar e testar”.',
+        'Come back to this tab, paste the key in the field below and tap “Save and test”.', 'colar')
+    ];
+    if (extra) ps.splice(2, 0, extra);
+    return ps;
+  }
+  function limiteTxt(pr) { return pr.limite ? (pr.limite[Idioma.atual] || pr.limite.pt) : ''; }
+
+  /* provedores que nao conversam (so voz), mais os que conversam e tambem
+     fazem voz - a lista de chat continua sendo os que tem cap 'texto' */
+  function completarProvedores() {
+    var X = PROVEDORES;
+    X.openrouter.cap = ['texto']; X.openrouter.prefixo = 'sk-or-';
+    X.openrouter.conta = { pt: 'Google, GitHub ou e-mail', en: 'Google, GitHub or e-mail' };
+    X.openrouter.limite = { pt: 'Grátis nos modelos com “:free”: ~20 pedidos por minuto e 50 por dia (1.000/dia se um dia comprar US$ 10 de crédito). Sem cartão.',
+                            en: 'Free on “:free” models: ~20 requests per minute and 50 per day (1,000/day if you ever buy US$ 10 of credit). No card.' };
+    X.openrouter.passos = passosPadrao('OpenRouter', 'Sign in → Google ou e-mail', 'Create API Key', 'SolverONE');
+    X.openrouter.serve = { pt: 'Um cadastro só dá acesso a dezenas de IAs (Llama, Qwen, Gemma, DeepSeek…). Ótimo para começar.', en: 'One sign-up gives access to dozens of AIs (Llama, Qwen, Gemma, DeepSeek…). Great to start.' };
+
+    X.groq.cap = ['texto', 'stt']; X.groq.prefixo = 'gsk_';
+    X.groq.conta = { pt: 'Google, GitHub ou e-mail', en: 'Google, GitHub or e-mail' };
+    X.groq.limite = { pt: 'Grátis e muito rápido: ~30 pedidos por minuto e até 1.000 por dia no texto; transcrição (Whisper) com ~2 h de áudio por hora. Sem cartão.',
+                      en: 'Free and very fast: ~30 requests per minute and up to 1,000 per day for text; transcription (Whisper) with ~2 h of audio per hour. No card.' };
+    X.groq.passos = passosPadrao('Groq', 'Google, GitHub ou e-mail', 'Create API Key', 'SolverONE');
+    X.groq.serve = { pt: 'Melhor opção grátis para voz → texto (Whisper) e respostas instantâneas.', en: 'Best free option for speech → text (Whisper) and instant answers.' };
+    X.groq.stt = { url: 'https://api.groq.com/openai/v1/audio/transcriptions', modelo: 'whisper-large-v3-turbo' };
+
+    X.gemini.cap = ['texto', 'stt', 'tts', 'visao']; X.gemini.prefixo = ['AIza', 'AQ.'];   /* chaves novas do AI Studio (2026) comecam com AQ. */
+    X.gemini.conta = { pt: 'conta Google', en: 'Google account' };
+    X.gemini.limite = { pt: 'Grátis (AI Studio): centenas de pedidos por dia no Flash e Flash-Lite; a cota exata aparece na sua conta. Sem cartão. A voz (TTS) e a leitura de imagens também entram no grátis.',
+                        en: 'Free (AI Studio): hundreds of requests per day on Flash and Flash-Lite; the exact quota shows in your account. No card. Voice (TTS) and image reading are free too.' };
+    X.gemini.passos = passosPadrao('Google AI Studio', 'entrar com a conta Google e aceitar os termos', 'Create API key / Criar chave de API', null,
+      P('Se pedir um projeto, toque em “Create API key in new project” (ele cria um projeto para você).',
+        'If it asks for a project, tap “Create API key in new project” (it creates one for you).', 'botao'));
+    X.gemini.serve = { pt: 'A mais completa grátis: texto, ouvir áudio, falar (voz natural) e ler imagens com uma chave só.', en: 'The most complete free one: text, hearing audio, speaking (natural voice) and reading images with a single key.' };
+    X.gemini.tts = { modelo: 'gemini-2.5-flash-preview-tts' };
+
+    X.mistral.cap = ['texto', 'stt', 'visao'];
+    X.mistral.conta = { pt: 'e-mail + confirmação por celular', en: 'e-mail + phone verification' };
+    X.mistral.limite = { pt: 'Plano “Experiment” grátis (pede número de celular): ~1 pedido por segundo e cota mensal. Sem cartão. Tem transcrição (Voxtral) e OCR.',
+                         en: 'Free “Experiment” plan (asks for a phone number): ~1 request per second and a monthly quota. No card. Has transcription (Voxtral) and OCR.' };
+    X.mistral.passos = passosPadrao('Mistral', 'e-mail ou Google; depois escolha o plano Experiment (grátis)', 'Nova chave / Create new key', 'SolverONE');
+    X.mistral.serve = { pt: 'Boa em português e em ler documentos (OCR).', en: 'Good in Portuguese and at reading documents (OCR).' };
+    X.mistral.stt = { url: 'https://api.mistral.ai/v1/audio/transcriptions', modelo: 'voxtral-mini-latest' };
+
+    X.openai.cap = ['texto', 'stt', 'tts', 'visao']; X.openai.prefixo = 'sk-';
+    X.openai.conta = { pt: 'e-mail, Google ou Apple + cartão', en: 'e-mail, Google or Apple + card' };
+    X.openai.limite = { pt: 'Pago por uso (mínimo US$ 5 de crédito). Sem plano grátis. Tem voz → texto (Whisper), texto → voz e imagens.',
+                        en: 'Pay per use (US$ 5 minimum credit). No free plan. Has speech → text (Whisper), text → speech and images.' };
+    X.openai.passos = passosPadrao('OpenAI', 'e-mail, Google ou Apple; depois Billing → Add credit (US$ 5)', 'Create new secret key', 'SolverONE');
+    X.openai.serve = { pt: 'Tudo numa conta só, com qualidade alta. Custa pouco para uso pessoal.', en: 'Everything in one account, high quality. Cheap for personal use.' };
+    X.openai.stt = { url: 'https://api.openai.com/v1/audio/transcriptions', modelo: 'whisper-1' };
+    X.openai.tts = { url: 'https://api.openai.com/v1/audio/speech', modelo: 'gpt-4o-mini-tts' };
+
+    X.anthropic.cap = ['texto', 'visao']; X.anthropic.prefixo = 'sk-ant-';
+    X.anthropic.conta = { pt: 'e-mail ou Google + cartão', en: 'e-mail or Google + card' };
+    X.anthropic.limite = { pt: 'Pago por uso (compra de crédito antes). Sem plano grátis.', en: 'Pay per use (buy credit first). No free plan.' };
+    X.anthropic.passos = passosPadrao('Anthropic Console', 'e-mail ou Google; depois Plans & billing → comprar crédito', 'Create Key', 'SolverONE');
+    X.anthropic.serve = { pt: 'Claude: muito boa em textos longos e cuidadosos (termos, políticas).', en: 'Claude: very good at long, careful texts (terms, policies).' };
+
+    X.personalizado.cap = ['texto'];
+    X.personalizado.limite = { pt: 'Depende do serviço. Serve para Cerebras, Together, Hugging Face, um Ollama na sua rede…', en: 'Depends on the service. For Cerebras, Together, Hugging Face, an Ollama on your network…' };
+    X.personalizado.passos = [P('Cole o endereço da API (termina em /v1), a chave e o nome do modelo, como o serviço informa.', 'Paste the API address (ends in /v1), the key and the model name, as the service states.', 'colar')];
+
+    X.cerebras = {
+      nome: 'Cerebras', gratis: null, ordem: 9, cap: ['texto'], prefixo: 'csk-',
+      onde: 'https://cloud.cerebras.ai/', base: 'https://api.cerebras.ai/v1', modelo: 'llama-3.3-70b',
+      conta: { pt: 'e-mail ou Google + cartão (não cobra)', en: 'e-mail or Google + card (not charged)' },
+      limite: { pt: 'US$ 5 de crédito por 30 dias, mas pede um cartão para ativar. Muito rápido.', en: 'US$ 5 credit for 30 days, but asks for a card to activate. Very fast.' },
+      nota: { pt: 'Crédito inicial de US$ 5 (30 dias); pede cartão.', en: 'US$ 5 starting credit (30 days); asks for a card.' },
+      passos: passosPadrao('Cerebras Cloud', 'e-mail ou Google; adicionar cartão em Billing', 'Create API Key', 'SolverONE'),
+      serve: { pt: 'Respostas quase instantâneas.', en: 'Near-instant answers.' },
+      chamar: function (chave, modelo, sistema, msgs, limite) { return chamarCompativel(this.base, chave, modelo, sistema, msgs, null, limite); },
+      listar: function (chave) { return listarCompativel(this.base, chave); }
+    };
+    X.deepseek = {
+      nome: 'DeepSeek', gratis: false, ordem: 12, cap: ['texto'], prefixo: 'sk-',
+      onde: 'https://platform.deepseek.com/api_keys', base: 'https://api.deepseek.com/v1', modelo: 'deepseek-chat',
+      conta: { pt: 'e-mail ou Google + crédito', en: 'e-mail or Google + credit' },
+      limite: { pt: 'Pago, mas muito barato (centavos por milhão de palavras). Sem plano grátis.', en: 'Paid but very cheap (cents per million words). No free plan.' },
+      nota: { pt: 'Pago por uso, barato.', en: 'Pay per use, cheap.' },
+      passos: passosPadrao('DeepSeek', 'e-mail ou Google; depois Top up (comprar crédito)', 'Create new API key', 'SolverONE'),
+      serve: { pt: 'Barata e boa para textos longos.', en: 'Cheap and good for long texts.' },
+      chamar: function (chave, modelo, sistema, msgs, limite) { return chamarCompativel(this.base, chave, modelo, sistema, msgs, null, limite); },
+      listar: function (chave) { return listarCompativel(this.base, chave); }
+    };
+    /* so voz: nao entram na lista de chat */
+    X.deepgram = {
+      nome: 'Deepgram', gratis: true, ordem: 6, cap: ['stt'], soVoz: true,
+      onde: 'https://console.deepgram.com/',
+      conta: { pt: 'e-mail, Google ou GitHub', en: 'e-mail, Google or GitHub' },
+      limite: { pt: 'US$ 200 de crédito ao criar a conta (dá centenas de horas de transcrição). Sem cartão. Depois, pago por minuto.',
+                en: 'US$ 200 credit on sign-up (hundreds of hours of transcription). No card. Then pay per minute.' },
+      nota: { pt: 'US$ 200 de crédito inicial; sem cartão.', en: 'US$ 200 starting credit; no card.' },
+      passos: passosPadrao('Deepgram Console', 'e-mail, Google ou GitHub', 'Create a New API Key', 'SolverONE'),
+      serve: { pt: 'Transcrição rápida e precisa, inclusive em tempo real.', en: 'Fast, accurate transcription, including real time.' },
+      stt: { url: 'https://api.deepgram.com/v1/listen?model=nova-3&language=pt&smart_format=true', auth: 'Token' },
+      testar: function (chave) { return fetch('https://api.deepgram.com/v1/projects', { headers: { Authorization: 'Token ' + chave } }).then(lerResposta); }
+    };
+    X.assemblyai = {
+      nome: 'AssemblyAI', gratis: true, ordem: 7, cap: ['stt'], soVoz: true,
+      onde: 'https://www.assemblyai.com/app/api-keys',
+      conta: { pt: 'e-mail, Google ou GitHub', en: 'e-mail, Google or GitHub' },
+      limite: { pt: 'US$ 50 de crédito ao criar a conta (dezenas de horas). Sem cartão. Depois, pago por hora.',
+                en: 'US$ 50 credit on sign-up (tens of hours). No card. Then pay per hour.' },
+      nota: { pt: 'US$ 50 de crédito inicial; sem cartão.', en: 'US$ 50 starting credit; no card.' },
+      passos: passosPadrao('AssemblyAI', 'e-mail, Google ou GitHub', 'Copy API key', null),
+      serve: { pt: 'Transcrição com resumo e identificação de quem fala.', en: 'Transcription with summary and speaker identification.' },
+      stt: { url: 'https://api.assemblyai.com/v2', auth: 'plain' },
+      testar: function (chave) { return fetch('https://api.assemblyai.com/v2/transcript?limit=1', { headers: { authorization: chave } }).then(lerResposta); }
+    };
+    X.elevenlabs = {
+      nome: 'ElevenLabs', gratis: true, ordem: 8, cap: ['tts'], soVoz: true,
+      onde: 'https://elevenlabs.io/app/settings/api-keys',
+      conta: { pt: 'e-mail ou Google', en: 'e-mail or Google' },
+      limite: { pt: 'Grátis: ~10 mil caracteres por mês (uns 10 minutos de áudio), só para uso pessoal. Planos pagos a partir de US$ 5/mês.',
+                en: 'Free: ~10k characters per month (about 10 minutes of audio), personal use only. Paid plans from US$ 5/month.' },
+      nota: { pt: '~10 min de áudio por mês grátis.', en: '~10 min of audio per month free.' },
+      passos: passosPadrao('ElevenLabs', 'e-mail ou Google', 'Create API Key', 'SolverONE'),
+      serve: { pt: 'As vozes mais naturais para ler histórias.', en: 'The most natural voices for reading stories.' },
+      tts: { url: 'https://api.elevenlabs.io/v1/text-to-speech', auth: 'xi-api-key' },
+      testar: function (chave) { return fetch('https://api.elevenlabs.io/v1/user', { headers: { 'xi-api-key': chave } }).then(lerResposta); }
+    };
+    X.aparelho = {
+      nome: { pt: 'Voz do aparelho', en: 'Device voice' }, gratis: true, ordem: 5, cap: ['tts', 'stt'], soVoz: true, semChave: true,
+      onde: '',
+      limite: { pt: 'Grátis e sem chave: usa a voz e o reconhecimento que já vêm no celular ou computador. Qualidade varia por aparelho.',
+                en: 'Free and no key: uses the voice and recognition built into the phone or computer. Quality varies by device.' },
+      passos: [P('Não precisa de chave. Para melhorar a voz no Android: Configurações → Conversão de texto em voz → instalar dados de voz em Português (Brasil).',
+                 'No key needed. To improve the voice on Android: Settings → Text-to-speech → install Portuguese (Brazil) voice data.', 'site')],
+      serve: { pt: 'Plano B que sempre funciona, até sem internet.', en: 'Plan B that always works, even offline.' }
+    };
+  }
+
+  /* validacao leve: so o formato, para pegar chave colada pela metade */
+  function chaveParece(prov, valor) {
+    var pr = PROVEDORES[prov]; valor = String(valor || '').trim();
+    if (!valor) return { ok: false, pt: 'Cole a chave.', en: 'Paste the key.' };
+    if (/\s/.test(valor)) return { ok: false, pt: 'A chave tem espaço ou quebra de linha no meio: copie de novo, inteira.', en: 'The key has a space or line break inside: copy it again, whole.' };
+    if (valor.length < 20) return { ok: false, pt: 'Curta demais: parece que faltou um pedaço.', en: 'Too short: looks like part is missing.' };
+    /* Prefixo e so uma dica: os provedores mudam o formato (o Gemini passou de AIza para AQ.
+       em 2026). Se nao bater, avisa mas deixa salvar - quem decide e o teste no provedor. */
+    var prefs = prefixos(pr);
+    if (prefs.length && !prefs.some(function (x) { return valor.indexOf(x) === 0; })) {
+      return { ok: true, aviso: { pt: 'Chave do ' + nomeProv(pr) + ' costuma começar com “' + prefs.join('” ou “') + '”. Vou testar mesmo assim.',
+                                  en: nomeProv(pr) + ' keys usually start with “' + prefs.join('” or “') + '”. Testing anyway.' } };
+    }
+    return { ok: true };
+  }
+  function prefixos(pr) { if (!pr || !pr.prefixo) return []; return Array.isArray(pr.prefixo) ? pr.prefixo : [pr.prefixo]; }
+  function prefixoTxt(pr) { return prefixos(pr)[0] || ''; }
+  function nomeProv(pr) { return typeof pr.nome === 'string' ? pr.nome : (pr.nome[Idioma.atual] || pr.nome.pt); }
+  function testarChave(prov, chave) {
+    var pr = PROVEDORES[prov];
+    if (pr.semChave) return Promise.resolve({ ok: true });
+    if (pr.testar) return pr.testar(chave).then(function () { return { ok: true }; });
+    if (pr.listar) return pr.listar(chave).then(function (l) { return { ok: true, modelos: l }; });
+    return Promise.resolve({ ok: true, semTeste: true });
+  }
+
+  /* escolha por uso: texto continua sendo IA.provedor(); voz tem a sua */
+  var PorUso = {
+    ler: function () { return Guardar.ler('ia-por-uso', {}, true) || {}; },
+    definir: function (cap, prov) { var m = PorUso.ler(); if (prov) m[cap] = prov; else delete m[cap]; Guardar.gravar('ia-por-uso', m, true);
+      d.dispatchEvent(new CustomEvent('dgo:ia-uso', { detail: { cap: cap, provedor: prov } })); },
+    provedor: function (cap) {
+      if (cap === 'texto') return IA.provedor();
+      var m = PorUso.ler(), p = m[cap];
+      if (p && PROVEDORES[p] && (PROVEDORES[p].semChave || IA.temChave(p))) return p;
+      var prontos = Object.keys(PROVEDORES).filter(function (k) { var pr = PROVEDORES[k]; return (pr.cap || []).indexOf(cap) !== -1 && !pr.semChave && IA.temChave(k); })
+        .sort(function (a, b) { return (PROVEDORES[a].ordem || 9) - (PROVEDORES[b].ordem || 9); });
+      if (prontos.length) return prontos[0];
+      return (cap === 'tts' || cap === 'stt') ? 'aparelho' : '';
+    },
+    chave: function (cap) { var p = PorUso.provedor(cap); return p ? IA.chave(p) : ''; },
+    lerChave: function (cap) { var p = PorUso.provedor(cap); return p && p !== 'aparelho' ? IA.lerChave(p) : Promise.resolve(''); }
+  };
+
+  /* ---- ilustracao desenhada de cada passo (SVG), ou o print do app ---- */
+  function iluPasso(prov, n, tipo, rotulo) {
+    var pr = PROVEDORES[prov], nome = nomeProv(pr);
+    var cor = 'var(--dgo-cor)';
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    var miolo = '';
+    if (tipo === 'abrir') {
+      miolo = '<rect x="20" y="52" width="200" height="44" rx="10" fill="' + cor + '"/><text x="120" y="80" font-size="15" font-weight="700" text-anchor="middle" fill="#04121f">' + esc(t('abrirSite')) + ' ↗</text>' +
+        '<text x="120" y="122" font-size="11" text-anchor="middle" fill="#94a3b8">' + esc(nome) + '</text>';
+    } else if (tipo === 'conta') {
+      miolo = '<rect x="30" y="40" width="180" height="26" rx="6" fill="#0b1220" stroke="#334155"/><text x="40" y="57" font-size="11" fill="#64748b">e-mail</text>' +
+        '<rect x="30" y="74" width="180" height="26" rx="6" fill="#0b1220" stroke="#334155"/><text x="40" y="91" font-size="11" fill="#64748b">••••••••</text>' +
+        '<rect x="30" y="108" width="180" height="26" rx="6" fill="' + cor + '"/><text x="120" y="125" font-size="12" font-weight="700" text-anchor="middle" fill="#04121f">Sign up / Log in</text>';
+    } else if (tipo === 'botao') {
+      var r = rotulo || 'Create API Key';
+      miolo = '<text x="24" y="52" font-size="12" fill="#94a3b8">API keys</text><line x1="24" y1="60" x2="216" y2="60" stroke="#334155"/>' +
+        '<rect x="24" y="72" width="192" height="30" rx="7" fill="' + cor + '"/><text x="120" y="92" font-size="12" font-weight="700" text-anchor="middle" fill="#04121f">+ ' + esc(r) + '</text>' +
+        '<circle cx="204" cy="87" r="16" fill="none" stroke="#f59e0b" stroke-width="3"/>';
+    } else if (tipo === 'copiar') {
+      miolo = '<text x="24" y="50" font-size="11" fill="#94a3b8">' + esc(t('suaChave')) + '</text>' +
+        '<rect x="24" y="60" width="150" height="30" rx="7" fill="#0b1220" stroke="#334155"/><text x="34" y="80" font-size="12" font-family="monospace" fill="#e2e8f0">' + esc((prefixoTxt(pr) || 'sk-') + '••••••••') + '</text>' +
+        '<rect x="182" y="60" width="34" height="30" rx="7" fill="' + cor + '"/><text x="199" y="81" font-size="15" text-anchor="middle" fill="#04121f">⎘</text>' +
+        '<circle cx="199" cy="75" r="20" fill="none" stroke="#f59e0b" stroke-width="3"/><text x="120" y="120" font-size="11" text-anchor="middle" fill="#fbbf24">' + esc(t('umaVez')) + '</text>';
+    } else if (tipo === 'colar') {
+      miolo = '<text x="24" y="50" font-size="11" fill="#94a3b8">' + esc(nomeApp()) + ' → ' + esc(t('cofreChaves')) + '</text>' +
+        '<rect x="24" y="60" width="192" height="30" rx="7" fill="#0b1220" stroke="' + cor + '" stroke-width="2"/><text x="34" y="80" font-size="12" font-family="monospace" fill="#e2e8f0">' + esc((prefixoTxt(pr) || 'sk-') + '••••••••••••') + '</text>' +
+        '<rect x="24" y="100" width="192" height="28" rx="7" fill="' + cor + '"/><text x="120" y="118" font-size="12" font-weight="700" text-anchor="middle" fill="#04121f">' + esc(t('salvarTestar')) + '</text>';
+    } else {
+      miolo = '<text x="120" y="88" font-size="30" text-anchor="middle">⚙️</text>';
+    }
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 140" role="img" aria-hidden="true">' +
+      '<rect x="0" y="0" width="240" height="140" rx="12" fill="#111a2e" stroke="#334155"/>' +
+      '<rect x="0" y="0" width="240" height="24" rx="12" fill="#1e293b"/><circle cx="14" cy="12" r="4" fill="#ef4444"/><circle cx="26" cy="12" r="4" fill="#f59e0b"/><circle cx="38" cy="12" r="4" fill="#22c55e"/>' +
+      '<text x="120" y="16" font-size="9" text-anchor="middle" fill="#94a3b8">' + esc(tipo === 'colar' ? location.host : (pr.onde || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '')) + '</text>' + miolo + '</svg>';
+    var fig = el('figure', { class: 'dgo-guia-ilu' });
+    var img = el('img', { src: 'guia-' + prov + '-' + n + '.png', alt: '', loading: 'lazy' });
+    img.onerror = function () { fig.innerHTML = svg; };   /* sem print: fica o desenho */
+    fig.appendChild(img);
+    return fig;
+  }
+
+  function abrirChaves(provedorAberto, capInicial) {
+    /* 1.10.0: com cofre comum trancado, pede o PIN antes de mostrar as chaves */
+    var C = cofreComum();
+    if (C && !C.aberto() && (C.existe() || C.pendentes().length)) {
+      return C.pedir({ motivo: { pt: 'Para ver e trocar as chaves de IA.', en: 'To see and change your AI keys.' } })
+        .then(function (ok) { return ok ? abrirChaves(provedorAberto, capInicial) : null; });
+    }
+    completarProvedores();
+    var aberto = provedorAberto || '';
+    var filtro = capInicial || Guardar.ler('ia-cofre-filtro', '', true) || '';
+    if (aberto && !PROVEDORES[aberto]) aberto = '';
+    /* guia acompanhado: um passo por vez, com "ja fiz, proximo"; o passo atual fica guardado */
+    var guia = Guardar.ler('ia-guia', {}, true) || {};
+    function guiaDefinir(p, n) { if (n === null || n === undefined) delete guia[p]; else guia[p] = n; Guardar.gravar('ia-guia', guia, true); }
+    function emGuiaDe(p) { var pr = PROVEDORES[p]; return !!(pr.passos && pr.passos.length > 1 && guia[p] !== undefined && !pr.semChave); }
+    var janelaGuia = null;
+    function abrirAoLado(pr, p) {
+      /* os sites dos provedores nao deixam ser mostrados dentro de outra pagina (X-Frame-Options),
+         entao a saida e uma janela separada, colocada ao lado desta */
+      var w = raiz.screen && raiz.screen.availWidth || 1200, h = raiz.screen && raiz.screen.availHeight || 800;
+      var largura = Math.max(420, Math.round(w * 0.5)), esquerda = Math.max(0, w - largura);
+      try {
+        janelaGuia = raiz.open(pr.onde, 'dgo-guia-' + p, 'popup=yes,width=' + largura + ',height=' + Math.round(h * 0.92) + ',left=' + esquerda + ',top=0');
+      } catch (e) { janelaGuia = null; }
+      if (!janelaGuia) { try { raiz.open(pr.onde, '_blank', 'noopener'); } catch (e2) {} }
+    }
+
+    function selos(pr) {
+      var s = [];
+      if (pr.gratis === true) s.push(el('em', { class: 'dgo-selo dgo-selo-ok', texto: t('gratis') }));
+      else if (pr.gratis === false) s.push(el('em', { class: 'dgo-selo dgo-selo-pago', texto: t('pago') }));
+      else if (pr.gratis === null && pr.conta) s.push(el('em', { class: 'dgo-selo', texto: t('pedeCartao') }));
+      (pr.cap || []).forEach(function (c) { s.push(el('span', { class: 'dgo-cap', title: CAPS[c][Idioma.atual] || CAPS[c].pt, texto: CAPS[c].icone })); });
+      return s;
+    }
+    function emUsoPara(p) {
+      var usos = [];
+      if (IA.provedor() === p && IA.temChave(p) && (PROVEDORES[p].cap || []).indexOf('texto') !== -1) usos.push(CAPS.texto.icone);
+      ['stt', 'tts'].forEach(function (c) { if ((PROVEDORES[p].cap || []).indexOf(c) !== -1 && PorUso.provedor(c) === p) usos.push(CAPS[c].icone); });
+      return usos;
+    }
+    function reabrir() { abrirModal(montar(), function () { abrirChaves(aberto, filtro); }); }
+
+    function montar() {
+      var caixa = el('div', { class: 'dgo-caixa dgo-larga dgo-cofre' });
+      caixa.appendChild(el('h2', { texto: '🔑 ' + t('cofreChaves') }));
+      caixa.appendChild(el('p', { class: 'dgo-mini', texto: t('cofreExplica') }));
+
+      /* filtro: para que serve */
+      var chips = el('div', { class: 'dgo-chips', role: 'tablist' });
+      [['', t('tudo')]].concat(Object.keys(CAPS).map(function (c) { return [c, CAPS[c].icone + ' ' + (CAPS[c][Idioma.atual] || CAPS[c].pt)]; })).forEach(function (o) {
+        chips.appendChild(el('button', { type: 'button', role: 'tab', class: 'dgo-chip' + (filtro === o[0] ? ' dgo-on' : ''), 'aria-selected': filtro === o[0] ? 'true' : 'false', texto: o[1],
+          onclick: function () { filtro = o[0]; Guardar.gravar('ia-cofre-filtro', filtro, true); aberto = ''; reabrir(); } }));
+      });
+      caixa.appendChild(chips);
+      if (filtro && CAPS[filtro]) caixa.appendChild(el('p', { class: 'dgo-mini', texto: CAPS[filtro].expl[Idioma.atual] || CAPS[filtro].expl.pt }));
+
+      /* resumo do que esta em uso */
+      var resumo = ['texto', 'stt', 'tts'].map(function (c) {
+        var p = PorUso.provedor(c), ok = p && (PROVEDORES[p].semChave || IA.temChave(p));
+        return CAPS[c].icone + ' ' + (ok ? nomeProv(PROVEDORES[p]) : '—');
+      }).join('   ');
+      caixa.appendChild(el('p', { class: 'dgo-mini', texto: t('emUsoAgora') + ': ' + resumo }));
+
+      var lista = Object.keys(PROVEDORES).filter(function (p) { return !filtro || (PROVEDORES[p].cap || []).indexOf(filtro) !== -1; })
+        .sort(function (a, b) { return (PROVEDORES[a].ordem || 9) - (PROVEDORES[b].ordem || 9); });
+
+      lista.forEach(function (p) {
+        var pr = PROVEDORES[p];
+        var tem = pr.semChave || IA.temChave(p);
+        var ehAberto = (p === aberto);
+        var usos = emUsoPara(p);
+        var cab = el('button', { type: 'button', class: 'dgo-prov-cab' + (ehAberto ? ' dgo-on' : ''), 'aria-expanded': ehAberto ? 'true' : 'false',
+          onclick: function () { aberto = ehAberto ? '' : p; reabrir(); } }, [
+          el('span', { class: 'dgo-prov-nome' }, [d.createTextNode(nomeProv(pr) + ' ')].concat(selos(pr)).concat([
+            tem ? el('em', { class: 'dgo-selo dgo-selo-ok', texto: '✓' }) : null,
+            usos.length ? el('em', { class: 'dgo-selo', texto: t('emUso') + ' ' + usos.join(' ') }) : null
+          ])),
+          el('span', { class: 'dgo-mini', texto: ehAberto ? '▴' : '▾' })
+        ]);
+        caixa.appendChild(cab);
+        if (!ehAberto) return;
+
+        var corpo = el('div', { class: 'dgo-prov-corpo' });
+        if (pr.serve) corpo.appendChild(el('p', { class: 'dgo-serve', texto: (pr.serve[Idioma.atual] || pr.serve.pt) }));
+        if (pr.limite) corpo.appendChild(el('p', { class: 'dgo-mini' }, [el('b', { texto: t('limitesTit') + ': ' }), d.createTextNode(limiteTxt(pr))]));
+        if (pr.conta) corpo.appendChild(el('p', { class: 'dgo-mini' }, [el('b', { texto: t('contaTit') + ': ' }), d.createTextNode(pr.conta[Idioma.atual] || pr.conta.pt)]));
+
+        if (pr.onde && !emGuiaDe(p)) {
+          corpo.appendChild(el('a', { class: 'dgo-b', href: pr.onde, target: '_blank', rel: 'noopener noreferrer', style: { textDecoration: 'none' },
+            texto: t('abrirSite') + ' ↗ ' + nomeProv(pr) }));
+        }
+
+        var emGuia = emGuiaDe(p);
+        if (emGuia) {
+          var n = Math.min(guia[p], pr.passos.length - 1), ps = pr.passos[n], ultimo = n === pr.passos.length - 1;
+          var rotB = null;
+          if (ps.ilu === 'botao') { var mm = (ps[Idioma.atual] || ps.pt).match(/“([^”]+)”/); rotB = mm ? mm[1].split(' / ')[0] : null; }
+          var passo = el('div', { class: 'dgo-passo', role: 'group', 'aria-label': t('guiaPasso') }, [
+            el('div', { class: 'dgo-passo-cab' }, [
+              el('b', { texto: t('passo') + ' ' + (n + 1) + ' ' + t('de') + ' ' + pr.passos.length }),
+              el('span', { class: 'dgo-passo-barra' }, [el('span', { style: { width: Math.round(((n + 1) / pr.passos.length) * 100) + '%' } })])
+            ]),
+            el('p', { class: 'dgo-passo-txt', texto: ps[Idioma.atual] || ps.pt }),
+            iluPasso(p, n + 1, ps.ilu, rotB)
+          ]);
+          var lp = el('div', { class: 'dgo-linha dgo-usar' });
+          if (ps.ilu !== 'colar') {
+            lp.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('abrirAoLado') + ' ↗', onclick: function () { abrirAoLado(pr, p); } }));
+          }
+          if (n > 0) lp.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: '‹ ' + t('anterior'), onclick: function () { guiaDefinir(p, n - 1); reabrir(); } }));
+          if (!ultimo) lp.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: '✓ ' + t('jaFiz') + ' ›', onclick: function () { guiaDefinir(p, n + 1); reabrir(); } }));
+          lp.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('sairGuia'), onclick: function () { guiaDefinir(p, null); reabrir(); } }));
+          passo.appendChild(lp);
+          if (ultimo) passo.appendChild(el('p', { class: 'dgo-mini', texto: t('colarAbaixo') }));
+          corpo.appendChild(passo);
+        }
+        /* guia passo a passo (lista inteira), aberto quando ainda nao ha chave */
+        if (pr.passos && pr.passos.length && !emGuia) {
+          var det = el('details', { class: 'dgo-guia' });
+          if (!tem) det.open = true;
+          det.appendChild(el('summary', { texto: '🧭 ' + t('guiaPasso') + ' (' + pr.passos.length + ')' }));
+          var ol = el('ol', { class: 'dgo-guia-lista' });
+          pr.passos.forEach(function (ps, i) {
+            var rot = null;
+            if (ps.ilu === 'botao') { var m = (ps[Idioma.atual] || ps.pt).match(/“([^”]+)”/); rot = m ? m[1].split(' / ')[0] : null; }
+            ol.appendChild(el('li', {}, [el('p', { texto: ps[Idioma.atual] || ps.pt }), iluPasso(p, i + 1, ps.ilu, rot)]));
+          });
+          det.appendChild(ol);
+          det.appendChild(el('p', { class: 'dgo-mini', texto: t('guiaPrintDica').replace('{arq}', 'guia-' + p + '-2.png') }));
+          if (pr.passos.length > 1 && !pr.semChave) corpo.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: '▶ ' + t('comecarGuia'),
+            onclick: function () { guiaDefinir(p, 0); reabrir(); } }));
+          corpo.appendChild(det);
+        }
+
+        var msg = el('div');
+        if (!pr.semChave) {
+          if (p === 'personalizado') {
+            var cB = campo(t('endereco'), { type: 'url', placeholder: 'https://…/v1', autocapitalize: 'none', spellcheck: 'false' });
+            cB._input.value = IA.baseDe(p);
+            cB._input.addEventListener('change', function () { IA.definirBase(p, cB._input.value); });
+            corpo.appendChild(cB);
+          }
+          var cK = campo(t('chave') + ' — ' + nomeProv(pr), { type: 'password', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'none',
+            placeholder: IA.chave(p) ? '••••••••' : (prefixoTxt(pr) ? prefixoTxt(pr) + '…' : '') });
+          cK._input.value = IA.chave(p);
+          var olho = el('button', { type: 'button', class: 'dgo-olho', 'aria-label': t('mostrarChave'), texto: '👁', onclick: function () {
+            cK._input.type = cK._input.type === 'password' ? 'text' : 'password'; } });
+          cK.appendChild(olho);
+          corpo.appendChild(cK);
+
+          var cM = null, dl = null;
+          if ((pr.cap || []).indexOf('texto') !== -1) {
+            cM = campo(t('modelo'), { type: 'text', autocapitalize: 'none', spellcheck: 'false', list: 'dgo-modelos-' + p });
+            cM._input.value = IA.modelo(p);
+            dl = el('datalist', { id: 'dgo-modelos-' + p });
+            var cache = (Guardar.ler('ia-lista-modelos', {}, true) || {})[p];
+            (cache && cache.modelos || []).forEach(function (m) { dl.appendChild(el('option', { value: m.id })); });
+            cM.appendChild(dl);
+            corpo.appendChild(cM);
+          }
+
+          var l1 = el('div', { class: 'dgo-linha' });
+          l1.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: t('salvarTestar'), onclick: function () {
+            var b = this, valor = cK._input.value.trim();
+            var chk = chaveParece(p, valor);
+            msg.innerHTML = '';
+            if (!chk.ok && !(p === 'personalizado' && !valor)) { msg.appendChild(aviso(chk[Idioma.atual] || chk.pt, 'erro')); return; }
+            if (chk.aviso) msg.appendChild(aviso(chk.aviso[Idioma.atual] || chk.aviso.pt, 'info'));
+            b.disabled = true;
+            /* 1.10.0: com o cofre comum, gravar pode pedir o PIN (ou criar o cofre) antes; espera terminar */
+            Promise.resolve(IA.definirChave(p, valor)).then(function () {
+              if (cM) IA.definirModelo(p, cM._input.value.trim());
+              if ((pr.cap || []).indexOf('texto') !== -1 && IA.temChave(p) && !IA.provedoresProntos().filter(function (x) { return x !== p; }).length) IA.definirProvedor(p);
+              msg.appendChild(aviso(t('testando'), 'info'));
+              return testarChave(p, valor).then(function (r) {
+                msg.innerHTML = '';
+                msg.appendChild(aviso(r.semTeste ? t('chaveSalva') : t('chaveOk'), 'ok'));
+                guiaDefinir(p, null);
+                if (janelaGuia && !janelaGuia.closed) { try { janelaGuia.close(); } catch (e3) {} }
+                if (r.modelos && dl) {
+                  var gratis = r.modelos.filter(function (m) { return m.gratis; });
+                  var usar = (gratis.length && pr.gratis) ? gratis : r.modelos;
+                  dl.innerHTML = ''; usar.slice(0, 300).forEach(function (m) { dl.appendChild(el('option', { value: m.id })); });
+                  if (cM && !cM._input.value && usar.length) { cM._input.value = usar[0].id; IA.definirModelo(p, usar[0].id); }
+                }
+                setTimeout(reabrir, 900);
+              }).catch(function (e) {
+                msg.innerHTML = '';
+                var st = e && e.status;
+                var txt = st === 401 || st === 403 ? t('chaveRecusada') : (!st && /fetch|network/i.test(String(e && e.message)) ? t('corsAviso') : t('erroIA') + ' ' + ((e && e.message) || ''));
+                msg.appendChild(aviso(txt, st === 401 || st === 403 ? 'erro' : 'info'));
+              });
+            }, function (e) {
+              msg.innerHTML = ''; msg.appendChild(aviso(IA.explicarErro(e), 'erro'));
+            }).then(function () { b.disabled = false; });
+          } }));
+          corpo.appendChild(l1);
+        }
+
+        /* usar para: texto / voz -> texto / texto -> voz */
+        if (tem) {
+          var lu = el('div', { class: 'dgo-linha dgo-usar' });
+          (pr.cap || []).filter(function (c) { return c !== 'visao'; }).forEach(function (c) {
+            var ativo = PorUso.provedor(c) === p;
+            lu.appendChild(el('button', { class: 'dgo-b dgo-b2' + (ativo ? ' dgo-on' : ''), type: 'button', 'aria-pressed': ativo ? 'true' : 'false',
+              texto: (ativo ? '✓ ' : '') + t('usarPara') + ' ' + CAPS[c].icone + ' ' + (CAPS[c][Idioma.atual] || CAPS[c].pt),
+              onclick: function () { if (c === 'texto') IA.definirProvedor(p); else PorUso.definir(c, p); reabrir(); } }));
+          });
+          if (!pr.semChave) lu.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('remover'), onclick: function () {
+            Promise.resolve(IA.definirChave(p, '')).then(function () { ['stt', 'tts'].forEach(function (c) { if (PorUso.ler()[c] === p) PorUso.definir(c, ''); }); reabrir(); }, function () {}); } }));
+          corpo.appendChild(lu);
+        }
+        corpo.appendChild(msg);
+        caixa.appendChild(corpo);
+      });
+
+      caixa.appendChild(aviso(t('chaveAvisoCusto') + ' ' + t('chaveNuncaChat'), 'info'));
+      var Cc = cofreComum();
+      if (Cc && Cc.aberto()) {
+        caixa.appendChild(el('p', { class: 'dgo-mini', texto: Idioma.atual === 'en'
+          ? '🔐 The keys are locked with your PIN in this browser' + (Cc.lembrado() ? ' (this device is remembered).' : '.')
+          : '🔐 As chaves ficam trancadas com o seu PIN neste navegador' + (Cc.lembrado() ? ' (este aparelho está lembrado).' : '.') }));
+        caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: Idioma.atual === 'en' ? '🔒 Lock the vault now' : '🔒 Trancar o cofre agora',
+          onclick: function () { fecharModal(); Cc.trancar(); } }));
+      }
+      caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('fechar'), onclick: fecharModal }));
+      return caixa;
+    }
+    return abrirModal(montar(), function () { abrirChaves(aberto, filtro); });
+  }
+
+  /* ---------------- widget de consulta ---------------- */
+  function abrirIA() {
+    if (cfg.niveis.ativo && cfg.ia.servico && !Niveis.pode(cfg.ia.servico)) {
+      return Niveis.convite(cfg.ia.servico);
+    }
+    if (!IA.provedoresProntos().length) return abrirChaves();
+
+    var caixa = el('div', { class: 'dgo-caixa dgo-larga' });
+    caixa.appendChild(el('h2', { texto: '✨ ' + t('perguntarIA') }));
+
+    /* escolha do provedor, como no desenho do BudgetONE */
+    var sel = el('select', { 'aria-label': t('provedor') });
+    sel.appendChild(el('option', { value: '', texto: t('escolhaProvedor') }));
+    IA.provedoresOrdenados().forEach(function (p) {
+      var pr = PROVEDORES[p], tem = IA.temChave(p);
+      var o = el('option', { value: p, texto: pr.nome + (pr.gratis === true ? ' · ' + t('gratis') : '') + (tem ? '' : ' · ' + t('colarChave')) });
+      if (p === IA.provedor() && tem) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function () {
+      var p = sel.value;
+      if (!p) return;
+      if (!IA.temChave(p)) { fecharModal(); abrirChaves(p); return; }
+      IA.definirProvedor(p); linhaTopo.textContent = rotuloTopo();
+    });
+    var topo = el('div', { class: 'dgo-linha' });
+    topo.appendChild(el('div', { style: { flex: '2' } }, [sel]));
+    topo.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('colarChave'),
+      style: { marginTop: '0', minHeight: '40px' }, onclick: function () { fecharModal(); abrirChaves(sel.value || IA.provedor()); } }));
+    caixa.appendChild(topo);
+
+    function rotuloTopo() { return PROVEDORES[IA.provedor()].nome + ' · ' + (IA.modelo() || '—'); }
+    var linhaTopo = el('div', { class: 'dgo-mini', texto: rotuloTopo() });
+    caixa.appendChild(linhaTopo);
+
+    var fio = el('div', { class: 'dgo-ia-fio' });
+    caixa.appendChild(fio);
+
+    function pintar() {
+      fio.innerHTML = '';
+      IA._conversa.forEach(function (m) {
+        fio.appendChild(el('div', { class: 'dgo-ia-msg dgo-' + (m.papel === 'ia' ? 'ia' : 'eu'), texto: m.texto }));
+      });
+      fio.scrollTop = fio.scrollHeight;
+    }
+
+    var entrada = el('textarea', { rows: 2, class: 'dgo-ia-entrada', placeholder: t('escrevaPergunta') });
+
+    if (!IA._conversa.length) {
+      var sugs = cfg.ia.sugestoes || [];
+      if (sugs.length) {
+        var chips = el('div', { class: 'dgo-ia-chips' });
+        sugs.forEach(function (sg) {
+          var txt = (typeof sg === 'string') ? sg : (sg[Idioma.atual] || sg.pt);
+          chips.appendChild(el('button', { type: 'button', texto: txt, onclick: function () { entrada.value = txt; enviar(); } }));
+        });
+        fio.appendChild(el('div', { class: 'dgo-mini', texto: t('sugestoes') }));
+        fio.appendChild(chips);
+      }
+    } else { pintar(); }
+
+    var bEnviar = el('button', { class: 'dgo-b', type: 'button', texto: t('perguntar') });
+
+    function enviar() {
+      var pergunta = entrada.value.trim();
+      if (!pergunta) return;
+      entrada.value = '';
+      IA._conversa.push({ papel: 'pessoa', texto: pergunta });
+      pintar();
+      var pensando = el('div', { class: 'dgo-ia-msg dgo-ia dgo-pensando', texto: t('pensando') });
+      fio.appendChild(pensando); fio.scrollTop = fio.scrollHeight;
+      bEnviar.disabled = true;
+      IA.perguntar(pergunta, { historico: IA._conversa.slice(-12) })
+        .then(function (resposta) {
+          IA._conversa.push({ papel: 'ia', texto: resposta || t('semResposta') });
+          pintar();
+        })
+        .catch(function (e) {
+          pensando.remove();
+          var m = (e && e.message) || '';
+          fio.appendChild(aviso(
+            m === 'sem-chave' ? t('semChave') :
+            m === 'sem-internet' ? t('semInternet') :
+            m === 'so-wifi' ? t('soWifi') :
+            m === 'sem-endereco' ? t('semEndereco') : (t('erroIA') + ' ' + m), 'erro'));
+          fio.scrollTop = fio.scrollHeight;
+        })
+        .then(function () { bEnviar.disabled = false; });
+    }
+
+    entrada.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
+    bEnviar.addEventListener('click', enviar);
+
+    caixa.appendChild(entrada);
+    var acoes = el('div', { class: 'dgo-linha' });
+    acoes.appendChild(bEnviar);
+    acoes.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('limparConversa'),
+      onclick: function () { IA.limparConversa(); fecharModal(); abrirIA(); } }));
+    caixa.appendChild(acoes);
+
+    /* o que a IA recebe junto com a pergunta - transparencia, como no desenho */
+    var det = el('details', { class: 'dgo-mini', style: { margin: '8px 0' } }, [
+      el('summary', { texto: t('oQueAIARecebe') }),
+      el('div', { style: { marginTop: '6px', whiteSpace: 'pre-wrap' }, texto: IA.contexto() })
+    ]);
+    caixa.appendChild(det);
+    caixa.appendChild(el('div', { class: 'dgo-mini', texto: t('avisoIA') }));
+    caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: t('fechar'), onclick: fecharModal }));
+    return abrirModal(caixa, abrirIA);
+  }
+
+
+  /* ------------------------------------------------------------------
      20. DICIONARIO BASE  Portugues -> Ingles
          Para acrescentar palavras do seu app, use:
          DGO.iniciar({ traducoes: { 'Minha palavra': 'My word' } })
@@ -2932,16 +5487,1473 @@
   };
 
   /* ------------------------------------------------------------------
+     19-E. O SEU APARELHO PODE USAR ISTO? (DGO.compat, 1.7.0)
+     Diretriz geral, seção "Compatibilidade do aparelho e do navegador".
+     Por que existe: a pessoa toca na câmera, nada acontece, e acha que o app quebrou.
+     Aqui o app sabe ANTES o que o aparelho tem e explica, em linguagem de gente, como liberar.
+       DGO.compat.verificar()                  -> Promise { camera, microfone, localizacao, notificacoes,
+                                                  espaco: { livreMB, usadoMB }, wakeLock, indexedDB, ... }
+                                                  cada item: 'ok' | 'bloqueado' | 'sem-suporte' | 'desconhecido'
+       DGO.compat.exigir('camera', { motivo }) -> Promise<boolean> (false = abriu o aviso "como liberar")
+       DGO.compat.navegador([ua])              -> { nome, versao, sistema, sistemaVersao, dentroDeApp, chave }
+       DGO.compat.essenciais()                 -> o que falta para o app rodar ([] = tudo certo)
+     Duas camadas: BLOQUEIO (tela cheia) só quando falta o essencial, decidido por recurso e nunca pela
+     versão; AVISO (faixa fechável) quando a versão é menor que a recomendada ou quando o site abriu
+     dentro de outro app (Instagram, Facebook, WhatsApp, LinkedIn, TikTok).
+     Regras: NUNCA pede permissão só para conferir; o nome do navegador só serve para escrever a
+     mensagem certa; escrito sem sintaxe nova, porque roda justamente no navegador velho.
+     ------------------------------------------------------------------ */
+  var Compat = (function () {
+    var MINIMOS_PADRAO = { chrome: 100, edge: 100, firefox: 100, safari: 15.4, samsung: 18 };
+    var DENTRO = [[/Instagram/i, 'Instagram'], [/FBAN|FBAV|FB_IAB|FBIOS|FB4A/i, 'Facebook'], [/WhatsApp/i, 'WhatsApp'],
+                  [/LinkedInApp/i, 'LinkedIn'], [/musical_ly|TikTok|BytedanceWebview|trill_/i, 'TikTok']];
+    var NOMES = {   /* [pt, en, título pt, título en, ícone] */
+      camera: ['a câmera', 'the camera', 'Câmera', 'Camera', '📷'],
+      microfone: ['o microfone', 'the microphone', 'Microfone', 'Microphone', '🎤'],
+      localizacao: ['a localização', 'location', 'Localização', 'Location', '📍'],
+      notificacoes: ['as notificações', 'notifications', 'Notificações', 'Notifications', '🔔'],
+      som: ['o som', 'sound', 'Som', 'Sound', '🔊'],
+      vibracao: ['a vibração', 'vibration', 'Vibração', 'Vibration', '📳'],
+      wakeLock: ['manter a tela acesa', 'keeping the screen on', 'Tela acesa', 'Screen on', '💡'],
+      indexedDB: ['guardar dados no aparelho', 'storing data on the device', 'Guardar dados', 'Store data', '🗄️'],
+      armazenamento: ['guardar as suas preferências', 'saving your preferences', 'Preferências', 'Preferences', '💾'],
+      espaco: ['espaço livre', 'free space', 'Espaço livre', 'Free space', '📦'],
+      lerEmVoz: ['ler em voz alta', 'reading aloud', 'Ler em voz alta', 'Read aloud', '🗣️'],
+      ditado: ['falar em vez de digitar', 'speaking instead of typing', 'Ditado', 'Dictation', '🎙️']
+    };
+    var ESSENCIAIS = {
+      fetch: ['buscar informações na internet', 'fetching information from the internet'],
+      Promise: ['fazer várias coisas ao mesmo tempo', 'doing several things at once'],
+      indexedDB: ['guardar dados no aparelho', 'storing data on the device'],
+      css: ['desenhar as cores e os tamanhos da tela', 'drawing the screen colours and sizes'],
+      localStorage: ['guardar as suas preferências', 'saving your preferences']
+    };
+    function en() { return Idioma.atual === 'en'; }
+    function L(pt, en2) { return en() ? en2 : pt; }
+    function copiar(a, b) { var k; for (k in b) if (Object.prototype.hasOwnProperty.call(b, k)) a[k] = b[k]; return a; }
+    function num(s) { var m = /(\d+)(?:[._](\d+))?/.exec(String(s || '')); return m ? parseFloat(m[1] + '.' + (m[2] || '0')) : 0; }
+    function comPrazo(p, ms, padrao) {
+      return new Promise(function (ok) {
+        var feito = false, fim = function (v) { if (!feito) { feito = true; ok(v); } };
+        setTimeout(function () { fim(padrao); }, ms);
+        try { Promise.resolve(p).then(fim, function () { fim(padrao); }); } catch (e) { fim(padrao); }
+      });
+    }
+    function nomeDe(id, titulo) { var n = NOMES[id] || [id, id, id, id, '•']; return titulo ? (en() ? n[3] : n[2]) : (en() ? n[1] : n[0]); }
+    function texto(v) { return !v ? '' : typeof v === 'string' ? v : (v[Idioma.atual] || v.pt || v.en || ''); }
+
+    /* ---- qual navegador, sistema e se está dentro de outro app (só para escrever a mensagem certa) ---- */
+    function navegador(uaSimulado) {
+      var ua = String(uaSimulado || navigator.userAgent || ''), m;
+      var r = { nome: '', versao: 0, sistema: '', sistemaVersao: 0, dentroDeApp: '', chave: '', celular: false };
+      if ((m = /Android\s?([\d._]+)?/i.exec(ua))) { r.sistema = 'Android'; r.sistemaVersao = num(m[1]); r.celular = true; }
+      else if (/iPhone|iPad|iPod/i.test(ua)) { m = /OS (\d+[_.]\d+)/i.exec(ua); r.sistema = /iPad/i.test(ua) ? 'iPadOS' : 'iOS'; r.sistemaVersao = m ? num(m[1]) : 0; r.celular = true; }
+      else if (/Macintosh|Mac OS X/i.test(ua)) {
+        /* iPad recente se apresenta como Mac; só dá para saber pelo toque (e só no aparelho de verdade) */
+        if (!uaSimulado && navigator.maxTouchPoints > 1) { r.sistema = 'iPadOS'; r.sistemaVersao = num((/Version\/([\d.]+)/.exec(ua) || [])[1]); r.celular = true; }
+        else { r.sistema = 'macOS'; r.sistemaVersao = num((/Mac OS X ([\d_.]+)/.exec(ua) || [])[1]); }
+      }
+      else if ((m = /Windows NT ([\d.]+)/.exec(ua))) { r.sistema = 'Windows'; r.sistemaVersao = num(m[1]); }
+      else if (/CrOS/.test(ua)) r.sistema = 'ChromeOS';
+      else if (/Linux/.test(ua)) r.sistema = 'Linux';
+      var ios = r.sistema === 'iOS' || r.sistema === 'iPadOS';
+      if ((m = /SamsungBrowser\/([\d.]+)/.exec(ua))) { r.nome = 'Samsung Internet'; r.chave = 'samsung'; }
+      else if ((m = /EdgiOS\/([\d.]+)/.exec(ua)) || (m = /Edg(?:e|A)?\/([\d.]+)/.exec(ua))) { r.nome = 'Edge'; r.chave = 'edge'; }
+      else if ((m = /CriOS\/([\d.]+)/.exec(ua))) { r.nome = 'Chrome'; r.chave = 'chrome'; }
+      else if ((m = /FxiOS\/([\d.]+)/.exec(ua)) || (m = /Firefox\/([\d.]+)/.exec(ua))) { r.nome = 'Firefox'; r.chave = 'firefox'; }
+      else if (/OPR\//.test(ua) && (m = /Chrome\/([\d.]+)/.exec(ua))) { r.nome = 'Opera'; r.chave = 'chrome'; }
+      else if ((m = /Chrome\/([\d.]+)/.exec(ua))) { r.nome = /; wv\)/.test(ua) ? 'WebView' : 'Chrome'; r.chave = 'chrome'; }
+      else if ((m = /Version\/([\d.]+).*Safari/.exec(ua))) { r.nome = 'Safari'; r.chave = 'safari'; }
+      else if (ios) { r.nome = 'Safari'; r.chave = 'safari'; }
+      r.versao = m ? num(m[1]) : 0;
+      /* no iPhone e no iPad todo navegador usa o motor do Safari: o mínimo que vale é o do Safari, pela versão do sistema */
+      if (ios) { r.chave = 'safari'; r.motorVersao = r.sistemaVersao || r.versao; if (r.nome === 'Safari') r.versao = r.motorVersao; }
+      else r.motorVersao = r.versao;
+      for (var i = 0; i < DENTRO.length; i++) if (DENTRO[i][0].test(ua)) { r.dentroDeApp = DENTRO[i][1]; break; }
+      return r;
+    }
+    function ambiente(nav) { nav = nav || navegador(); return nav.sistema === 'Android' ? 'android' : (nav.sistema === 'iOS' || nav.sistema === 'iPadOS') ? 'iphone' : 'computador'; }
+
+    /* mínimos recomendados: padrão do módulo < cfg.compat.minimos do app < comportamento global
+       "compat.minimos" publicado pelo RootifyONE (o Controle dos apps manda em todos) */
+    function minimos() {
+      var m = copiar({}, MINIMOS_PADRAO), pub = null;
+      copiar(m, (cfg.compat && cfg.compat.minimos) || {});
+      try { pub = Central.valor('compat.minimos', null); } catch (e) {}
+      if (typeof pub === 'string') { try { pub = JSON.parse(pub); } catch (e) { pub = null; } }
+      if (pub && typeof pub === 'object') for (var k in pub) { var n = parseFloat(pub[k]); if (n > 0) m[k] = n; }
+      return m;
+    }
+    function desatualizado(nav) {
+      nav = nav || navegador();
+      var min = minimos()[nav.chave];
+      return (min && nav.motorVersao && nav.motorVersao < min) ? { minimo: min, nav: nav } : null;
+    }
+    function rotuloNav(nav) { return (nav.nome || L('navegador', 'browser')) + (nav.versao ? ' ' + nav.versao : '') + (nav.sistema ? ' · ' + nav.sistema + (nav.sistemaVersao ? ' ' + nav.sistemaVersao : '') : ''); }
+
+    /* ---- camada 1: sem isto o app não roda (decidido por recurso, nunca pela versão) ---- */
+    /* só o que impede o app de rodar bloqueia a tela. Guardar dados (IndexedDB/localStorage) NÃO bloqueia:
+       some na aba anônima de alguns navegadores e com cookies bloqueados, e o app ainda abre (só não guarda) */
+    function essenciais() {
+      var falta = [], css = false;
+      if (typeof raiz.fetch !== 'function') falta.push('fetch');
+      if (typeof raiz.Promise !== 'function') falta.push('Promise');
+      try { css = !!(raiz.CSS && raiz.CSS.supports && raiz.CSS.supports('--dgo-teste', '0')); } catch (e) {}
+      if (!css) falta.push('css');
+      return falta;
+    }
+    function semGuardar() {
+      var falta = [], idb = null;
+      try { idb = raiz.indexedDB; } catch (e) {}
+      if (!idb) falta.push('indexedDB');
+      try { raiz.localStorage.setItem('dgo:compat:teste', '1'); raiz.localStorage.removeItem('dgo:compat:teste'); } catch (e) { falta.push('localStorage'); }
+      return falta;
+    }
+
+    /* ---- passo a passo para leigo, por ambiente ---- */
+    function passosAtualizar(amb, nav) {
+      if (amb === 'android') return nav && nav.chave === 'samsung'
+        ? [L('Abra a Galaxy Store (ou a Play Store).', 'Open the Galaxy Store (or the Play Store).'), L('Procure "Samsung Internet" e toque em Atualizar.', 'Search for "Samsung Internet" and tap Update.'), L('Se não der, instale o Google Chrome pela Play Store e abra este endereço nele.', 'If that does not work, install Google Chrome from the Play Store and open this address in it.')]
+        : [L('Abra a Play Store.', 'Open the Play Store.'), L('Procure "Chrome" e toque em Atualizar (ou Instalar).', 'Search for "Chrome" and tap Update (or Install).'), L('Abra este endereço no Chrome.', 'Open this address in Chrome.')];
+      if (amb === 'iphone') return [L('Abra Ajustes → Geral → Atualização de Software e instale a mais nova.', 'Open Settings → General → Software Update and install the newest one.'),
+        L('Depois, abra este endereço no Safari.', 'Then open this address in Safari.'), L('iPhone que não atualiza mais: use outro aparelho ou um computador.', 'iPhone that no longer updates: use another device or a computer.')];
+      return [L('Chrome: ⋮ (três pontinhos) → Ajuda → Sobre o Google Chrome. Ele atualiza sozinho; depois toque em Reiniciar.', 'Chrome: ⋮ (three dots) → Help → About Google Chrome. It updates by itself; then click Relaunch.'),
+        L('Edge: ··· → Ajuda e comentários → Sobre o Microsoft Edge. Firefox: ☰ → Ajuda → Sobre o Firefox.', 'Edge: ··· → Help and feedback → About Microsoft Edge. Firefox: ☰ → Help → About Firefox.'),
+        L('Sem nenhum desses? Instale o Chrome (google.com/chrome), o Edge ou o Firefox e abra este endereço nele.', 'None of these? Install Chrome (google.com/chrome), Edge or Firefox and open this address in it.')];
+    }
+    function passosSairDoApp(appNome, amb) {
+      var p = [L('Toque nos ⋯ (três pontinhos) ou no ícone de compartilhar, no canto de cima ou de baixo.', 'Tap the ⋯ (three dots) or the share icon, in the top or bottom corner.'),
+        amb === 'iphone' ? L('Escolha "Abrir no Safari" (ou "Abrir no navegador").', 'Choose "Open in Safari" (or "Open in browser").')
+                         : L('Escolha "Abrir no Chrome" (ou "Abrir no navegador").', 'Choose "Open in Chrome" (or "Open in browser").'),
+        L('Não achou? Toque em "Copiar endereço" aqui embaixo e cole no Chrome ou no Safari.', 'Cannot find it? Tap "Copy address" below and paste it in Chrome or Safari.')];
+      if (appNome === 'WhatsApp') p[0] = L('No WhatsApp, toque nos ⋯ (ou no ícone da bússola), no canto da tela.', 'In WhatsApp, tap the ⋯ (or the compass icon) in the corner of the screen.');
+      return p;
+    }
+    function passosLiberar(id, amb) {
+      var R = nomeDe(id, true);
+      if (amb === 'android') return [L('Toque no ícone à esquerda do endereço, lá em cima (cadeado 🔒 ou ajustes).', 'Tap the icon to the left of the address at the top (padlock 🔒 or settings).'),
+        L('Toque em Permissões (ou "Configurações do site").', 'Tap Permissions (or "Site settings").'), L('Em ' + R + ', escolha Permitir.', 'Under ' + R + ', choose Allow.'),
+        L('Volte e toque de novo no botão. Ainda bloqueado? Configurações do celular → Apps → Chrome → Permissões → ' + R + ' → Permitir.', 'Go back and tap the button again. Still blocked? Phone Settings → Apps → Chrome → Permissions → ' + R + ' → Allow.')];
+      if (amb === 'iphone') {
+        if (id === 'notificacoes') return [L('No iPhone, os avisos só chegam com o app na Tela de Início: Safari → Compartilhar ⬆ → Adicionar à Tela de Início.', 'On iPhone, notifications only arrive with the app on the Home Screen: Safari → Share ⬆ → Add to Home Screen.'),
+          L('Abra o app pelo ícone novo e toque de novo em ativar os avisos.', 'Open the app from the new icon and tap to turn on notifications again.'), L('Se continuar bloqueado: Ajustes → Notificações → o app → Permitir.', 'If still blocked: Settings → Notifications → the app → Allow.')];
+        if (id === 'localizacao') return [L('Abra Ajustes → Privacidade e Segurança → Serviços de Localização e deixe ligado.', 'Open Settings → Privacy & Security → Location Services and keep it on.'),
+          L('Na mesma tela, toque em Safari (Sites do Safari) → "Ao Usar o App".', 'On the same screen, tap Safari (Safari Websites) → "While Using the App".'), L('Volte e recarregue a página.', 'Go back and reload the page.')];
+        return [L('Toque em aA (ou no ícone à esquerda do endereço).', 'Tap aA (or the icon to the left of the address).'), L('Toque em Ajustes do Site.', 'Tap Website Settings.'),
+          L('Em ' + R + ', escolha Permitir.', 'Under ' + R + ', choose Allow.'),
+          L('Não resolveu? Ajustes do iPhone → Apps → Safari → ' + R + ' → Permitir. Depois recarregue a página.', 'Did not work? iPhone Settings → Apps → Safari → ' + R + ' → Allow. Then reload the page.')];
+      }
+      return [L('Clique no ícone à esquerda do endereço (cadeado 🔒 ou ajustes).', 'Click the icon to the left of the address (padlock 🔒 or settings).'),
+        L('Em ' + R + ', escolha Permitir.', 'Under ' + R + ', choose Allow.'), L('Recarregue a página (tecla F5).', 'Reload the page (F5 key).'),
+        L('Ainda bloqueado? Windows: Configurações → Privacidade e segurança → ' + R + ' → ligado para o navegador. Mac: Ajustes do Sistema → Privacidade e Segurança → ' + R + ' → ligue o navegador.',
+          'Still blocked? Windows: Settings → Privacy & security → ' + R + ' → on for the browser. Mac: System Settings → Privacy & Security → ' + R + ' → turn the browser on.')];
+    }
+    var AMBIENTES = [['android', ['Android (Chrome, Samsung)', 'Android (Chrome, Samsung)']], ['iphone', ['iPhone e iPad (Safari)', 'iPhone and iPad (Safari)']], ['computador', ['Computador (Chrome, Edge, Firefox)', 'Computer (Chrome, Edge, Firefox)']]];
+    /* o ambiente desta pessoa aberto primeiro; os outros recolhidos (alguém pode estar ajudando por telefone) */
+    function blocoPassos(fn, amb, estilo) {
+      var caixa = el('div');
+      var ordem = AMBIENTES.slice().sort(function (a, b) { return (a[0] === amb ? 0 : 1) - (b[0] === amb ? 0 : 1); });
+      ordem.forEach(function (a) {
+        var ol = el('ol', estilo ? { style: estilo } : null, fn(a[0]).map(function (p) { return el('li', { texto: p }); }));
+        var det = el('details', a[0] === amb ? { open: '' } : null, [el('summary', { texto: (a[0] === amb ? '👉 ' : '') + (en() ? a[1][1] : a[1][0]) }), ol]);
+        caixa.appendChild(det);
+      });
+      return caixa;
+    }
+    function botaoCopiar(estilo) {
+      var b = el('button', { type: 'button', class: estilo || '', texto: L('Copiar endereço', 'Copy address') });
+      b.addEventListener('click', function () {
+        var u = raiz.location.href, feito = function () { b.textContent = L('✓ Copiado', '✓ Copied'); };
+        try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(u).then(feito, function () { raiz.prompt(L('Copie o endereço:', 'Copy the address:'), u); }); return; } } catch (e) {}
+        raiz.prompt(L('Copie o endereço:', 'Copy the address:'), u);
+      });
+      return b;
+    }
+
+    /* ---- tela cheia: "Este navegador é antigo demais" (só DOM, sem Promise nem fetch) ---- */
+    function mostrarBloqueio(falta) {
+      if (d.getElementById('dgo-compat-bloqueio')) return;
+      var nav = navegador(), amb = ambiente(nav), soDados = falta.length === 1 && falta[0] === 'localStorage';
+      var cx = 'max-width:40rem;margin:0 auto;padding:1.4rem 1.1rem 3rem;font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;';
+      var t1 = soDados ? L('O navegador está bloqueando este site', 'The browser is blocking this site') : L('Este navegador é antigo demais', 'This browser is too old');
+      var corpo = el('div', { style: { cssText: cx } }, [
+        el('h1', { style: { cssText: 'font-size:1.6rem;margin:0 0 .6rem;line-height:1.25;' }, texto: '⚠️ ' + t1 }),
+        el('p', { texto: soDados
+          ? L('O ' + nomeApp() + ' precisa guardar as suas preferências neste aparelho, e o navegador não está deixando (cookies e dados de sites bloqueados, ou janela anônima).',
+              nomeApp() + ' needs to save your preferences on this device, and the browser is not allowing it (cookies and site data blocked, or a private window).')
+          : L('O ' + nomeApp() + ' precisa de recursos que este navegador não tem. Nada foi perdido: é só abrir num navegador atualizado.',
+              nomeApp() + ' needs features this browser does not have. Nothing was lost: just open it in an up-to-date browser.') }),
+        el('p', { style: { cssText: 'background:#f1f5f9;border-radius:10px;padding:.6rem .8rem;' }, texto: L('Detectado: ', 'Detected: ') + rotuloNav(nav) + (nav.dentroDeApp ? L(' (dentro do ', ' (inside ') + nav.dentroDeApp + ')' : '') }),
+        el('p', { texto: L('O que falta:', 'What is missing:') }),
+        el('ul', {}, falta.map(function (f) { var n = ESSENCIAIS[f] || [f, f]; return el('li', { texto: (en() ? n[1] : n[0]) + ' (' + f + ')' }); })),
+        el('h2', { style: { cssText: 'font-size:1.15rem;margin:1.2rem 0 .3rem;' }, texto: L('Como resolver', 'How to fix it') })
+      ]);
+      if (nav.dentroDeApp) corpo.appendChild(el('p', { style: { cssText: 'font-weight:700;' }, texto: L('Primeiro: você abriu pelo ' + nav.dentroDeApp + '. Abra no navegador (Chrome ou Safari):', 'First: you opened it from ' + nav.dentroDeApp + '. Open it in the browser (Chrome or Safari):') }));
+      if (nav.dentroDeApp) corpo.appendChild(el('ol', {}, passosSairDoApp(nav.dentroDeApp, amb).map(function (p) { return el('li', { texto: p }); })));
+      if (soDados) corpo.appendChild(el('ol', {}, [
+        el('li', { texto: L('Se for janela anônima, abra numa janela normal.', 'If this is a private window, open a normal one.') }),
+        el('li', { texto: L('Chrome: ⋮ → Configurações → Privacidade e segurança → Cookies e dados de sites → permitir para este site.', 'Chrome: ⋮ → Settings → Privacy and security → Cookies and site data → allow for this site.') }),
+        el('li', { texto: L('iPhone: Ajustes → Apps → Safari → desligue "Bloquear Todos os Cookies".', 'iPhone: Settings → Apps → Safari → turn off "Block All Cookies".') }),
+        el('li', { texto: L('Depois, recarregue a página.', 'Then reload the page.') })]));
+      else corpo.appendChild(blocoPassos(function (a) { return passosAtualizar(a, nav); }, amb));
+      var mn = minimos();
+      corpo.appendChild(el('p', { style: { cssText: 'margin-top:1rem;color:#334155;' }, texto: L('Funciona em: Chrome, Edge ou Firefox ' + mn.chrome + ' ou mais novo; Safari ' + mn.safari + ' ou mais novo (iPhone com iOS ' + mn.safari + '+); Samsung Internet ' + mn.samsung + ' ou mais novo.',
+        'Works on: Chrome, Edge or Firefox ' + mn.chrome + ' or newer; Safari ' + mn.safari + ' or newer (iPhone with iOS ' + mn.safari + '+); Samsung Internet ' + mn.samsung + ' or newer.') }));
+      corpo.appendChild(el('p', { style: { cssText: 'word-break:break-all;color:#334155;' }, texto: L('Endereço: ', 'Address: ') + raiz.location.href }));
+      var tela = el('div', { id: 'dgo-compat-bloqueio', role: 'alertdialog', 'aria-modal': 'true', 'aria-label': t1, 'data-dgo-ui': '1',
+        style: { cssText: 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:#ffffff;overflow:auto;-webkit-overflow-scrolling:touch;' } }, [corpo]);
+      (d.body || d.documentElement).appendChild(tela);
+      try { d.documentElement.style.overflow = 'hidden'; } catch (e) {}
+    }
+
+    /* ---- camada 2: faixa fechável (versão antiga ou dentro de outro app) ---- */
+    function fechadaRecente(chave) {
+      var f = Guardar.ler('compat:faixa-fechada', {}, true) || {};
+      return f[chave] && (Date.now() - f[chave]) < 7 * 864e5;      /* fechou: volta depois de 7 dias */
+    }
+    function marcarFechada(chave) { var f = Guardar.ler('compat:faixa-fechada', {}, true) || {}; f[chave] = Date.now(); Guardar.gravar('compat:faixa-fechada', f, true); }
+    function mostrarFaixa() {
+      var velha = d.getElementById('dgo-compat-faixa'); if (velha) velha.parentNode.removeChild(velha);
+      if (cfg.compat && cfg.compat.aviso === false) return null;
+      var nav = navegador(), amb = ambiente(nav), tipo, chave, titulo, frase, passos;
+      var dz = desatualizado(nav), sg = semGuardar();
+      if (sg.length) {
+        tipo = 'guardar'; chave = 'guardar:' + sg.join(',');
+        titulo = L('Este navegador não deixa guardar dados', 'This browser does not let the app save data');
+        frase = L('Parece aba anônima ou cookies bloqueados. O ' + nomeApp() + ' abre, mas nada do que você fizer fica guardado neste aparelho.', 'It looks like a private tab or blocked cookies. ' + nomeApp() + ' opens, but nothing you do is kept on this device.');
+        passos = [L('Abra em uma aba normal (não anônima).', 'Open it in a normal (not private) tab.'), L('Nas configurações do navegador, permita cookies e dados de sites para este endereço.', 'In the browser settings, allow cookies and site data for this address.')];
+      } else if (nav.dentroDeApp) {
+        tipo = 'dentro'; chave = 'dentro:' + nav.dentroDeApp;
+        titulo = L('Abra no navegador (Chrome/Safari) para tudo funcionar', 'Open in the browser (Chrome/Safari) so everything works');
+        frase = L('Você abriu o ' + nomeApp() + ' por dentro do ' + nav.dentroDeApp + '. Por ali, entrar, guardar dados e instalar o app podem falhar.', 'You opened ' + nomeApp() + ' inside ' + nav.dentroDeApp + '. In there, signing in, saving data and installing the app may fail.');
+        passos = passosSairDoApp(nav.dentroDeApp, amb);
+      } else if (dz) {
+        tipo = 'versao'; chave = 'versao:' + nav.chave + ':' + nav.motorVersao;
+        titulo = L('Seu navegador está desatualizado', 'Your browser is out of date');
+        frase = L('Detectado: ' + rotuloNav(nav) + '. O recomendado é ' + (nav.chave === 'safari' && (amb === 'iphone') ? 'iOS ' : nav.nome + ' ') + dz.minimo + ' ou mais novo. Algumas partes podem falhar até atualizar.',
+                  'Detected: ' + rotuloNav(nav) + '. Recommended: ' + (nav.chave === 'safari' && (amb === 'iphone') ? 'iOS ' : nav.nome + ' ') + dz.minimo + ' or newer. Some parts may fail until you update.');
+        passos = passosAtualizar(amb, nav);
+      } else return null;
+      if (fechadaRecente(chave)) return null;
+      var lista = el('ol', { hidden: '' }, passos.map(function (p) { return el('li', { texto: p }); }));
+      var bts = el('div', { class: 'dgo-cf-bts' });
+      var como = el('button', { type: 'button', 'aria-expanded': 'false', texto: L('Como fazer', 'How to') });
+      como.addEventListener('click', function () { var ab = lista.hasAttribute('hidden'); if (ab) lista.removeAttribute('hidden'); else lista.setAttribute('hidden', ''); como.setAttribute('aria-expanded', ab ? 'true' : 'false'); });
+      bts.appendChild(como);
+      if (tipo === 'dentro') {
+        if (amb === 'android') {
+          /* no Android, este link pede ao sistema para abrir o mesmo endereço no Chrome */
+          var u = raiz.location.href.replace(/^https?:\/\//, '');
+          bts.appendChild(el('a', { class: 'dgo-cf-bt', href: 'intent://' + u + '#Intent;scheme=' + (raiz.location.protocol === 'http:' ? 'http' : 'https') + ';package=com.android.chrome;end', texto: L('Abrir no Chrome', 'Open in Chrome') }));
+        }
+        bts.appendChild(botaoCopiar());
+      }
+      var fechar = el('button', { type: 'button', 'aria-label': L('Fechar aviso', 'Close notice'), title: L('Fechar aviso', 'Close notice'), texto: '×' });
+      var faixa = el('div', { id: 'dgo-compat-faixa', class: 'dgo-compat-faixa', role: 'region', 'aria-label': titulo, 'data-dgo-ui': '1', 'data-tipo': tipo }, [
+        el('div', { class: 'dgo-cf-linha' }, [el('span', { 'aria-hidden': 'true', texto: tipo === 'dentro' ? '🌐' : '⚠️' }),
+          el('div', { class: 'dgo-cf-tx' }, [el('b', { texto: titulo }), el('span', { texto: frase }), lista, bts]), fechar])]);
+      fechar.addEventListener('click', function () { marcarFechada(chave); if (faixa.parentNode) faixa.parentNode.removeChild(faixa); });
+      d.body.appendChild(faixa);
+      return faixa;
+    }
+
+    /* ---- verificar: o que o aparelho tem, sem pedir permissão nenhuma ---- */
+    function permissao(nome) {
+      var P = navigator.permissions, p;
+      if (!P || !P.query) return Promise.resolve(null);
+      try { p = P.query({ name: nome }); } catch (e) { return Promise.resolve(null); }   /* nome que o navegador não conhece */
+      return comPrazo(p.then(function (s) { return s && s.state; }), 1500, null);
+    }
+    function midia(nome, tipo) {
+      var md = navigator.mediaDevices;
+      if (!md || !md.getUserMedia) return Promise.resolve('sem-suporte');
+      var lista = md.enumerateDevices ? comPrazo(md.enumerateDevices(), 1500, null) : Promise.resolve(null);
+      return Promise.all([permissao(nome), lista]).then(function (x) {
+        var st = x[0], ap = x[1] || [];
+        if (st === 'denied') return 'bloqueado';
+        /* lista sem nenhum aparelho desse tipo (mas com outros) = o aparelho não tem */
+        if (ap.length && !ap.some(function (a) { return a.kind === tipo; })) return 'sem-suporte';
+        return (st === 'granted' || st === 'prompt') ? 'ok' : 'desconhecido';
+      });
+    }
+    function verificar() {
+      var sg = semGuardar();
+      var r = { navegador: navegador(), essenciais: essenciais(), semGuardar: sg };
+      r.desatualizado = !!desatualizado(r.navegador);
+      var lsOk = sg.indexOf('localStorage') === -1;
+      r.indexedDB = sg.indexOf('indexedDB') === -1 ? 'ok' : 'sem-suporte';
+      r.armazenamento = lsOk ? 'ok' : 'bloqueado';
+      r.wakeLock = ('wakeLock' in navigator) ? 'ok' : 'sem-suporte';
+      r.som = (raiz.AudioContext || raiz.webkitAudioContext || raiz.Audio) ? 'ok' : 'sem-suporte';
+      r.vibracao = typeof navigator.vibrate === 'function' ? 'ok' : 'sem-suporte';
+      r.lerEmVoz = ('speechSynthesis' in raiz) ? 'ok' : 'sem-suporte';
+      r.ditado = (raiz.SpeechRecognition || raiz.webkitSpeechRecognition) ? 'ok' : 'sem-suporte';
+      var np = Notif.permissao();
+      r.notificacoes = np === 'denied' ? 'bloqueado' : (np === 'sem-suporte' || Notif.precisaInstalar()) ? 'sem-suporte' : 'ok';
+      if (typeof raiz.Promise !== 'function') return null;
+      var est = (navigator.storage && navigator.storage.estimate) ? comPrazo(navigator.storage.estimate(), 1500, null) : Promise.resolve(null);
+      var geo = ('geolocation' in navigator) ? permissao('geolocation').then(function (s) { return s === 'denied' ? 'bloqueado' : (s === 'granted' || s === 'prompt') ? 'ok' : 'desconhecido'; }) : Promise.resolve('sem-suporte');
+      return Promise.all([midia('camera', 'videoinput'), midia('microphone', 'audioinput'), geo, est]).then(function (x) {
+        r.camera = x[0]; r.microfone = x[1]; r.localizacao = x[2];
+        var e = x[3], MB = 1048576;
+        r.espaco = e && e.quota ? { usadoMB: Math.round((e.usage || 0) / MB), livreMB: Math.max(0, Math.round((e.quota - (e.usage || 0)) / MB)), estado: 'ok' } : { usadoMB: null, livreMB: null, estado: 'desconhecido' };
+        r.espaco.pouco = r.espaco.livreMB !== null && r.espaco.livreMB < 100;   /* menos de 100 MB: foto, voz e cópia offline podem falhar */
+        return r;
+      });
+    }
+    /* o que o app usa: o que o config disser; senão, o que o módulo sabe que este app liga */
+    function usa() {
+      if (cfg.compat && Array.isArray(cfg.compat.usa)) return cfg.compat.usa.slice();
+      var l = ['indexedDB', 'armazenamento', 'espaco'];
+      if (cfg.ocr && cfg.ocr.ativo) l.unshift('camera');
+      if (cfg.notificacoes && cfg.notificacoes.ativo) l.push('notificacoes');
+      return l;
+    }
+    function falta(id, r) { return id === 'espaco' ? !!(r.espaco && r.espaco.pouco) : (r[id] === 'bloqueado' || r[id] === 'sem-suporte'); }
+    function faltando(r) { return r ? usa().filter(function (id) { return falta(id, r); }) : []; }
+
+    /* ---- exigir: antes de usar, e só se faltar abre o aviso curto com o motivo e como liberar ---- */
+    function exigir(id, opcoes) {
+      opcoes = opcoes || {};
+      var v = verificar();
+      if (!v) return Promise.resolve(true);
+      return v.then(function (r) {
+        if (!falta(id, r)) return true;
+        return explicar(id, opcoes, r).then(function () { return false; });
+      }, function () { return true; });    /* sem como conferir: deixa tentar (o próprio navegador pergunta) */
+    }
+    function explicar(id, opcoes, r) {
+      opcoes = opcoes || {};
+      return new Promise(function (ok) {
+        var antes = d.getElementById('dgo-compat-janela'); if (antes) antes.parentNode.removeChild(antes);
+        var st = r ? (id === 'espaco' ? 'pouco' : r[id]) : 'bloqueado', nav = (r && r.navegador) || navegador(), amb = ambiente(nav);
+        var nome = nomeDe(id), icone = (NOMES[id] || [])[4] || '⚠️';
+        var titulo = st === 'bloqueado' ? L('O acesso a ' + nome + ' está bloqueado', 'Access to ' + nome + ' is blocked')
+          : st === 'pouco' ? L('Pouco espaço livre neste aparelho', 'Little free space on this device')
+          : st === 'sem-suporte' ? L('Este aparelho ou navegador não oferece ' + nome, 'This device or browser does not offer ' + nome)
+          : L('Como liberar ' + nome, 'How to allow ' + nome);      /* chamado por fora (ex.: o app viu um erro): mostra o caminho */
+        if (st !== 'sem-suporte' && st !== 'pouco') st = 'bloqueado';
+        var caixa = el('div', { class: 'dgo-caixa' }, [el('h2', { texto: icone + ' ' + titulo })]);
+        if (opcoes.motivo) caixa.appendChild(el('p', { texto: texto(opcoes.motivo) }));
+        if (st === 'bloqueado') { caixa.appendChild(el('h3', { texto: L('Como liberar', 'How to allow it') })); caixa.appendChild(blocoPassos(function (a) { return passosLiberar(id, a); }, amb)); }
+        else if (st === 'pouco') caixa.appendChild(el('p', { texto: L('Restam ' + r.espaco.livreMB + ' MB. Apague fotos, vídeos ou apps que não usa e tente de novo.', r.espaco.livreMB + ' MB left. Delete photos, videos or apps you do not use and try again.') }));
+        else if (id === 'notificacoes' && amb === 'iphone') caixa.appendChild(blocoPassos(function (a) { return passosLiberar(id, a); }, amb));
+        else caixa.appendChild(el('p', { texto: nav.dentroDeApp
+          ? L('Você abriu por dentro do ' + nav.dentroDeApp + ', que não deixa usar isto. Abra no Chrome ou no Safari.', 'You opened it inside ' + nav.dentroDeApp + ', which does not allow this. Open it in Chrome or Safari.')
+          : L('Use outro aparelho, ou abra este endereço no Chrome ou no Safari atualizado.', 'Use another device, or open this address in an up-to-date Chrome or Safari.') }));
+        var ent = el('button', { class: 'dgo-b', type: 'button', texto: L('Entendi', 'Got it') });
+        caixa.appendChild(ent);
+        var jan = el('div', { id: 'dgo-compat-janela', class: 'dgo-compat-janela', role: 'alertdialog', 'aria-modal': 'true', 'aria-label': titulo, 'data-dgo-ui': '1', 'data-recurso-faltando': id }, [caixa]);
+        function fechar() { d.removeEventListener('keydown', esc, true); if (jan.parentNode) jan.parentNode.removeChild(jan); ok(); }
+        function esc(e) { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } }
+        ent.addEventListener('click', fechar);
+        jan.addEventListener('click', function (e) { if (e.target === jan) fechar(); });
+        d.addEventListener('keydown', esc, true);
+        d.body.appendChild(jan);
+        try { ent.focus(); } catch (e) {}
+      });
+    }
+
+    /* ---- quadro "O seu aparelho" (Configurações do módulo): só aparece quando falta algo ---- */
+    function quadro(dest) {
+      var v = verificar(); if (!v) return;
+      v.then(function (r) {
+        var f = faltando(r), dz = desatualizado(r.navegador);
+        if (!f.length && !dz && !r.navegador.dentroDeApp) return;
+        var ul = el('ul');
+        usa().forEach(function (id) {
+          var ruim = falta(id, r), st = id === 'espaco' ? (r.espaco.pouco ? 'pouco' : r.espaco.estado) : r[id];
+          var li = el('li', { texto: (ruim ? (st === 'bloqueado' ? '⚠️ ' : '❌ ') : '✅ ') + nomeDe(id, true) + ' — ' +
+            (st === 'ok' ? 'ok' : st === 'bloqueado' ? L('bloqueado', 'blocked') : st === 'sem-suporte' ? L('não disponível', 'not available') : st === 'pouco' ? L('pouco espaço', 'low space') : L('não deu para saber', 'unknown')) });
+          if (ruim) { var b = el('button', { type: 'button', class: 'dgo-b dgo-b2', style: { width: 'auto', minHeight: '36px', marginLeft: '8px', padding: '4px 10px' }, texto: L('Como resolver', 'How to fix') });
+            b.addEventListener('click', function () { explicar(id, {}, r); }); li.appendChild(b); }
+          ul.appendChild(li);
+        });
+        var caixa = el('div', { class: 'dgo-compat-quadro', 'data-dgo-ui': '1' }, [el('h3', { style: { marginTop: '0' }, texto: L('O seu aparelho', 'Your device') }), ul,
+          el('div', { class: 'dgo-mini', texto: L('Programas: ', 'Software: ') + rotuloNav(r.navegador) + (dz ? L(' · recomendado ', ' · recommended ') + dz.minimo + L(' ou mais novo', ' or newer') : '') +
+            (r.navegador.dentroDeApp ? L(' · aberto dentro do ', ' · opened inside ') + r.navegador.dentroDeApp : '') })]);
+        if (dz || r.navegador.dentroDeApp) caixa.appendChild(blocoPassos(function (a) { return r.navegador.dentroDeApp ? passosSairDoApp(r.navegador.dentroDeApp, a) : passosAtualizar(a, r.navegador); }, ambiente(r.navegador)));
+        dest.appendChild(caixa);
+      });
+    }
+
+    return { navegador: navegador, ambiente: ambiente, minimos: minimos, desatualizado: desatualizado, essenciais: essenciais, semGuardar: semGuardar, verificar: verificar,
+      usa: usa, faltando: faltando, exigir: exigir, explicar: explicar, quadro: quadro, mostrarBloqueio: mostrarBloqueio, mostrarFaixa: mostrarFaixa,
+      MINIMOS_PADRAO: MINIMOS_PADRAO };
+  })();
+
+  /* ------------------------------------------------------------------
      21. API PUBLICA
      ------------------------------------------------------------------ */
+
+  /* ------------------------------------------------------------------
+     CENTRAL: arquivos master do RootifyONE (recursos e conteudo por app)
+     O RootifyONE publica recursos/<app>.json e conteudo/<app>.json no
+     repositorio solverone-dados (mesma origem). Aqui o app le com rede
+     primeiro (no-cache, 4 s) e cai para a copia guardada; global e app
+     sao juntados (o app vence). Nada disso trava o app: sem arquivo,
+     valem os padroes do codigo.
+       DGO.recursos.ligado('videos-youtube', true)
+       DGO.recursos.valor('descanso.padraoSeg', 60)
+       DGO.conteudo.colecao('equipamentos')  -> { campos, itens } | null
+       DGO.conteudo.item('equipamentos', 'leg-press')
+       evento 'dgo:central' quando algo novo chegou da rede
+     ------------------------------------------------------------------ */
+  var Central = {
+    _mem: {},
+    base: function () { var b = cfg.fonteCentral; return b ? (b.charAt(b.length - 1) === '/' ? b : b + '/') : ''; },
+    ativo: function () { return !!Central.base(); },
+    _chave: function (nome) { return 'central:' + nome; },
+    guardado: function (nome) { return Central._mem[nome] || Guardar.ler(Central._chave(nome), null, true); },
+    ler: function (nome) {
+      if (!Central.ativo()) return Promise.resolve(Central.guardado(nome));
+      var ctrl = raiz.AbortController ? new AbortController() : null, prazo = setTimeout(function () { if (ctrl) ctrl.abort(); }, 4000);
+      return fetch(Central.base() + nome, { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined }).then(function (r) {
+        clearTimeout(prazo);
+        if (r.status === 404) { return null; }
+        if (!r.ok) throw new Error('http-' + r.status);
+        return r.json();
+      }).then(function (j) {
+        var antes = JSON.stringify(Central.guardado(nome) || null);
+        if (j) { Central._mem[nome] = j; Guardar.gravar(Central._chave(nome), j, true); }
+        if (j && antes !== JSON.stringify(j)) { try { d.dispatchEvent(new CustomEvent('dgo:central', { detail: { arquivo: nome } })); } catch (e) {} }
+        return j || Central.guardado(nome);
+      }).catch(function () { clearTimeout(prazo); return Central.guardado(nome); });
+    },
+    /* baixa os quatro arquivos do app (global + proprio) uma vez ao abrir */
+    atualizar: function () {
+      if (!Central.ativo()) return Promise.resolve();
+      var nomes = ['recursos/global.json', 'recursos/' + cfg.app + '.json', 'conteudo/global.json', 'conteudo/' + cfg.app + '.json'];
+      return Promise.all(nomes.map(function (n) { return Central.ler(n); }));
+    },
+    recursos: function () {
+      var g = Central.guardado('recursos/global.json') || {}, a = Central.guardado('recursos/' + cfg.app + '.json') || {};
+      return { recursos: Object.assign({}, g.recursos || {}, a.recursos || {}), comportamentos: Object.assign({}, g.comportamentos || {}, a.comportamentos || {}) };
+    },
+    ligado: function (id, padrao) { var r = Central.recursos().recursos[id]; return r && typeof r.ligado === 'boolean' ? r.ligado : (padrao !== false); },
+    valor: function (id, padrao) { var c = Central.recursos().comportamentos; return c[id] === undefined ? padrao : c[id]; },
+    colecao: function (id) {
+      var a = Central.guardado('conteudo/' + cfg.app + '.json'), g = Central.guardado('conteudo/global.json');
+      return (a && a.colecoes && a.colecoes[id]) || (g && g.colecoes && g.colecoes[id]) || null;
+    },
+    item: function (colecao, id) { var c = Central.colecao(colecao); return c ? (c.itens || []).filter(function (i) { return i.id === id; })[0] || null : null; },
+    /* texto PT/EN de um item no idioma atual */
+    texto: function (v) { if (!v) return ''; if (typeof v === 'string') return v; return v[Idioma.atual] || v.pt || v.en || ''; }
+  };
+
+  /* ------------------------------------------------------------------
+     Interruptores (Controle dos apps no RootifyONE): vale para QUALQUER recurso publicado.
+     Por que existe: o dono desliga uma coisa no RootifyONE e ela tem que sumir do app sem
+     ninguém mexer no código. O app só precisa marcar o elemento:
+       <button data-recurso="assistone">…</button>        (vários: data-recurso="ia voz")
+     Desligado no RootifyONE → o elemento some (regra de CSS, vale para o que aparecer depois).
+     No código: DGO.recursos.ligado('id', padrao) e DGO.recursos.valor('id', padrao);
+     DGO.recursos.aoMudar(fn) avisa quando chegou arquivo novo (o app relê e redesenha).
+     O app declara o que obedece em recursos-do-app.json (na raiz do site) para o RootifyONE
+     mostrar "quem obedece". Sem rede, vale a última cópia guardada; sem cópia, o padrão do código.
+     Id reservado "app": desligado = o app inteiro em manutenção (ver Manutencao, logo abaixo).
+     ------------------------------------------------------------------ */
+  var Interruptores = {
+    _estilo: null, _ouvintes: [], _ultima: 0,
+    desligados: function () {
+      var r = Central.recursos().recursos;
+      return Object.keys(r).filter(function (k) { return /^[a-z0-9._-]+$/i.test(k) && r[k] && r[k].ligado === false; });
+    },
+    aplicar: function () {
+      var off = Interruptores.desligados();
+      try {
+        if (!Interruptores._estilo || !Interruptores._estilo.parentNode) {
+          Interruptores._estilo = d.createElement('style'); Interruptores._estilo.id = 'dgo-interruptores';
+          (d.head || d.documentElement).appendChild(Interruptores._estilo);
+        }
+        Interruptores._estilo.textContent = off.length ? off.map(function (id) { return '[data-recurso~="' + id + '"]'; }).join(',') + '{display:none !important}' : '';
+        d.documentElement.setAttribute('data-dgo-desligados', off.join(' '));
+      } catch (e) {}
+      try { Manutencao.conferir(off); } catch (e2) {}
+      return off;
+    },
+    avisar: function () { var off = Interruptores.aplicar(); Interruptores._ouvintes.slice().forEach(function (fn) { try { fn(off); } catch (e) {} }); },
+    /* relê os arquivos ao voltar para o app (no máximo a cada 5 min), para mudança publicada chegar sem fechar */
+    vigiar: function () {
+      Interruptores._ultima = Date.now();
+      d.addEventListener('dgo:central', function () { Interruptores.avisar(); });
+      d.addEventListener('visibilitychange', function () {
+        if (d.visibilityState !== 'visible' || Date.now() - Interruptores._ultima < 300000) return;
+        Interruptores._ultima = Date.now();
+        Central.atualizar();
+      });
+      Interruptores.aplicar();
+    }
+  };
+
+  /* ------------------------------------------------------------------
+     Manutenção — "Desligar o app inteiro" (Modo DEUS do RootifyONE, 10/Out/2026).
+     Id reservado "app": recurso "app" com ligado:false (no recursos/<app>.json ou no global)
+     → tela cheia "Em manutenção" com a mensagem do comportamento opcional "app.mensagem"
+     ({pt,en} ou texto) e o botão "Tentar de novo" (relê os arquivos na hora).
+     O RootifyONE nunca se bloqueia: cfg.app === 'rootify-one' ou cfg.manutencao === false.
+     ------------------------------------------------------------------ */
+  var Manutencao = {
+    _tela: null,
+    vale: function () { return cfg.app !== 'rootify-one' && cfg.manutencao !== false; },
+    ativa: function (off) { return Manutencao.vale() && (off || Interruptores.desligados()).indexOf('app') !== -1; },
+    conferir: function (off) {
+      if (!Manutencao.ativa(off)) { Manutencao.esconder(); return false; }
+      if (!d.body) { d.addEventListener('DOMContentLoaded', function () { Manutencao.conferir(); }); return true; }
+      Manutencao.mostrar(); return true;
+    },
+    mensagem: function () {
+      var en = Idioma.atual === 'en', v = Central.valor('app.mensagem', null);
+      if (v && typeof v === 'object') v = (en ? v.en : v.pt) || v.pt || v.en || '';
+      return v ? String(v) : (en ? 'We are tuning the app. Please come back in a little while.' : 'Estamos ajustando o app. Volte daqui a pouco.');
+    },
+    mostrar: function () {
+      var en = Idioma.atual === 'en', L = function (pt, e) { return en ? e : pt; };
+      if (Manutencao._tela && Manutencao._tela.parentNode) {          /* já aberta: só atualiza a mensagem */
+        var mx = d.getElementById('dgo-manutencao-msg'); if (mx) mx.textContent = Manutencao.mensagem(); return;
+      }
+      /* o recursos.js carregado antes do módulo pode já ter aberto a dele: fica uma só, a do módulo */
+      var outra = d.getElementById('dgo-manutencao'); if (outra && outra.parentNode) outra.parentNode.removeChild(outra);
+      var nome = typeof cfg.nome === 'object' ? ((en ? cfg.nome.en : cfg.nome.pt) || cfg.nome.pt || '') : (cfg.nome || '');
+      var aviso = el('p', { 'aria-live': 'polite', style: { cssText: 'min-height:1.4em;color:#475569;margin:.8rem 0 0;' } });
+      var bt = el('button', { type: 'button', id: 'dgo-manutencao-tentar', style: { cssText: 'margin-top:1.2rem;min-height:48px;padding:.6rem 1.4rem;font:inherit;font-weight:700;border:0;border-radius:12px;background:' + (cfg.cor || '#0ea5e9') + ';color:#fff;cursor:pointer;' },
+        texto: L('Tentar de novo', 'Try again') });
+      bt.addEventListener('click', function () {
+        bt.disabled = true; bt.textContent = L('Conferindo…', 'Checking…'); aviso.textContent = '';
+        Central.atualizar().then(function () {
+          Interruptores.avisar();
+          if (Manutencao.ativa()) { bt.disabled = false; bt.textContent = L('Tentar de novo', 'Try again'); aviso.textContent = L('Ainda em manutenção. Tente mais tarde.', 'Still under maintenance. Please try later.'); }
+        });
+      });
+      var tela = el('div', { id: 'dgo-manutencao', role: 'alertdialog', 'aria-modal': 'true', 'aria-labelledby': 'dgo-manutencao-tit', 'data-dgo-ui': '1',
+        style: { cssText: 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483646;background:#f8fafc;color:#0f172a;overflow:auto;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;font:17px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;text-align:center;' } }, [
+        el('div', { style: { cssText: 'max-width:32rem;' } }, [
+          el('div', { 'aria-hidden': 'true', style: { cssText: 'font-size:3rem;line-height:1;' }, texto: '🛠️' }),
+          el('h1', { id: 'dgo-manutencao-tit', style: { cssText: 'font-size:1.6rem;margin:.6rem 0;' }, texto: L('Em manutenção', 'Under maintenance') }),
+          nome ? el('p', { style: { cssText: 'font-weight:700;margin:0 0 .4rem;' }, texto: nome }) : null,
+          el('p', { id: 'dgo-manutencao-msg', style: { cssText: 'margin:0;' }, texto: Manutencao.mensagem() }),
+          bt, aviso])]);
+      (d.body || d.documentElement).appendChild(tela);
+      Manutencao._tela = tela;
+      try { d.documentElement.setAttribute('data-dgo-manutencao', '1'); d.documentElement.style.overflow = 'hidden'; } catch (e) {}
+      setTimeout(function () { try { bt.focus(); } catch (e) {} }, 30);
+    },
+    esconder: function () {
+      var outra = d.getElementById('dgo-manutencao');               /* a do recursos.js, se ficou alguma */
+      if (outra && outra !== Manutencao._tela && outra.parentNode) outra.parentNode.removeChild(outra);
+      if (!Manutencao._tela) { if (outra) { try { d.documentElement.removeAttribute('data-dgo-manutencao'); d.documentElement.style.overflow = ''; } catch (e) {} } return; }
+      if (Manutencao._tela.parentNode) Manutencao._tela.remove();
+      Manutencao._tela = null;
+      try { d.documentElement.removeAttribute('data-dgo-manutencao'); d.documentElement.style.overflow = ''; } catch (e) {}
+    }
+  };
+
+  /* ------------------------------------------------------------------
+     Fundo — trabalho demorado em segundo plano (diretriz geral, seção "Trabalho demorado em segundo
+     plano (`Fundo`)"): foto/OCR, IA, importação, exportação, áudio, envio, backup, publicação.
+     Por que existe: a pessoa sai da tela no meio de uma leitura de 20 s e acha que "não funcionou".
+     Aqui o trabalho roda solto da tela e o resultado chega onde ela estiver.
+
+     Uso:
+       DGO.fundo.iniciar({
+         tipo: 'ocr',                         // ocr | foto | ia | importar | exportar | audio | envio | backup | publicar
+         titulo: 'Lendo o comprovante',       // para leigo, já no idioma atual
+         executar: function (andamento, ctrl) { return Promise },  // andamento(0..1 ou 0..100, 'texto'); ctrl.sinal = AbortSignal
+         aoTerminar: function (resultado) {}, // sempre: grava o resultado (a pessoa pode estar em outra tela)
+         aoAbrir: function (resultado) {},    // quando a pessoa toca em "ver" (ou ainda está na tela de origem)
+         aindaNaTela: function () { return true },  // true = abre o resultado no lugar, sem esperar toque
+         rota: '#/tela/de/origem',            // padrão: o endereço de agora; o toque na pílula volta para cá
+         podeCancelar: true
+       })  → devolve a Promise do resultado (cancelar rejeita com e.cancelado = true)
+     Sem `executar`, o trabalho é tocado por fora: DGO.fundo.andamento(id, …), concluir(id, r), falhar(id, erro).
+     Também: cancelar(id), lista(), aoMudar(fn), interrompidos(), aoRetomar(tipo, fn).
+
+     O que o módulo faz sozinho:
+     - segura a tela acesa (Wake Lock) enquanto houver trabalho e solta no fim; sem suporte, a pílula avisa
+     - avisa antes de fechar/recarregar a aba (beforeunload)
+     - pílula com andamento, ✕ para cancelar, "N em andamento" quando há mais de um; toque volta à tela de origem
+     - ao terminar: "✅ … toque para ver"; com o app escondido, notificação (só se a pessoa já permitiu)
+     - se o app declarar cfg.fundo.inbox(trabalho), o que não foi visto em 6 s vai para a Inbox dele
+     - guarda só o resumo (id, tipo, título, rota, horas; nunca o conteúdo) no IndexedDB `dgo:<app>:fundo`:
+       se a aba fechar no meio, na próxima abertura aparece "foi interrompido" (e "Continuar" se o app
+       registrou DGO.fundo.aoRetomar(tipo, fn))
+     - app de loja (Capacitor/TWA): se existir Plataforma.adaptadores.fundo { iniciar(t), parar(t) }, vira
+       serviço em primeiro plano com a notificação fixa do sistema; o resto do código não muda.
+     DGO.tarefa (nome da 1.4.0) continua valendo: é o mesmo Fundo, sem botão de cancelar por padrão.
+     ------------------------------------------------------------------ */
+  var Fundo = (function () {
+    var trabalhos = {}, ordem = [], ouvintes = [], retomar = {};
+    var wake = null, caixa = null, contador = null, batidaRelogio = null, arrancado = false;
+    var ABA = Math.random().toString(36).slice(2), SESSAO = 'dgo:tarefa:ativa', interrompidaAntes = null, daMesmaAba = [];
+    var ICONES = { ocr: '📷', foto: '📷', ia: '✨', importar: '📥', exportar: '📤', envio: '📤', audio: '🎙️', backup: '💾', publicar: '🚀' };
+    var VELHO = 150000;   // 2,5 min sem sinal de vida = aba fechada (aba escondida bate só 1x/min)
+
+    /* compatível com DGO.tarefa.interrompida() da 1.4.0 (vale para recarregar a mesma aba) */
+    try { var m = raiz.sessionStorage.getItem(SESSAO); if (m) { interrompidaAntes = JSON.parse(m); raiz.sessionStorage.removeItem(SESSAO); } } catch (e) {}
+
+    function rodando() { return ordem.filter(function (id) { return trabalhos[id] && trabalhos[id].estado === 'rodando'; }); }
+    function copia(tb) {
+      return { id: tb.id, tipo: tb.tipo, titulo: tb.titulo, estado: tb.estado, andamento: tb.andamento, texto: tb.texto,
+        inicio: tb.inicio, fim: tb.fim, rota: tb.rota, podeCancelar: tb.podeCancelar, resultado: tb.resultado, erro: tb.erro };
+    }
+    function avisar(evento, tb) { var c = copia(tb); ouvintes.slice().forEach(function (fn) { try { fn(evento, c); } catch (e) {} }); }
+
+    /* ---- IndexedDB: só o resumo, para dizer "foi interrompido" depois ---- */
+    var banco = null;
+    function abrirBanco() {
+      if (banco) return banco;
+      banco = new Promise(function (ok) {
+        try {
+          if (!raiz.indexedDB) return ok(null);
+          var r = raiz.indexedDB.open('dgo:' + cfg.app + ':fundo', 1);
+          r.onupgradeneeded = function () { r.result.createObjectStore('trabalhos', { keyPath: 'id' }); };
+          r.onsuccess = function () { ok(r.result); };
+          r.onerror = function () { ok(null); };
+          r.onblocked = function () { ok(null); };
+        } catch (e) { ok(null); }
+      });
+      return banco;
+    }
+    function comLoja(modo, fn) {
+      return abrirBanco().then(function (db) {
+        if (!db) return null;
+        return new Promise(function (ok) {
+          try { var tx = db.transaction('trabalhos', modo); var q = fn(tx.objectStore('trabalhos')); tx.oncomplete = function () { ok(q && q.result); }; tx.onerror = function () { ok(null); }; } catch (e) { ok(null); }
+        });
+      });
+    }
+    function resumo(tb) { return { id: tb.id, tipo: tb.tipo, titulo: tb.titulo, rota: tb.rota, inicio: tb.inicio, aba: ABA, batida: Date.now(), estado: 'rodando' }; }
+    function guardar(tb) { comLoja('readwrite', function (s) { return s.put(resumo(tb)); }); }
+    function esquecer(id) { comLoja('readwrite', function (s) { return s.delete(id); }); }
+    function bater() { rodando().forEach(function (id) { guardar(trabalhos[id]); }); }
+    function chaveAba() { return 'dgo:' + cfg.app + ':fundo:aba'; }
+    function marcarSessao() {
+      try { raiz.sessionStorage.setItem(chaveAba(), JSON.stringify(rodando())); } catch (e) {}
+      try { var r = rodando(); if (r.length) raiz.sessionStorage.setItem(SESSAO, JSON.stringify({ id: r[0], titulo: trabalhos[r[0]].titulo, quando: Date.now() })); else raiz.sessionStorage.removeItem(SESSAO); } catch (e) {}
+    }
+
+    /* ---- tela acesa e aviso ao sair ---- */
+    function aoSair(e) { var r = rodando(); var msg = t('fundoSair').replace('{titulo}', r.length ? trabalhos[r[0]].titulo : ''); e.preventDefault(); e.returnValue = msg; return msg; }
+    function acordar() {
+      if (!('wakeLock' in navigator) || wake || d.visibilityState !== 'visible') return;
+      try { navigator.wakeLock.request('screen').then(function (w) { wake = w; w.addEventListener('release', function () { wake = null; }); }).catch(function () {}); } catch (e) {}
+    }
+    function soltar() { if (wake) { try { wake.release(); } catch (e) {} wake = null; } }
+    d.addEventListener('visibilitychange', function () {
+      if (d.visibilityState !== 'visible') return;
+      if (rodando().length) acordar();
+      ordem.forEach(function (id) { var tb = trabalhos[id]; if (tb && tb.estado === 'feito' && tb.esperandoVer) vigiarVisto(tb); });
+    });
+    function nativo() { return (Plataforma.adaptadores && Plataforma.adaptadores.fundo) || null; }
+    function ligar(tb) {
+      if (rodando().length === 1) {
+        raiz.addEventListener('beforeunload', aoSair); acordar();
+        batidaRelogio = raiz.setInterval(bater, 20000);
+      }
+      var n = nativo(); if (n && n.iniciar) { try { n.iniciar(copia(tb)); } catch (e) {} }
+      marcarSessao(); guardar(tb); contar();
+    }
+    function desligar(tb) {
+      tb.fim = Date.now(); marcarSessao(); esquecer(tb.id);
+      var n = nativo(); if (n && n.parar) { try { n.parar(copia(tb)); } catch (e) {} }
+      if (!rodando().length) { raiz.removeEventListener('beforeunload', aoSair); soltar(); if (batidaRelogio) { raiz.clearInterval(batidaRelogio); batidaRelogio = null; } }
+      contar();
+    }
+
+    /* ---- pílula ---- */
+    function container() {
+      if (!caixa || !caixa.parentNode) {
+        caixa = el('div', { class: 'dgo-tarefas' }); caixa.setAttribute('data-dgo-ui', '1'); caixa.setAttribute('aria-live', 'polite');
+        contador = el('div', { class: 'dgo-tarefas-conta' }); contador.style.display = 'none'; caixa.appendChild(contador);
+        d.body.appendChild(caixa);
+      }
+      return caixa;
+    }
+    function contar() { if (!contador) return; var n = rodando().length; contador.style.display = n > 1 ? '' : 'none'; contador.textContent = t('fundoVarios').replace('{n}', n); }
+    function tirar(tb) { if (tb.ui && tb.ui.el.parentNode) tb.ui.el.remove(); if (tb.estado !== 'rodando') { delete trabalhos[tb.id]; ordem = ordem.filter(function (i) { return i !== tb.id; }); } contar(); }
+    function irPara(rota) { try { if (rota && rota.charAt(0) === '#' && raiz.location.hash !== rota) raiz.location.hash = rota; } catch (e) {} }
+    function pilula(tb) {
+      var p = el('div', { class: 'dgo-tarefa', role: 'status' });
+      p.appendChild(el('i', { texto: ICONES[tb.tipo] || '⏳' }));
+      var txt = el('div', { style: { flex: '1', minWidth: '0' } });
+      txt.appendChild(el('b', { texto: tb.titulo }));
+      txt.appendChild(el('small', { texto: 'wakeLock' in navigator ? t('tarefaNaoFeche') : t('fundoTelaAberta') }));
+      var barra = el('div', { class: 'dgo-tarefa-barra' + (tb.andamento == null ? ' indef' : '') }, [el('span')]);
+      txt.appendChild(barra);
+      p.appendChild(txt);
+      var acoes = el('div', { class: 'dgo-tarefa-acoes' });
+      p.appendChild(acoes);
+      var ui = { el: p, icone: p.firstChild, titulo: txt.firstChild, sub: txt.children[1], barraCaixa: barra, barra: barra.firstChild, acoes: acoes };
+      if (tb.podeCancelar) acoes.appendChild(botaoPilula('✕', t('fundoCancelar'), function () { Fundo.cancelar(tb.id); }));
+      /* tocar na pílula enquanto roda: volta para a tela de onde o trabalho saiu */
+      p.addEventListener('click', function (e) { if (tb.estado === 'rodando' && !acoes.contains(e.target)) irPara(tb.rota); });
+      container().appendChild(p);
+      return ui;
+    }
+    function botaoPilula(texto, rotulo, fn) {
+      var b = el('button', { type: 'button', class: 'dgo-tarefa-bt', texto: texto });
+      b.setAttribute('aria-label', rotulo); b.title = rotulo;
+      b.addEventListener('click', function (e) { e.stopPropagation(); fn(); });
+      return b;
+    }
+    function pintarAndamento(tb) {
+      if (!tb.ui) return;
+      if (tb.andamento != null) { tb.ui.barraCaixa.classList.remove('indef'); tb.ui.barra.style.width = Math.round(tb.andamento * 100) + '%'; }
+      if (tb.texto) tb.ui.sub.textContent = tb.texto + ' · ' + t('fundoPodeNavegar');
+    }
+    function fracao(v) { if (v == null || isNaN(v)) return null; v = Number(v); if (v > 1) v = v / 100; return Math.max(0, Math.min(1, v)); }
+
+    /* "não foi visto em 6 s" (com a tela à vista) → Inbox do app, se ele tiver */
+    function vigiarVisto(tb) {
+      if (tb.relogioVisto || typeof (cfg.fundo && cfg.fundo.inbox) !== 'function') return;
+      if (d.visibilityState !== 'visible') return;
+      tb.relogioVisto = raiz.setTimeout(function () {
+        if (!tb.esperandoVer) return;
+        tb.esperandoVer = false;
+        try { cfg.fundo.inbox(copia(tb)); } catch (e) {}
+        avisar('nao-visto', tb); tirar(tb);
+      }, 6000);
+    }
+
+    function terminou(tb, r) {
+      if (tb.estado !== 'rodando') return;
+      tb.estado = 'feito'; tb.resultado = r; tb.andamento = 1; desligar(tb);
+      if (typeof tb.o.aoTerminar === 'function') { try { tb.o.aoTerminar(r); } catch (e) {} }
+      avisar('feito', tb);
+      tb.ok(r);
+      var ui = tb.ui; ui.barra.style.width = '100%'; ui.barraCaixa.classList.remove('indef'); ui.el.classList.add('pronta');
+      ui.icone.textContent = '✅'; ui.sub.textContent = tb.o.textoPronto || t('tarefaPronta'); ui.acoes.innerHTML = '';
+      if (tb.o.tituloPronto) ui.titulo.textContent = tb.o.tituloPronto;
+      ui.acoes.appendChild(botaoPilula('✕', t('fundoFechar'), function () { tb.esperandoVer = false; if (tb.relogioVisto) raiz.clearTimeout(tb.relogioVisto); tirar(tb); avisar('visto', tb); }));
+      ui.el.setAttribute('role', 'button'); ui.el.tabIndex = 0;
+      try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (e) {}
+      var abrir = function () {
+        tb.esperandoVer = false; if (tb.relogioVisto) raiz.clearTimeout(tb.relogioVisto);
+        tirar(tb);
+        if (typeof tb.o.aoAbrir === 'function') tb.o.aoAbrir(r); else irPara(tb.rota);
+        avisar('visto', tb);
+      };
+      ui.el.addEventListener('click', abrir);
+      ui.el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); } });
+      if (tb.o.abrirSozinho !== false && !d.hidden && (typeof tb.o.aindaNaTela !== 'function' || tb.o.aindaNaTela())) { abrir(); return; }
+      tb.esperandoVer = true;
+      if (d.hidden) {
+        /* app em outra aba ou minimizado: notificação só se a pessoa já permitiu (nunca pede só para isso) */
+        try { if (Notif.permissao() === 'granted') Notif.mostrar({ titulo: '✅ ' + tb.titulo, texto: t('tarefaPronta'), tag: 'dgo-fundo-' + tb.id, url: raiz.location.href }); } catch (e) {}
+      } else vigiarVisto(tb);
+    }
+    function deuErro(tb, e) {
+      if (tb.estado !== 'rodando') return;
+      tb.estado = 'erro'; tb.erro = (e && e.message) || String(e || ''); desligar(tb);
+      avisar('erro', tb);
+      tb.falha(e);
+      var ui = tb.ui; ui.el.classList.add('erro'); ui.icone.textContent = '⚠️';
+      ui.sub.textContent = (tb.erro && tb.erro.length < 80 ? tb.erro + ' · ' : '') + t('tarefaErro');
+      ui.el.setAttribute('role', 'button'); ui.el.tabIndex = 0; ui.acoes.innerHTML = '';
+      if (typeof tb.o.executar === 'function' && tb.o.tentarDeNovo !== false) {
+        ui.acoes.appendChild(botaoPilula('↻', t('fundoTentar'), function () { tirar(tb); Fundo.iniciar(tb.o, { podeCancelar: tb.podeCancelar }); }));
+      }
+      ui.acoes.appendChild(botaoPilula('✕', t('fundoFechar'), function () { tirar(tb); }));
+      ui.el.addEventListener('click', function () { tirar(tb); });
+    }
+
+    var Fundo = {
+      iniciar: function (o, padroes) {
+        o = o || {}; padroes = padroes || {};
+        var id = o.id || ((o.tipo || 't') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5));
+        if (trabalhos[id] && trabalhos[id].estado === 'rodando') return trabalhos[id].promessa;
+        if (trabalhos[id]) tirar(trabalhos[id]);
+        var ctrl = null; try { ctrl = new AbortController(); } catch (e) {}
+        var tb = { id: id, o: o, tipo: o.tipo || 'tarefa', titulo: o.titulo || t('tarefaProcessando'), estado: 'rodando',
+          andamento: null, texto: '', inicio: Date.now(), fim: null, resultado: null, erro: null, ctrl: ctrl,
+          rota: o.rota || (raiz.location.hash || raiz.location.pathname),
+          podeCancelar: o.podeCancelar != null ? !!o.podeCancelar : padroes.podeCancelar !== false };
+        tb.promessa = new Promise(function (ok, falha) { tb.ok = ok; tb.falha = falha; });
+        tb.promessa.catch(function () {});   // quem chamou decide se trata o erro; aqui não vira "erro não tratado"
+        trabalhos[id] = tb; ordem.push(id);
+        tb.ui = pilula(tb);
+        ligar(tb);
+        avisar('inicio', tb);
+        if (typeof o.executar === 'function') {
+          var andamento = function (v, texto) { Fundo.andamento(id, v, texto); };
+          var c = { id: id, sinal: ctrl ? ctrl.signal : null, cancelado: function () { return tb.estado === 'cancelado'; },
+            aoCancelar: function (fn) { tb.aoCancelar = fn; } };
+          try { Promise.resolve(o.executar(andamento, c)).then(function (r) { terminou(tb, r); }, function (e) { deuErro(tb, e); }); }
+          catch (e) { deuErro(tb, e); }
+        }
+        return tb.promessa;
+      },
+      andamento: function (id, v, texto) {
+        var tb = trabalhos[id]; if (!tb || tb.estado !== 'rodando') return;
+        var f = fracao(v); if (f != null) tb.andamento = f; if (texto) tb.texto = String(texto);
+        pintarAndamento(tb); avisar('andamento', tb);
+      },
+      concluir: function (id, r) { var tb = trabalhos[id]; if (tb) terminou(tb, r); },
+      falhar: function (id, e) { var tb = trabalhos[id]; if (tb) deuErro(tb, e instanceof Error ? e : new Error(String(e || ''))); },
+      cancelar: function (id) {
+        var tb = trabalhos[id]; if (!tb || tb.estado !== 'rodando') return false;
+        tb.estado = 'cancelado'; desligar(tb);
+        try { if (tb.ctrl) tb.ctrl.abort(); } catch (e) {}
+        try { if (typeof tb.aoCancelar === 'function') tb.aoCancelar(); } catch (e) {}
+        var erro = new Error(t('fundoCancelado')); erro.cancelado = true; erro.name = 'AbortError';
+        avisar('cancelado', tb);
+        tb.falha(erro);
+        var ui = tb.ui; ui.el.classList.add('cancelada'); ui.icone.textContent = '⏹'; ui.sub.textContent = t('fundoCancelado'); ui.acoes.innerHTML = '';
+        raiz.setTimeout(function () { tirar(tb); }, 2500);
+        return true;
+      },
+      lista: function () { return ordem.map(function (id) { return copia(trabalhos[id]); }); },
+      ativas: function () { return rodando(); },
+      aoMudar: function (fn) { if (typeof fn === 'function') ouvintes.push(fn); return function () { ouvintes = ouvintes.filter(function (f) { return f !== fn; }); }; },
+      aoRetomar: function (tipo, fn) { if (tipo && typeof fn === 'function') retomar[tipo] = fn; },
+      interrompida: function () { var r = interrompidaAntes; interrompidaAntes = null; return r; },
+      /* trabalhos que estavam rodando quando a aba fechou (e não são de outra aba aberta) */
+      interrompidos: function () {
+        return comLoja('readonly', function (s) { return s.getAll(); }).then(function (lista) {
+          var agora = Date.now();
+          /* recarregou esta mesma aba no meio = interrompido na hora; de outra aba, só se ela parou de dar sinal */
+          return (lista || []).filter(function (x) { return x && x.aba !== ABA && !trabalhos[x.id] && (daMesmaAba.indexOf(x.id) > -1 || (agora - (x.batida || 0)) > VELHO); });
+        });
+      },
+      /* chamado uma vez pelo DGO.iniciar: mostra "foi interrompido" do que ficou pela metade */
+      _arrancar: function () {
+        if (arrancado) return; arrancado = true;
+        try { daMesmaAba = JSON.parse(raiz.sessionStorage.getItem(chaveAba()) || '[]') || []; raiz.sessionStorage.removeItem(chaveAba()); } catch (e) {}
+        raiz.setTimeout(function () {
+          Fundo.interrompidos().then(function (lista) {
+            lista.forEach(function (x) {
+              esquecer(x.id);
+              var tb = { id: x.id, tipo: x.tipo, titulo: x.titulo, rota: x.rota, inicio: x.inicio, fim: null, estado: 'interrompido', andamento: null, texto: '', podeCancelar: false, resultado: null, erro: null, o: {} };
+              trabalhos[x.id] = tb; ordem.push(x.id);
+              var ui = tb.ui = pilula(tb);
+              ui.el.classList.add('erro'); ui.icone.textContent = '⚠️'; ui.sub.textContent = t('fundoInterrompido'); ui.barraCaixa.style.display = 'none';
+              ui.el.setAttribute('role', 'button'); ui.el.tabIndex = 0;
+              if (retomar[x.tipo]) ui.acoes.appendChild(botaoPilula('↻', t('fundoContinuar'), function () { tirar(tb); try { retomar[x.tipo](copia(tb)); } catch (e) {} }));
+              ui.el.addEventListener('click', function () { tirar(tb); });
+              avisar('interrompido', tb);
+            });
+          });
+        }, 1500);   // dá tempo de o app registrar aoRetomar antes
+      }
+    };
+    return Fundo;
+  })();
+  /* DGO.tarefa = nome da 1.4.0; mesmo motor, sem ✕ por padrão (quem já usava não esperava "cancelado") */
+  var Tarefa = {
+    iniciar: function (o) { return Fundo.iniciar(o, { podeCancelar: false }); },
+    andamento: Fundo.andamento, ativas: Fundo.ativas, interrompida: Fundo.interrompida
+  };
+
+  /* ------------------------------------------------------------------
+     Feedback dos usuários (diretriz geral, seção "Feedback dos usuários (prioridade — beta restrito)")
+     Por que existe: no beta, o que as pessoas dizem é o que guia a melhoria dos apps. Todo app ouve do
+     mesmo jeito e tudo chega estruturado no banco da plataforma (tabela sol_feedback), lido pelo
+     RootifyONE → Central de feedback. SQL: entrega/solverone-app/supabase/2026-10-10-feedback-usuarios.sql.
+
+     Uso:
+       DGO.feedback.abrir({ categoria: 'erro', tela: 'compras', titulo: 'Compras', funcao: 'adicionar falando', erro: e })
+       DGO.feedback.botao()                → <button data-recurso="feedback">💬 Dar uma opinião…</button> (para o ☰, o ⚙ e o AssistONE)
+       DGO.feedback.registrarAcao('compras:adicionar')   → trilha das últimas 20 ações (só nomes, nunca conteúdo)
+       DGO.feedback.perguntaDoDia({ forcar: true })      → mostra a pergunta do dia agora (se houver uma publicada)
+       DGO.feedback.meus()                 → janela "Meus envios" (ver a resposta e apagar)
+       DGO.feedback.sincronizar()          → manda o que ficou guardado sem internet
+       DGO.feedback.pendentes()            → Promise do número de envios guardados no aparelho
+
+     Onde o app diz qual é o banco (diretrizes-config.js do app; a chave é a PÚBLICA, nunca a secreta):
+       supabase: { url: 'https://<projeto>.supabase.co', anonKey: '<publishable key>' }
+       feedback: { ativo: true, perguntaDiaria: true, categoriasApp: [{ id, icone, pt, en, tipo }],
+                   tela: function () { return { tela, titulo, funcao } },   // opcional: o mapa por tela do app
+                   naoPerguntarAgora: function () { return true },        // opcional: login, wizard, leitor, gravação…
+                   conexao: function () { return { url, chave, token } }, // opcional: o app já tem o Supabase (RootifyONE)
+                   formspree: '', privacidade: 'privacidade.html', esperaMs: 120000 }
+     Sem banco configurado: plano B (formspree), senão guarda no aparelho e avisa com calma.
+     Sem internet: fila no IndexedDB `dgo:<app>:feedback` (com os anexos) e sobe sozinha quando a rede volta.
+     O envio roda no Fundo (pílula, Wake Lock, aviso ao fechar). Nunca trava o app: falhou, vai para a fila.
+     ------------------------------------------------------------------ */
+  var Feedback = (function () {
+    var AVISO = 'fb-1', MB = 1048576;
+    var CATS = [
+      ['erro', '🐞', 'Deu erro', 'Something broke', 'problema'], ['sugestao', '💡', 'Sugestão', 'Suggestion', 'ideia'],
+      ['nao-entendi', '❓', 'Não entendi', 'I didn\'t get it', 'opiniao'], ['gostei', '👍', 'Gostei', 'I liked it', 'opiniao'],
+      ['aparencia', '🎨', 'Aparência ou texto', 'Look or wording', 'opiniao'], ['lento', '🐢', 'Lento ou travou', 'Slow or froze', 'problema'],
+      ['privacidade', '🔒', 'Privacidade', 'Privacy', 'opiniao'], ['outro', '📝', 'Outro', 'Other', 'opiniao']
+    ];
+    var trilha = [], erros = [], arrancado = false, sincronizando = null, balao = null, perguntaCache = null;
+    var usoMs = 0, ultimaInteracao = Date.now(), relogio = null, filaMemoria = [];
+
+    function L(pt, en) { return Idioma.atual === 'en' ? en : pt; }
+    function conf() {
+      var c = cfg.feedback || {};
+      return { ativo: c.ativo !== false, perguntaDiaria: c.perguntaDiaria !== false, esperaMs: c.esperaMs != null ? Number(c.esperaMs) : 120000,
+        someEmMs: c.someEmMs || 20000, categoriasApp: c.categoriasApp || [], tela: c.tela, conexao: c.conexao,
+        naoPerguntarAgora: c.naoPerguntarAgora, formspree: c.formspree || '', privacidade: c.privacidade || '',
+        maxMB: Math.min(Number(c.maxMB) || 10, 10), gravarSegundos: c.gravarSegundos || 60 };
+    }
+    function hojeBrasilia(ms) {
+      try { return new Date(ms || Date.now()).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); } catch (e) { return new Date(ms || Date.now()).toISOString().slice(0, 10); }
+    }
+    /* estado por app neste aparelho (vale também para visitante: localStorage, nunca dado pessoal) */
+    function chaveEstado() { return 'dgo:' + cfg.app + ':feedback'; }
+    function estado() { try { return JSON.parse(raiz.localStorage.getItem(chaveEstado()) || '{}') || {}; } catch (e) { return {}; } }
+    function gravarEstado(e) { try { raiz.localStorage.setItem(chaveEstado(), JSON.stringify(e)); } catch (x) {} }
+    function anonId() {
+      var id = Guardar.ler('feedback:anon', null, true);
+      if (!id || !/^[A-Za-z0-9-]{16,64}$/.test(id)) {
+        try { id = raiz.crypto && raiz.crypto.randomUUID ? raiz.crypto.randomUUID() : null; } catch (e) { id = null; }
+        if (!id) { id = ''; for (var i = 0; i < 32; i++) id += Math.floor(Math.random() * 16).toString(16); }
+        Guardar.gravar('feedback:anon', id, true);
+      }
+      return id;
+    }
+    function novoId() { return 'fb-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); }
+
+    /* ---- de onde vem o banco: conexao() do app → cfg.supabase → nada ---- */
+    function chaveProibida(k) { k = String(k || '').toLowerCase(); return k.indexOf('sb' + '_secret' + '_') === 0 || k.indexOf('service' + '_role') !== -1; }
+    function tokenSupabaseJs(url) {
+      try {
+        var ref = (/^https:\/\/([a-z0-9-]+)\.supabase\.co/i.exec(url) || [])[1]; if (!ref) return null;
+        var s = JSON.parse(raiz.localStorage.getItem('sb-' + ref + '-auth-token') || 'null');
+        if (s && s.access_token && (!s.expires_at || s.expires_at * 1000 > Date.now() + 30000)) return s.access_token;
+      } catch (e) {}
+      return null;
+    }
+    function conexao() {
+      var c = null, fc = conf();
+      try { if (typeof fc.conexao === 'function') c = fc.conexao(); } catch (e) { c = null; }
+      if (!c || !c.url) {
+        var s = cfg.supabase || {};
+        c = s.url && (s.anonKey || s.chave) ? { url: s.url, chave: s.anonKey || s.chave, token: typeof s.token === 'function' ? s.token() : null } : null;
+      }
+      if (!c || !c.url || !c.chave || chaveProibida(c.chave) || !/^https:\/\//i.test(c.url)) return null;
+      c.url = String(c.url).replace(/\/+$/, '');
+      if (!c.token) c.token = tokenSupabaseJs(c.url);
+      return c;
+    }
+    function cabecalhos(c, extra) {
+      var h = { apikey: c.chave };
+      if (c.token) h.Authorization = 'Bearer ' + c.token;
+      for (var k in (extra || {})) h[k] = extra[k];
+      return h;
+    }
+    function pedir(c, caminho, corpo, extra, metodo) {
+      return fetch(c.url + caminho, { method: metodo || 'POST', headers: cabecalhos(c, extra || { 'Content-Type': 'application/json' }),
+        body: corpo instanceof Blob ? corpo : JSON.stringify(corpo || {}) }).then(function (r) {
+        return r.text().then(function (txt) {
+          var j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) {}
+          if (!r.ok) { var er = new Error((j && (j.message || j.error)) || ('HTTP ' + r.status)); er.status = r.status; er.codigo = (j && j.code) || ''; throw er; }
+          return j;
+        });
+      });
+    }
+    function rpc(c, nome, corpo) { return pedir(c, '/rest/v1/rpc/' + nome, corpo); }
+    function deRede(e) { return !e || !e.status || e.status >= 500 || e.status === 408 || e.status === 429; }
+    function faltaSql(e) { return e && (e.status === 404 || e.codigo === 'PGRST202'); }
+
+    /* ---- fila no IndexedDB (com os anexos); sem IndexedDB, só na memória desta aba ---- */
+    var banco = null;
+    function abrirBanco() {
+      if (banco) return banco;
+      banco = new Promise(function (ok) {
+        try {
+          if (!raiz.indexedDB) return ok(null);
+          var r = raiz.indexedDB.open('dgo:' + cfg.app + ':feedback', 1);
+          r.onupgradeneeded = function () { r.result.createObjectStore('fila', { keyPath: 'id' }); };
+          r.onsuccess = function () { ok(r.result); }; r.onerror = function () { ok(null); }; r.onblocked = function () { ok(null); };
+        } catch (e) { ok(null); }
+      });
+      return banco;
+    }
+    function loja(modo, fn) {
+      return abrirBanco().then(function (db) {
+        if (!db) return fn(null);
+        return new Promise(function (ok) {
+          try { var tx = db.transaction('fila', modo); var q = fn(tx.objectStore('fila')); tx.oncomplete = function () { ok(q && q.result); }; tx.onerror = function () { ok(null); }; } catch (e) { ok(null); }
+        });
+      });
+    }
+    function filaGravar(item) { return loja('readwrite', function (s) { if (!s) { filaMemoria = filaMemoria.filter(function (x) { return x.id !== item.id; }).concat([item]); return null; } return s.put(item); }); }
+    function filaTirar(id) { return loja('readwrite', function (s) { if (!s) { filaMemoria = filaMemoria.filter(function (x) { return x.id !== id; }); return null; } return s.delete(id); }); }
+    function filaTodos() { return loja('readonly', function (s) { return s ? s.getAll() : { result: filaMemoria.slice() }; }).then(function (l) { return (l || []).sort(function (a, b) { return a.criado - b.criado; }); }); }
+
+    /* ---- contexto automático (nunca o conteúdo dos registros) ---- */
+    function contexto(o) {
+      o = o || {};
+      var c = {}, fc = conf();
+      try { if (typeof fc.tela === 'function') c = fc.tela() || {}; } catch (e) { c = {}; }
+      var hash = String(raiz.location.hash || '');
+      var tela = o.tela || c.tela || hash.replace(/^#\/?/, '').split(/[/?]/)[0] || 'inicio';
+      var titulo = o.titulo || c.titulo || (d.title || '').slice(0, 120);
+      var acoes = trilha.filter(function (a) { return !/^(tela|feedback):/.test(a); });
+      var funcao = o.funcao || c.funcao || (acoes.length ? acoes[acoes.length - 1] : '');
+      return { tela: String(tela).slice(0, 200), titulo: String(titulo).slice(0, 200), funcao: String(funcao || '').slice(0, 200), rota: hash.slice(0, 300) };
+    }
+    function aparelho() {
+      var n = {}; try { n = Compat.navegador() || {}; } catch (e) {}
+      var a = { navegador: ((n.nome || '?') + ' ' + (n.versao || '')).trim(), sistema: ((n.sistema || '?') + ' ' + (n.sistemaVersao || '')).trim(),
+        celular: !!n.celular, tela: (raiz.screen ? raiz.screen.width + 'x' + raiz.screen.height : ''), janela: raiz.innerWidth + 'x' + raiz.innerHeight,
+        instalado: !!PWA.instalado(), plataforma: Plataforma.qual() };
+      if (n.dentroDeApp) a.dentroDeApp = n.dentroDeApp;
+      return a;
+    }
+    function fuso() {
+      var nome = ''; try { nome = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+      var m = -new Date().getTimezoneOffset(), s = m < 0 ? '−' : '+'; m = Math.abs(m);
+      return (nome + ' (UTC' + s + ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2) + ')').trim().slice(0, 60);
+    }
+    function categorias() {
+      return CATS.map(function (x) { return { id: x[0], icone: x[1], pt: x[2], en: x[3], tipo: x[4] }; }).concat((conf().categoriasApp || []).filter(function (x) { return x && /^[a-z0-9-]{2,40}$/.test(x.id || ''); })
+        .map(function (x) { return { id: x.id, icone: x.icone || '•', pt: x.pt || x.id, en: x.en || x.pt || x.id, tipo: ['opiniao', 'problema', 'ideia'].indexOf(x.tipo) > -1 ? x.tipo : 'opiniao' }; }));
+    }
+    function categoria(id) { return categorias().filter(function (x) { return x.id === id; })[0] || null; }
+    function montarDados(f) {
+      var cx = f.contexto || contexto(f), cat = categoria(f.categoria), s = Sessao.resumo();
+      var p = {
+        app: cfg.app, tipo: f.tipo || (cat ? cat.tipo : 'opiniao'), categoria: f.categoria || null, rapido: f.rapido || null, pergunta_id: f.pergunta_id || null,
+        texto: (f.texto || '').trim().slice(0, 4000) || null, nota: f.nota || null, tela: cx.tela, rota: cx.rota, funcao: cx.funcao || null, titulo_tela: cx.titulo || null,
+        versao_app: String(cfg.versaoApp || '').slice(0, 40) || null, versao_modulo: VERSAO, idioma: Idioma.atual === 'en' ? 'en' : 'pt', fuso: fuso(),
+        quando_cliente: new Date().toISOString(), online: navigator.onLine !== false, aparelho: aparelho(), trilha: trilha.slice(-20),
+        plano: (function () { try { return Niveis.atual(); } catch (e) { return null; } })(), login_tipo: s.tipo || 'visitante',
+        anon_id: anonId(), email_contato: (f.email || '').trim().toLowerCase() || null, pode_responder: !!f.podeResponder,
+        aviso_versao: AVISO, cliente_id: f.clienteId || novoId(), tem_anexo: !!(f.anexos && f.anexos.length)
+      };
+      if (p.categoria === 'erro' || f.erro) p.erros = erros.slice(-5).concat(f.erro ? [{ m: String((f.erro && f.erro.message) || f.erro).slice(0, 300), t: new Date().toISOString(), aqui: true }] : []);
+      return p;
+    }
+
+    /* ---- envio: banco → plano B → guarda ---- */
+    function subirAnexos(c, item, andamento) {
+      var lista = item.anexos || [], i = 0;
+      function proximo() {
+        while (i < lista.length && (lista[i].enviado || lista[i].recusado)) i++;
+        if (i >= lista.length) return Promise.resolve();
+        var a = lista[i];
+        if (andamento) andamento(0.3 + 0.7 * (i / lista.length), L('Enviando anexo ', 'Sending attachment ') + (i + 1) + '/' + lista.length);
+        var passo = a.caminho ? Promise.resolve(a.caminho) : rpc(c, 'sol_feedback_anexo', { p_feedback: item.feedbackId, p_anon_id: item.dados.anon_id, p_tipo: a.tipo,
+          p_nome: a.nome, p_mime: a.mime, p_tamanho: a.tamanho, p_duracao: a.duracao || null }).then(function (cam) { a.caminho = String(cam).replace(/"/g, ''); return filaGravar(item).then(function () { return a.caminho; }); });
+        return passo.then(function (cam) {
+          return pedir(c, '/storage/v1/object/sol-arquivos/' + cam.split('/').map(encodeURIComponent).join('/'), a.blob, { 'Content-Type': a.mime, 'x-upsert': 'false' });
+        }).then(function () { a.enviado = true; a.blob = null; }, function (e) {
+          if (deRede(e)) throw e;
+          if (e.status === 409 || /exists|duplicate/i.test(e.message || '')) { a.enviado = true; a.blob = null; return; }   // já tinha subido
+          a.recusado = (e.message || '').slice(0, 160); a.blob = null;            // 4xx: este anexo não vai; o resto segue
+        }).then(function () { return filaGravar(item); }).then(function () { i++; return proximo(); });
+      }
+      return proximo();
+    }
+    function enviarItem(item, andamento) {
+      var c = conexao();
+      if (!c) {
+        var fs = conf().formspree || (cfg.email && cfg.email.formulario) || '';
+        if (!fs || navigator.onLine === false) return Promise.resolve({ guardado: true, semBanco: !fs });
+        var dados = Object.assign({}, item.dados, { anexos: (item.anexos || []).map(function (a) { return a.nome + ' (' + a.mime + ', não enviado pelo plano B)'; }) });
+        return fetch(fs, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _subject: 'Feedback ' + cfg.app, feedback: dados }) })
+          .then(function (r) { if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status }); return filaTirar(item.id); })
+          .then(function () { return { numero: null, planoB: true }; }, function () { return { guardado: true }; });
+      }
+      if (navigator.onLine === false) return Promise.resolve({ guardado: true });
+      if (andamento) andamento(0.1, L('Enviando', 'Sending'));
+      var passo = item.feedbackId ? Promise.resolve(null) : rpc(c, 'sol_enviar_feedback', { p: item.dados }).then(function (r) {
+        item.feedbackId = r && r.id; item.numero = r && r.numero; return filaGravar(item);
+      });
+      return passo.then(function () { return subirAnexos(c, item, andamento); }).then(function () { return filaTirar(item.id); }).then(function () {
+        var recusados = (item.anexos || []).filter(function (a) { return a.recusado; });
+        return { numero: item.numero, id: item.feedbackId, recusados: recusados.map(function (a) { return a.nome + ': ' + a.recusado; }) };
+      }, function (e) {
+        if (deRede(e) && !faltaSql(e)) return { guardado: true };
+        if (faltaSql(e)) return { guardado: true, semBanco: true };
+        return filaTirar(item.id).then(function () { throw new Error(L('Não deu para enviar: ', 'Could not send: ') + (e.message || '')); });
+      });
+    }
+    function resumoEnvio(item, r) {
+      var cat = categoria(item.dados.categoria), cx = item.dados;
+      return (cx.titulo_tela || cx.tela || '') + (cat ? ' · ' + L(cat.pt, cat.en) : '');
+    }
+    function obrigado(item, r) {
+      var caixa = el('div', { class: 'dgo-caixa' });
+      caixa.appendChild(el('h2', { texto: r && r.guardado ? '📦 ' + L('Guardado no aparelho', 'Saved on this device') : '🙏 ' + L('Obrigado!', 'Thank you!') }));
+      if (r && r.guardado) caixa.appendChild(el('p', { texto: r.semBanco
+        ? L('Este app ainda não está ligado ao banco de opiniões. Guardamos aqui e mandamos sozinho quando ele estiver ligado.', 'This app is not connected to the feedback database yet. We kept it here and will send it on our own once it is.')
+        : L('Sem internet agora. Guardamos aqui e mandamos sozinho quando a conexão voltar.', 'No internet right now. We kept it here and will send it on our own when you are back online.') }));
+      else if (r && r.planoB) caixa.appendChild(el('p', { texto: L('Chegou para a equipe. Obrigado por ajudar a melhorar o app.', 'It reached the team. Thanks for helping improve the app.') }));
+      else caixa.appendChild(el('p', { texto: L('Chegou aqui: ', 'It got here: ') + '#' + (r && r.numero) + ' (' + resumoEnvio(item, r) + ')' }));
+      if (r && r.recusados && r.recusados.length) caixa.appendChild(aviso(L('Não foram: ', 'Not sent: ') + r.recusados.join(' · '), 'erro'));
+      caixa.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: L('Fechar', 'Close'), onclick: fecharModal }));
+      return abrirModal(caixa);
+    }
+    function enviar(f, silencioso) {
+      var item = { id: novoId(), criado: Date.now(), dados: montarDados(f), anexos: (f.anexos || []).map(function (a) { return { tipo: a.tipo, nome: a.nome, mime: a.mime, tamanho: a.tamanho, duracao: a.duracao || null, blob: a.blob }; }) };
+      item.dados.cliente_id = item.id;
+      var gravado = filaGravar(item);
+      if (silencioso) return gravado.then(function () { return enviarItem(item); }).catch(function () { return { guardado: true }; });
+      return Fundo.iniciar({ id: 'feedback-' + item.id, tipo: 'envio', titulo: L('Enviando sua opinião', 'Sending your feedback'),
+        executar: function (andamento) { return gravado.then(function () { return enviarItem(item, andamento); }); },
+        aindaNaTela: function () { return true; },
+        aoAbrir: function (r) { obrigado(item, r); },
+        tituloPronto: L('Opinião enviada', 'Feedback sent'), podeCancelar: false, tentarDeNovo: false });
+    }
+    /* manda o que ficou guardado (ao voltar a internet, ao abrir o app) */
+    function sincronizar() {
+      if (sincronizando) return sincronizando;
+      if (navigator.onLine === false || !conexao()) return Promise.resolve(0);
+      sincronizando = filaTodos().then(function (lista) {
+        if (!lista.length) return 0;
+        var enviados = 0;
+        return Fundo.iniciar({ id: 'feedback-fila', tipo: 'envio', titulo: L('Enviando opiniões guardadas', 'Sending saved feedback'), podeCancelar: false, tentarDeNovo: false,
+          tituloPronto: '✓ ' + L('Tudo sincronizado', 'All synced'), abrirSozinho: false, aoAbrir: function () {},
+          executar: function (andamento) {
+            var i = 0;
+            function proximo() {
+              if (i >= lista.length) return Promise.resolve(enviados);
+              andamento(i / lista.length, (i + 1) + '/' + lista.length);
+              return enviarItem(lista[i]).then(function (r) { if (r && !r.guardado) enviados++; }, function () {}).then(function () { i++; return proximo(); });
+            }
+            return proximo();
+          } });
+      }).then(function (n) { sincronizando = null; return n; }, function () { sincronizando = null; return 0; });
+      return sincronizando;
+    }
+
+    /* ---- estilo próprio (só o que o feedback usa) ---- */
+    function estilo() {
+      if ($('#dgo-feedback-estilo')) return;
+      d.head.appendChild(el('style', { id: 'dgo-feedback-estilo', texto: [
+        '.dgo-fb-tipos{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:6px;margin:6px 0 10px;}',
+        '.dgo-fb-tipo{min-height:46px;padding:8px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#e2e8f0;font:600 13.5px/1.25 inherit;cursor:pointer;text-align:left;}',
+        '.dgo-fb-tipo[aria-pressed="true"]{background:var(--dgo-cor);border-color:var(--dgo-cor);color:#04121f;}',
+        '.dgo-fb-estrelas{display:flex;gap:4px;margin:4px 0 10px;}',
+        '.dgo-fb-estrela{min-width:44px;min-height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#64748b;font-size:20px;cursor:pointer;}',
+        '.dgo-fb-estrela[aria-pressed="true"]{color:#facc15;border-color:#facc15;}',
+        '.dgo-fb-sobre{font-size:12.5px;color:#cbd5e1;background:rgba(148,163,184,.12);border-radius:9px;padding:7px 10px;margin:4px 0 10px;}',
+        '.dgo-fb-anexos{list-style:none;padding:0;margin:6px 0;font-size:13px;}',
+        '.dgo-fb-anexos li{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08);}',
+        '.dgo-fb-mini{font-size:12px;color:#94a3b8;line-height:1.45;margin:8px 0;}',
+        '.dgo-fb-balao{position:fixed;right:.8rem;bottom:calc(6rem + env(safe-area-inset-bottom));z-index:2147483100;max-width:20rem;background:#0f172a;color:#f8fafc;',
+        'border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:.8rem .9rem;box-shadow:0 12px 32px rgba(0,0,0,.4);font:500 .95rem/1.35 system-ui,sans-serif;}',
+        '.dgo-fb-balao p{margin:0 0 .5rem;font-weight:700;}',
+        '.dgo-fb-balao .dgo-linha>*{min-width:0;}',
+        '.dgo-fb-balao button{min-height:44px;border-radius:11px;border:1px solid rgba(255,255,255,.25);background:transparent;color:inherit;font:600 .9rem/1 inherit;cursor:pointer;padding:0 .7rem;}',
+        '.dgo-fb-balao .dgo-fb-x{position:absolute;top:4px;right:6px;min-height:32px;min-width:32px;border:0;}'
+      ].join('') }));
+    }
+
+    /* ---- o formulário curto (uma tela, para leigo) ---- */
+    function abrir(o) {
+      o = o || {};
+      if (!conf().ativo) return null;
+      estilo();
+      var s = { categoria: o.categoria || null, nota: o.nota || null, texto: o.texto || '', anexos: [], email: '', podeResponder: true,
+        contexto: contexto(o), erro: o.erro || null, titulo: o.tituloForm || null, rapido: o.rapido || null, pergunta_id: o.pergunta_id || null };
+      registrarAcao('feedback:abrir');
+      return desenhar(s);
+    }
+    function desenhar(s) {
+      var caixa = el('div', { class: 'dgo-caixa dgo-larga', 'data-recurso': 'feedback' });
+      caixa.appendChild(el('h2', { texto: '💬 ' + (s.titulo || L('Dar uma opinião / avisar um problema', 'Give feedback / report a problem')) }));
+      /* sobre o quê (a tela onde a pessoa estava), com "trocar" */
+      var sobre = el('div', { class: 'dgo-fb-sobre' });
+      function pintarSobre() {
+        sobre.innerHTML = '';
+        sobre.appendChild(d.createTextNode(L('Sobre: ', 'About: ') + (s.contexto.titulo || s.contexto.tela) + (s.contexto.funcao ? ' · ' + s.contexto.funcao : '') + ' — '));
+        sobre.appendChild(el('a', { href: '#', texto: L('trocar', 'change'), onclick: function (e) {
+          e.preventDefault();
+          var i = el('input', { type: 'text', value: s.contexto.titulo || s.contexto.tela, 'aria-label': L('Sobre o quê', 'About what') });
+          i.addEventListener('change', function () { s.contexto.titulo = i.value.trim().slice(0, 200) || s.contexto.titulo; });
+          sobre.innerHTML = ''; sobre.appendChild(el('label', { class: 'dgo-campo' }, [el('span', { texto: L('Sobre o quê?', 'About what?') }), i])); i.focus();
+        } }));
+      }
+      pintarSobre(); caixa.appendChild(sobre);
+      /* 1. tipo */
+      caixa.appendChild(el('div', { class: 'dgo-fb-mini', texto: L('O que aconteceu?', 'What happened?') }));
+      var tipos = el('div', { class: 'dgo-fb-tipos', role: 'group', 'aria-label': L('Tipo', 'Type') });
+      categorias().forEach(function (c) {
+        var b = el('button', { type: 'button', class: 'dgo-fb-tipo', 'data-cat': c.id, 'aria-pressed': s.categoria === c.id ? 'true' : 'false', texto: c.icone + ' ' + L(c.pt, c.en) });
+        b.addEventListener('click', function () { s.categoria = c.id; Array.prototype.forEach.call(tipos.children, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
+        tipos.appendChild(b);
+      });
+      caixa.appendChild(tipos);
+      /* 2. nota (opcional) */
+      caixa.appendChild(el('div', { class: 'dgo-fb-mini', texto: L('Nota (se quiser)', 'Rating (optional)') }));
+      var estrelas = el('div', { class: 'dgo-fb-estrelas', role: 'group', 'aria-label': L('Nota de 1 a 5', 'Rating from 1 to 5') });
+      [1, 2, 3, 4, 5].forEach(function (n) {
+        var b = el('button', { type: 'button', class: 'dgo-fb-estrela', 'data-nota': n, 'aria-label': n + L(' de 5', ' of 5'), 'aria-pressed': s.nota && n <= s.nota ? 'true' : 'false', texto: '★' });
+        b.addEventListener('click', function () { s.nota = s.nota === n ? null : n; Array.prototype.forEach.call(estrelas.children, function (x, i) { x.setAttribute('aria-pressed', s.nota && i < s.nota ? 'true' : 'false'); }); });
+        estrelas.appendChild(b);
+      });
+      caixa.appendChild(estrelas);
+      /* 3. texto, com 🎤 se o navegador ditar */
+      var ta = el('textarea', { rows: '4', maxlength: '4000', placeholder: L('Conte com suas palavras', 'Tell us in your own words') });
+      ta.value = s.texto; ta.addEventListener('input', function () { s.texto = ta.value; });
+      var campoTexto = el('label', { class: 'dgo-campo' }, [el('span', { texto: L('Conte com suas palavras', 'Tell us in your own words') }), ta]);
+      caixa.appendChild(campoTexto);
+      var Rec = raiz.SpeechRecognition || raiz.webkitSpeechRecognition;
+      if (Rec) caixa.appendChild(el('button', { type: 'button', class: 'dgo-b dgo-b2', texto: '🎤 ' + L('Falar em vez de escrever', 'Speak instead of typing'), onclick: function () {
+        var b = this; try {
+          var r = new Rec(); r.lang = Idioma.atual === 'en' ? 'en-US' : 'pt-BR'; r.interimResults = false;
+          r.onresult = function (ev) { var t1 = ev.results[0][0].transcript; ta.value = (ta.value ? ta.value + ' ' : '') + t1; s.texto = ta.value; };
+          r.onend = function () { b.disabled = false; }; b.disabled = true; r.start();
+        } catch (e) { b.disabled = false; }
+      } }));
+      /* 4. anexos: print, gravar a tela (computador) e anexar imagem/vídeo */
+      var lista = el('ul', { class: 'dgo-fb-anexos', 'aria-live': 'polite' });
+      function pintarAnexos() {
+        lista.innerHTML = '';
+        s.anexos.forEach(function (a, i) {
+          lista.appendChild(el('li', {}, [el('span', { texto: (a.tipo === 'video' ? '🎥 ' : '🖼 ') + a.nome + ' · ' + (a.tamanho / MB).toFixed(1).replace('.', ',') + ' MB' }),
+            el('button', { type: 'button', class: 'dgo-b dgo-b2', style: { width: 'auto', minHeight: '36px', marginTop: '0' }, 'aria-label': L('Tirar ', 'Remove ') + a.nome, texto: '✕',
+              onclick: function () { s.anexos.splice(i, 1); pintarAnexos(); } })]));
+        });
+      }
+      var msgAnexo = el('div');
+      function anexar(blob, nome, tipo, duracao) {
+        msgAnexo.innerHTML = '';
+        var max = conf().maxMB * MB;
+        if (s.anexos.length >= 5) { msgAnexo.appendChild(aviso(L('No máximo 5 anexos.', 'At most 5 attachments.'), 'erro')); return; }
+        if (!/^(image\/(jpeg|png|webp)|video\/(webm|mp4|quicktime))$/.test(blob.type || '')) { msgAnexo.appendChild(aviso(L('Use foto (JPEG, PNG, WebP) ou vídeo (WebM, MP4, MOV).', 'Use a photo (JPEG, PNG, WebP) or video (WebM, MP4, MOV).'), 'erro')); return; }
+        if (blob.size > max) { msgAnexo.appendChild(aviso(L('Arquivo grande demais: máximo ', 'File too large: at most ') + conf().maxMB + ' MB. ' + (tipo === 'video' ? L('Grave um trecho mais curto.', 'Record a shorter clip.') : ''), 'erro')); return; }
+        s.anexos.push({ blob: blob, nome: String(nome || 'anexo').slice(0, 120), mime: blob.type, tamanho: blob.size, tipo: tipo || (/^video\//.test(blob.type) ? 'video' : 'imagem'), duracao: duracao || null });
+        pintarAnexos();
+      }
+      var linhaAnexos = el('div', { class: 'dgo-linha' });
+      var md = navigator.mediaDevices;
+      if (md && md.getDisplayMedia && !Plataforma.ehCelular()) {
+        linhaAnexos.appendChild(el('button', { type: 'button', class: 'dgo-b dgo-b2', texto: '📸 ' + L('Print da tela', 'Screenshot'), onclick: function () {
+          md.getDisplayMedia({ video: true }).then(function (st) {
+            var v = el('video'); v.muted = true; v.srcObject = st;
+            return v.play().then(function () {
+              var cv = el('canvas'); cv.width = v.videoWidth; cv.height = v.videoHeight; cv.getContext('2d').drawImage(v, 0, 0);
+              st.getTracks().forEach(function (t2) { t2.stop(); });
+              cv.toBlob(function (b) { if (b) anexar(b, 'print-' + s.contexto.tela + '.jpg', 'print'); }, 'image/jpeg', 0.82);
+            });
+          }).catch(function () { msgAnexo.innerHTML = ''; msgAnexo.appendChild(aviso(L('Não deu para tirar o print. Use "Anexar foto ou vídeo".', 'Could not take the screenshot. Use "Attach photo or video".'), 'info')); });
+        } }));
+        if (raiz.MediaRecorder) linhaAnexos.appendChild(el('button', { type: 'button', class: 'dgo-b dgo-b2', texto: '🎥 ' + L('Gravar a tela', 'Record the screen'), onclick: function () {
+          var b = this;
+          md.getDisplayMedia({ video: { frameRate: 10 } }).then(function (st) {
+            var partes = [], ini = Date.now(), rec = new MediaRecorder(st, { mimeType: MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : undefined, videoBitsPerSecond: 1000000 });
+            rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) partes.push(ev.data); };
+            rec.onstop = function () { st.getTracks().forEach(function (t2) { t2.stop(); }); b.textContent = '🎥 ' + L('Gravar a tela', 'Record the screen');
+              anexar(new Blob(partes, { type: 'video/webm' }), 'gravacao-' + s.contexto.tela + '.webm', 'video', Math.round((Date.now() - ini) / 100) / 10); };
+            st.getVideoTracks()[0].addEventListener('ended', function () { if (rec.state !== 'inactive') rec.stop(); });
+            rec.start(1000); b.textContent = '⏹ ' + L('Parar a gravação', 'Stop recording');
+            var parar = function (e) { e.stopImmediatePropagation(); if (rec.state !== 'inactive') rec.stop(); b.removeEventListener('click', parar, true); };
+            b.addEventListener('click', parar, true);
+            raiz.setTimeout(function () { if (rec.state !== 'inactive') rec.stop(); }, conf().gravarSegundos * 1000);
+          }).catch(function () {});
+        } }));
+      }
+      var arquivo = el('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,video/webm,video/mp4,video/quicktime', multiple: 'multiple', style: { display: 'none' } });
+      arquivo.addEventListener('change', function () { Array.prototype.forEach.call(arquivo.files || [], function (f) { anexar(f, f.name); }); arquivo.value = ''; });
+      linhaAnexos.appendChild(el('button', { type: 'button', class: 'dgo-b dgo-b2', texto: '📎 ' + L('Anexar foto ou vídeo', 'Attach photo or video'), onclick: function () { arquivo.click(); } }));
+      caixa.appendChild(linhaAnexos); caixa.appendChild(arquivo); caixa.appendChild(lista); caixa.appendChild(msgAnexo);
+      caixa.appendChild(el('div', { class: 'dgo-fb-mini', texto: (Plataforma.ehCelular() ? L('No celular: grave ou tire o print pelo próprio aparelho e depois toque em "Anexar foto ou vídeo". ', 'On the phone: record or screenshot with the phone itself, then tap "Attach photo or video". ') : '') +
+        L('Antes de mandar um print, confira se não aparece dado de outra pessoa.', 'Before sending a screenshot, check that it shows no one else\'s data.') }));
+      pintarAnexos();
+      /* 5. e-mail opcional e "pode me responder" */
+      var logado = !!conexao() && !!conexao().token;
+      var em = el('input', { type: 'email', autocomplete: 'email', placeholder: L('seu@email.com (opcional)', 'you@email.com (optional)') });
+      em.value = s.email; em.addEventListener('input', function () { s.email = em.value; });
+      if (!logado) caixa.appendChild(el('label', { class: 'dgo-campo' }, [el('span', { texto: L('E-mail para a resposta (opcional)', 'E-mail for our reply (optional)') }), em]));
+      var marca = el('input', { type: 'checkbox' }); marca.checked = s.podeResponder; marca.addEventListener('change', function () { s.podeResponder = marca.checked; });
+      caixa.appendChild(el('label', { class: 'dgo-fb-mini', style: { display: 'flex', gap: '8px', alignItems: 'center' } }, [marca, L('Pode me responder sobre isso', 'You may reply to me about this')]));
+      /* aviso curto de privacidade (LGPD) */
+      var priv = el('div', { class: 'dgo-fb-mini', 'data-dgo-aviso': AVISO, texto: L('Guardamos o que você escrever, a tela onde estava, a versão do app e o tipo de aparelho, só para melhorar o app. Não levamos o conteúdo dos seus registros nem senhas. O e-mail é opcional e serve só para responder você. Você pode ver e apagar seus envios quando quiser. ',
+        'We keep what you write, the screen you were on, the app version and the kind of device, only to improve the app. We never take the content of your records or passwords. The e-mail is optional and only used to reply to you. You can see and delete what you sent at any time. ') });
+      if (conf().privacidade) priv.appendChild(el('a', { href: conf().privacidade, target: '_blank', rel: 'noopener', texto: L('Privacidade', 'Privacy') }));
+      caixa.appendChild(priv);
+      var msg = el('div');
+      var btEnviar = el('button', { class: 'dgo-b', type: 'button', 'data-fb-enviar': '1', texto: L('Enviar', 'Send'), onclick: function () {
+        msg.innerHTML = '';
+        if (!s.texto.trim() && !s.nota && !s.anexos.length) { msg.appendChild(aviso(L('Escreva algo, dê uma nota ou anexe um print.', 'Write something, give a rating or attach a screenshot.'), 'erro')); return; }
+        if (s.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email.trim())) { msg.appendChild(aviso(L('Confira o e-mail (ou deixe em branco).', 'Check the e-mail (or leave it blank).'), 'erro')); return; }
+        if (!s.categoria) s.categoria = 'outro';
+        s.podeResponder = marca.checked && (logado || !!s.email.trim());
+        fecharModal();
+        registrarAcao('feedback:enviar');
+        enviar(s);
+      } });
+      caixa.appendChild(msg);
+      caixa.appendChild(el('div', { class: 'dgo-linha' }, [btEnviar, el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: L('Cancelar', 'Cancel'), onclick: fecharModal })]));
+      return abrirModal(caixa, function () { desenhar(s); });
+    }
+
+    /* ---- pergunta do dia (balão pequeno, nunca uma janela que trava) ---- */
+    function digitando() {
+      var a = d.activeElement;
+      if (!a) return false;
+      if (a.isContentEditable) return true;
+      return /^(INPUT|TEXTAREA)$/.test(a.tagName) && !!a.value;
+    }
+    function podePerguntar(forcar) {
+      var fc = conf();
+      if (!fc.ativo || !fc.perguntaDiaria || !conexao() || balao) return false;
+      if (!Central.ligado('feedback', true) || !Central.ligado('feedback.pergunta-do-dia', true)) return false;
+      if (forcar) return true;
+      var e = estado(), hoje = hojeBrasilia();
+      if (e.desligado || !e.primeiraVisita || e.primeiraVisita === hoje || e.dia === hoje || (e.pausaAte && e.pausaAte > Date.now())) return false;
+      if (modalEl || d.fullscreenElement || d.hidden || digitando()) return false;
+      try { if (typeof fc.naoPerguntarAgora === 'function' && fc.naoPerguntarAgora()) return false; } catch (x) { return false; }
+      return true;
+    }
+    function buscarPergunta() {
+      var hoje = hojeBrasilia();
+      if (perguntaCache && perguntaCache.dia === hoje) return Promise.resolve(perguntaCache.q);
+      var c = conexao(); if (!c) return Promise.resolve(null);
+      return rpc(c, 'sol_pergunta_do_dia', { p_app: cfg.app }).then(function (l) {
+        var q = Array.isArray(l) ? l[0] || null : l || null; perguntaCache = { dia: hoje, q: q }; return q;
+      }, function () { return null; });
+    }
+    function semana(e, hoje) { var lim = Date.now() - 7 * 86400000; return (e.mostrados || []).filter(function (x) { return x !== hoje && new Date(x + 'T12:00:00Z').getTime() > lim; }); }
+    function perguntaDoDia(o) {
+      o = o || {};
+      if (!podePerguntar(o.forcar)) return Promise.resolve(false);
+      return buscarPergunta().then(function (q) {
+        if (!q || !podePerguntar(o.forcar)) return false;
+        var e = estado(), hoje = hojeBrasilia();
+        if (!o.forcar && semana(e, hoje).length >= (q.vezes_semana || 3)) return false;
+        e.dia = hoje; e.mostrados = semana(e, hoje).concat([hoje]); gravarEstado(e);
+        mostrarBalao(q); return true;
+      });
+    }
+    function mostrarBalao(q) {
+      estilo();
+      var texto1 = (Idioma.atual === 'en' && q.texto_en ? q.texto_en : q.texto_pt).replace(/\{app\}/g, nomeApp());
+      var fim = function () { if (balao && balao.parentNode) balao.parentNode.removeChild(balao); balao = null; };
+      var responder = function (rapido) {
+        fim(); var e = estado(); e.agoraNao = 0; gravarEstado(e);
+        enviar({ tipo: 'pergunta_dia', rapido: rapido, pergunta_id: q.id, categoria: rapido > 0 ? 'gostei' : 'erro', texto: '', contexto: contexto() }, true);
+        abrir({ categoria: rapido > 0 ? 'gostei' : 'erro', pergunta_id: q.id,
+          tituloForm: rapido > 0 ? L('Que bom! Quer contar o que está funcionando ou o que falta?', 'Great! Want to tell us what works or what is missing?') : L('O que podemos melhorar?', 'What can we improve?') });
+      };
+      balao = el('div', { class: 'dgo-fb-balao', role: 'status', 'aria-live': 'polite', 'data-dgo-ui': '1', 'data-recurso': 'feedback' }, [
+        el('p', { texto: texto1 }),
+        el('div', { class: 'dgo-linha' }, [
+          el('button', { type: 'button', 'data-fb': 'sim', texto: '👍 ' + L('Sim', 'Yes'), onclick: function () { responder(1); } }),
+          el('button', { type: 'button', 'data-fb': 'nao', texto: '👎 ' + L('Não', 'No'), onclick: function () { responder(-1); } }),
+          el('button', { type: 'button', 'data-fb': 'agora-nao', texto: L('Agora não', 'Not now'), onclick: function () {
+            fim(); var e = estado(); e.agoraNao = (e.agoraNao || 0) + 1;
+            if (e.agoraNao >= 3) { e.pausaAte = Date.now() + 7 * 86400000; e.agoraNao = 0; }
+            gravarEstado(e);
+          } })]),
+        el('button', { type: 'button', class: 'dgo-fb-x', 'aria-label': L('Fechar', 'Close'), texto: '✕', onclick: fim })
+      ]);
+      d.body.appendChild(balao);
+      raiz.setTimeout(function () { if (balao && !balao.contains(d.activeElement)) fim(); }, conf().someEmMs);
+    }
+    /* uso real: só conta com a tela à vista e alguém mexendo no último minuto */
+    function ligarRelogio() {
+      if (relogio) return;
+      var passo = Math.max(150, Math.min(15000, conf().esperaMs / 3));
+      ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(function (ev) { d.addEventListener(ev, function () { ultimaInteracao = Date.now(); }, { passive: true, capture: true }); });
+      relogio = raiz.setInterval(function () {
+        if (d.hidden || Date.now() - ultimaInteracao > 60000) return;
+        usoMs += passo;
+        if (usoMs >= conf().esperaMs) { perguntaDoDia().then(function (mostrou) { if (mostrou || estado().dia === hojeBrasilia()) { raiz.clearInterval(relogio); } }); }
+      }, passo);
+    }
+
+    /* ---- trilha e erros (só nomes; nunca conteúdo) ---- */
+    function registrarAcao(nome) {
+      nome = String(nome || '').replace(/\s+/g, ' ').trim().slice(0, 60); if (!nome) return;
+      if (trilha[trilha.length - 1] === nome) return;
+      trilha.push(nome); if (trilha.length > 20) trilha.shift();
+    }
+    function guardarErro(m, onde) {
+      erros.push({ m: String(m || '').slice(0, 300), onde: String(onde || '').split('/').pop().slice(0, 80), t: new Date().toISOString() });
+      if (erros.length > 5) erros.shift();
+    }
+
+    /* ---- "Meus envios": ver a resposta e apagar ---- */
+    function meus() {
+      estilo();
+      var caixa = el('div', { class: 'dgo-caixa dgo-larga' }, [el('h2', { texto: '📋 ' + L('Meus envios', 'What I sent') })]);
+      var zona = el('div', { texto: L('Carregando…', 'Loading…') }); caixa.appendChild(zona);
+      caixa.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: L('Fechar', 'Close'), onclick: fecharModal }));
+      abrirModal(caixa);
+      var c = conexao();
+      filaTodos().then(function (guardados) {
+        if (!c) { zona.textContent = L('Este app ainda não está ligado ao banco de opiniões.', 'This app is not connected to the feedback database yet.') + (guardados.length ? ' ' + guardados.length + L(' guardado(s) no aparelho.', ' saved on this device.') : ''); return; }
+        return rpc(c, 'sol_meus_feedbacks', { p_app: cfg.app, p_anon_id: anonId() }).then(function (l) {
+          zona.innerHTML = '';
+          if (guardados.length) zona.appendChild(aviso(guardados.length + L(' envio(s) guardado(s) no aparelho, esperando a internet.', ' item(s) saved on this device, waiting for the internet.'), 'info'));
+          if (!l || !l.length) { zona.appendChild(el('p', { texto: L('Nada enviado ainda.', 'Nothing sent yet.') })); return; }
+          var SIT = { novo: L('recebido', 'received'), lido: L('lido', 'read'), em_analise: L('em análise', 'under review'), pendencia: L('planejado', 'planned'), respondido: L('respondido', 'answered'), fechado: L('fechado', 'closed') };
+          l.forEach(function (f) {
+            var cat = categoria(f.categoria);
+            zona.appendChild(el('div', { class: 'dgo-fb-sobre' }, [
+              el('b', { texto: '#' + f.numero + ' · ' + (cat ? L(cat.pt, cat.en) : f.tipo) + ' · ' + (SIT[f.situacao] || f.situacao) + ' · ' + formatarData(f.criado_em) }),
+              f.texto ? el('div', { texto: f.texto }) : null,
+              f.resposta ? el('div', { texto: '↳ ' + L('Resposta da equipe: ', 'Team reply: ') + f.resposta }) : null,
+              el('button', { type: 'button', class: 'dgo-b dgo-b2', style: { width: 'auto', minHeight: '36px' }, texto: '🗑 ' + L('Apagar', 'Delete'), onclick: function () {
+                var b = this; b.disabled = true;
+                rpc(c, 'sol_apagar_meu_feedback', { p_id: f.id, p_anon_id: anonId() }).then(function (caminhos) {
+                  /* com conta, os arquivos também saem do Storage (sem conta, a equipe apaga) */
+                  if (c.token && caminhos && caminhos.length) caminhos.forEach(function (cam) { pedir(c, '/storage/v1/object/sol-arquivos/' + cam.split('/').map(encodeURIComponent).join('/'), null, {}, 'DELETE').catch(function () {}); });
+                  meus();
+                }, function () { b.disabled = false; });
+              } })]));
+          });
+        }, function (e) { zona.textContent = faltaSql(e) ? L('O banco de opiniões ainda não está pronto.', 'The feedback database is not ready yet.') : L('Sem conexão agora.', 'No connection right now.'); });
+      });
+    }
+
+    /* ---- ⚙ → Ajuda → Feedback ---- */
+    function secaoConfig(raizEl) {
+      if (!conf().ativo) return;
+      var bloco = el('div', { 'data-recurso': 'feedback' });
+      bloco.appendChild(el('h3', { texto: L('Ajuda e opinião', 'Help and feedback') }));
+      var l1 = el('div', { class: 'dgo-linha' });
+      l1.appendChild(el('button', { class: 'dgo-b', type: 'button', texto: '💬 ' + L('Dar uma opinião / avisar um problema', 'Give feedback / report a problem'), onclick: function () { abrir({}); } }));
+      l1.appendChild(el('button', { class: 'dgo-b dgo-b2', type: 'button', texto: '📋 ' + L('Meus envios', 'What I sent'), onclick: meus }));
+      bloco.appendChild(l1);
+      if (conf().perguntaDiaria) {
+        var cx = el('input', { type: 'checkbox' }); cx.checked = !!estado().desligado;
+        cx.addEventListener('change', function () { var e = estado(); e.desligado = cx.checked; gravarEstado(e); });
+        bloco.appendChild(el('label', { class: 'dgo-fb-mini', style: { display: 'flex', gap: '8px', alignItems: 'center' } }, [cx, L('Não perguntar mais "Está gostando hoje?"', 'Stop asking "Are you enjoying it today?"')]));
+      }
+      raizEl.appendChild(bloco);
+    }
+
+    return {
+      abrir: abrir, enviar: function (f) { return enviar(f || {}, true); }, meus: meus, sincronizar: sincronizar, perguntaDoDia: perguntaDoDia,
+      registrarAcao: registrarAcao, secaoConfig: secaoConfig, conexao: function () { var c = conexao(); return c ? { url: c.url, logado: !!c.token } : null; },
+      pendentes: function () { return filaTodos().then(function (l) { return l.length; }); },
+      categorias: categorias,
+      botao: function (o) {
+        o = o || {};
+        var b = el('button', { type: 'button', class: o.classe || 'dgo-b dgo-b2', 'data-recurso': 'feedback', texto: '💬 ' + L('Dar uma opinião / avisar um problema', 'Give feedback / report a problem') });
+        b.addEventListener('click', function () { abrir(o); });
+        return b;
+      },
+      /* chamado uma vez quando o módulo fica pronto (evento dgo:pronto) */
+      _arrancar: function () {
+        if (arrancado || !conf().ativo) return; arrancado = true;
+        raiz.addEventListener('error', function (ev) { guardarErro(ev && ev.message, ev && (ev.filename + ':' + ev.lineno)); });
+        raiz.addEventListener('unhandledrejection', function (ev) { var r = ev && ev.reason; guardarErro((r && r.message) || String(r || ''), 'promessa'); });
+        raiz.addEventListener('hashchange', function () { registrarAcao('tela:' + String(raiz.location.hash || '').replace(/^#\/?/, '').split('?')[0]); });
+        raiz.addEventListener('online', function () { raiz.setTimeout(sincronizar, 800); });
+        var e = estado(); if (!e.primeiraVisita) { e.primeiraVisita = hojeBrasilia(); gravarEstado(e); }
+        raiz.setTimeout(sincronizar, 2500);
+        if (conf().perguntaDiaria) ligarRelogio();
+      }
+    };
+  })();
+  d.addEventListener('dgo:pronto', function () { try { Feedback._arrancar(); } catch (e) {} });
+
   var API = {
     __carregado: true,
+    fundo: Fundo,
+    tarefa: Tarefa,
     versao: VERSAO,
     cfg: cfg,
+    /* campo de senha com 👁: DGO.senha.olho(input) · aplicar(raiz) · esconder(raiz) */
+    senha: Senha,
+    /* cofre comum de chaves (cofre.js) ou null, se a pagina nao carregou o cofre.js */
+    get cofre() { return cofreComum(); },
 
     iniciar: function (opcoes) {
       fundir(cfg, opcoes || {});
       Idioma.montarDicionario();
+      ligarCofreComum();
 
       var guardado = Guardar.ler('idioma', null, !!cfg.idiomaCompartilhado);
       var doNavegador = (navigator.language || 'pt').toLowerCase().indexOf('en') === 0 ? 'en' : 'pt';
@@ -2950,6 +6962,9 @@
       d.documentElement.setAttribute('data-dgo-idioma', Idioma.atual);
 
       function arrancar() {
+        /* camada 1 do DGO.compat: sem o essencial, o app nem tenta (tela cheia com o passo a passo) */
+        var faltaEssencial = Compat.essenciais();
+        if (faltaEssencial.length && !(cfg.compat && cfg.compat.bloqueio === false)) { Compat.mostrarBloqueio(faltaEssencial); return; }
         injetarEstilo();
         garantirMeta();
         Sessao.carregar();
@@ -2961,18 +6976,32 @@
           });
         });
         marcarIgnorados();
-        montarBanner();
+        Niveis.carregarArquivo().then(function () { Niveis.revisar(); });
+        montarFaixa();
+        montarBarraAdmin();
+        Anuncios.carregarArquivo();
         vigiarTelaCheia();
+        Popup.agendar();                 /* 'antes' se ninguem entrou; 'depois' se ja entrou */
         raiz.addEventListener('resize', function () {
-          ajustarTopo(bannerEl ? bannerEl.offsetHeight : 0);
+          ajustarTopo(faixaEl ? faixaEl.offsetHeight : 0);
         });
         raiz.addEventListener('orientationchange', function () {
-          raiz.setTimeout(function () { ajustarTopo(bannerEl ? bannerEl.offsetHeight : 0); }, 250);
+          raiz.setTimeout(function () { ajustarTopo(faixaEl ? faixaEl.offsetHeight : 0); }, 250);
         });
         montarSeletorIdioma();
         PWA.preparar();
         if (cfg.login.biometria) Biometria.verificarAparelho();
         Notif.iniciar();
+        Fundo._arrancar();
+        /* recursos, comportamentos e conteudo publicados pelo RootifyONE (nao trava o app) */
+        try { Interruptores.vigiar(); Central.atualizar(); } catch (e) {}
+        /* camada 2 do DGO.compat: faixa fechavel (versao antiga ou dentro de outro app); refaz quando o
+           RootifyONE publica outros minimos (comportamento global compat.minimos) */
+        try { Compat.mostrarFaixa(); d.addEventListener('dgo:central', function (e) { if (e.detail && /^recursos\//.test(e.detail.arquivo || '')) Compat.mostrarFaixa(); }); } catch (e) {}
+        var con = navigator.connection;
+        if (con && con.addEventListener) {
+          con.addEventListener('change', function () { d.dispatchEvent(new CustomEvent('dgo:rede', { detail: { tipo: Rede.tipo() } })); });
+        }
         Varredura.iniciar();
         if (cfg.login.ativo && cfg.login.exigirNaAbertura && !Sessao.tipo) abrirLogin();
         d.dispatchEvent(new CustomEvent('dgo:pronto', { detail: API.sessao() }));
@@ -3016,9 +7045,13 @@
 
     /* anuncios */
     anuncios: {
-      mostrar: function () { FlagAnuncio.reabrir(); montarBanner(); },
-      esconder: function () { FlagAnuncio.fechar(); montarBanner(); },
+      mostrar: function () { FlagAnuncio.reabrir(); montarFaixa(); },
+      esconder: function () { FlagAnuncio.fechar(); montarFaixa(); },
+      lista: function () { return Anuncios.lista(); },
+      definirLista: function (l) { cfg.anuncios.lista = l || []; Anuncios._lista = null; montarFaixa(); },
       metricas: Anuncios.totais,
+      popup: function (anuncio, momento) { return Popup.abrir(anuncio, momento); },
+      agendarPopup: function (momento) { Popup.agendar(momento); },
       painel: abrirPainelAnunciante
     },
 
@@ -3028,7 +7061,11 @@
       ler: OCR.ler,
       lerArquivo: OCR.lerArquivo,
       extrair: OCR.extrair,
-      preAquecer: function () { return OCR.motor(function () {}); }
+      preAquecer: function () {
+        return OCR.temLocal().then(function (l) { return l ? true : OCR.motor(function () {}); });
+      },
+      ondeEsta: function () { return OCR.ondeEsta(); },
+      temLocal: function () { return OCR.temLocal(); }
     },
 
     /* notificacoes */
@@ -3050,6 +7087,115 @@
       abrirPainel: abrirNotificacoes,
       montarPainel: montarNotificacoes
     },
+
+    /* IA */
+    ia: {
+      abrir: abrirIA,
+      chaves: abrirChaves,
+      perguntar: function (p, o) { return IA.perguntar(p, o); },
+      temChave: function (prov) { return IA.temChave(prov); },
+      definirChave: function (prov, k) { return IA.definirChave(prov, k); },
+      provedor: function () { return IA.provedor(); },
+      definirProvedor: function (p) { return IA.definirProvedor(p); },
+      provedores: function (cap) {
+        completarProvedores();
+        return Object.keys(PROVEDORES).filter(function (p) { return cap ? (PROVEDORES[p].cap || []).indexOf(cap) !== -1 : !PROVEDORES[p].soVoz; })
+          .sort(function (a, b) { return (PROVEDORES[a].ordem || 9) - (PROVEDORES[b].ordem || 9); }).map(function (p) {
+          var pr = PROVEDORES[p];
+          return { id: p, nome: nomeProv(pr), gratis: pr.gratis, onde: pr.onde, cap: pr.cap || [], temChave: IA.temChave(p), modelo: IA.modelo(p),
+                   stt: pr.stt || null, tts: pr.tts || null, semChave: !!pr.semChave };
+        });
+      },
+      /* por uso: 'texto' | 'stt' | 'tts' | 'visao' - o app pergunta qual provedor e qual chave usar */
+      capacidades: function () { return Object.keys(CAPS).map(function (c) { return { id: c, icone: CAPS[c].icone, nome: CAPS[c][Idioma.atual] || CAPS[c].pt }; }); },
+      provedorPara: function (cap) { completarProvedores(); return PorUso.provedor(cap); },
+      chavePara: function (cap) { completarProvedores(); return PorUso.chave(cap); },
+      /* 1.10.0: as mesmas, mas esperando o cofre abrir (pede o PIN se estiver trancado) */
+      lerChave: function (prov) { return IA.lerChave(prov || IA.provedor()); },
+      lerChavePara: function (cap) { completarProvedores(); return PorUso.lerChave(cap); },
+      definirPara: function (cap, prov) { if (cap === 'texto') IA.definirProvedor(prov); else PorUso.definir(cap, prov); },
+      guia: function (prov, cap) { return abrirChaves(prov, cap); },
+      provedoresProntos: function () { return IA.provedoresProntos(); },
+      modelo: function (prov) { return IA.modelo(prov); },
+      definirModelo: function (prov, m) { return IA.definirModelo(prov, m); },
+      listarModelos: function (prov) { return IA.listarModelos(prov); },
+      explicarErro: function (e) { return IA.explicarErro(e); },
+      ultimaTrocaDeModelo: function () { return IA._ultimaTroca || null; },
+      definirEndereco: function (prov, url) { return IA.definirBase(prov, url); },
+      limpar: function () { return IA.limparConversa(); },
+      set cofreBackend(b2) { IA.cofreBackend = b2; },
+      get cofreBackend() { return IA.cofreBackend; }
+    },
+
+    /* rede: wifi ou dados */
+    rede: {
+      tipo: function () { return Rede.tipo(); },
+      economia: function () { return Rede.economia(); },
+      preferencia: function (c) { return Rede.preferencia(c); },
+      definir: function (c, v) { return Rede.definir(c, v); },
+      podeBaixarPesado: function () { return Rede.podeBaixarPesado(); },
+      podeUsarIA: function () { return Rede.podeUsarIA(); },
+      pedirPesado: function (desc, mb) { return Rede.pedirPesado(desc, mb); }
+    },
+
+    /* wizard */
+    wizard: {
+      definir: function (id, def) { return Wizard.definir(id, def); },
+      abrir: function (id, passo) { return Wizard.abrir(id, passo); },
+      feito: function (id) { return Wizard.feito(id); },
+      dados: function (id) { return Wizard.dados(id); },
+      reiniciar: function (id) { return Wizard.reiniciar(id); }
+    },
+
+    /* niveis de acesso */
+    pode: function (id) { return Niveis.pode(id); },
+    exigir: function (id, acao, opcoes) { return Niveis.exigir(id, acao, opcoes); },
+    nivel: function () { return Niveis.atual(); },
+    niveis: {
+      pode: function (id) { return Niveis.pode(id); },
+      exigir: function (id, a2, o) { return Niveis.exigir(id, a2, o); },
+      atual: function () { return Niveis.atual(); },
+      servicos: function () { return Niveis.servicos(); },
+      definir: function (id, n) { return Niveis.definirNivelDoServico(id, n); },
+      marcar: function (sel, id) { return Niveis.marcar(sel, id); },
+      revisar: function () { return Niveis.revisar(); },
+      convite: function (id, o) { return Niveis.convite(id, o); },
+      set backend(b2) { Niveis.backend = b2; },
+      get backend() { return Niveis.backend; }
+    },
+    admin: {
+      ehAdmin: function () { return Niveis.ehAdmin(); },
+      abrir: abrirAdmin,
+      simular: function (n) {
+        if (n) Guardar.gravar('admin-simular', n); else Guardar.apagar('admin-simular');
+        montarFaixa(); Niveis.revisar(); montarBarraAdmin();
+        return Niveis.atual();
+      }
+    },
+
+    /* arquivos master do RootifyONE: recursos (flags), comportamentos e conteudo por app */
+    central: { ler: function (n) { return Central.ler(n); }, atualizar: function () { return Central.atualizar(); }, ativo: function () { return Central.ativo(); }, guardado: function (n) { return Central.guardado(n); } },
+    recursos: { ligado: function (id, p) { return Central.ligado(id, p); }, valor: function (id, p) { return Central.valor(id, p); }, todos: function () { return Central.recursos(); },
+      desligados: function () { return Interruptores.desligados(); },
+      aoMudar: function (fn) { if (typeof fn === 'function') Interruptores._ouvintes.push(fn); return function () { Interruptores._ouvintes = Interruptores._ouvintes.filter(function (f) { return f !== fn; }); }; } },
+    conteudo: { colecao: function (id) { return Central.colecao(id); }, item: function (c, id) { return Central.item(c, id); }, texto: function (v) { return Central.texto(v); } },
+
+    /* o seu aparelho pode usar isto? (1.7.0) + endereco da pagina central */
+    compat: {
+      verificar: function () { return Compat.verificar() || Promise.resolve(null); },
+      exigir: function (id, o) { return Compat.exigir(id, o); },
+      explicar: function (id, o) { return Compat.verificar().then(function (r) { return Compat.explicar(id, o, r); }); },
+      navegador: function (ua) { return Compat.navegador(ua); },
+      desatualizado: function (ua) { return Compat.desatualizado(ua ? Compat.navegador(ua) : null); },
+      minimos: function () { return Compat.minimos(); },
+      essenciais: function () { return Compat.essenciais(); },
+      semGuardar: function () { return Compat.semGuardar(); },
+      usa: function () { return Compat.usa(); },
+      faltando: function (r) { return Compat.faltando(r); },
+      mostrarFaixa: function () { return Compat.mostrarFaixa(); },
+      quadro: function (dest) { return Compat.quadro(dest); }
+    },
+    siteBase: function () { return siteBase(); },
 
     /* e-mail */
     email: Email,
@@ -3090,6 +7236,9 @@
     guardar: Guardar,
     modal: { abrir: abrirModal, fechar: fecharModal, caixa: function (props, filhos) { return el('div', props, filhos); } }
   };
+
+  /* Feedback dos usuários: DGO.feedback (bloco "Feedback" acima) */
+  API.feedback = Feedback;
 
   raiz.DGO = API;
   raiz.Diretrizes = API;
