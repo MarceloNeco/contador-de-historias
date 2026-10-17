@@ -489,3 +489,18 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Botão esconder | 🙈 Esconder a chave | 🙈 Hide the key |
 | Janela do PIN · motivo de "Mostrar" | Digite o PIN para ver a chave. | Type the PIN to see the key. |
 
+## Cofre sem brecha (v1.25.0)
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Cabeçalho · cofre aberto (aria/título) | Cofre aberto — toque para trancar agora | Vault open — tap to lock now |
+| Cabeçalho · cofre trancado | Cofre trancado — toque para abrir com o PIN | Vault locked — tap to open with the PIN |
+| Ao digitar com o cofre aberto | ✓ guardado | ✓ saved |
+| Ao apagar um campo | ✓ apagado do cofre | ✓ removed from the vault |
+| Aviso (toast) | ✓ Guardado no cofre | ✓ Saved in the vault |
+| Aviso (toast) · apagado | ✓ Apagado do cofre | ✓ Removed from the vault |
+| Botão 👁 | Ver o que estou digitando | See what I am typing |
+| Botão 🙈 | Esconder o que estou digitando | Hide what I am typing |
+| Chave só de pontinhos | Isso é só a máscara da chave. Cole a chave de verdade. | That is just the key mask. Paste the real key. |
+| Painel · Saiba mais | Saiba mais · quando o PIN é pedido | Learn more · when the PIN is asked |
+| Painel · linhas | Ver `pintarPainelCofre()` (3 linhas: "Pede o PIN", "Não pede o PIN", "Tranca sozinho") | See `pintarPainelCofre()` (3 lines: "Asks for the PIN", "Does not ask for the PIN", "Locks by itself") |

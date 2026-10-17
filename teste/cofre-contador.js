@@ -474,27 +474,96 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       await ctx.close();
     }
     {
+      /* v1.25.0: escondido por mais de 1 minuto tranca; menos de 1 minuto, não; ao voltar, pede o PIN */
       const { ctx, page } = await abrir(browser, base, { relogio: true });
-      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
-      await page.waitForTimeout(400);
-      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'ao sair do app (aba escondida) o cofre tranca na hora');
-      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      const esconder = () => page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      const mostrar = () => page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await esconder();
+      await page.clock.fastForward(30 * 1000); await page.waitForTimeout(200);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'escondido por 30 segundos: o cofre ainda está aberto');
+      await page.clock.fastForward(40 * 1000); await page.waitForTimeout(300);
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'escondido por mais de 1 minuto: o cofre tranca');
+      await mostrar();
       await page.locator('#solver-cofre [role=dialog]').waitFor({ state: 'visible', timeout: 4000 });
       conferir(true, 'ao voltar para o app, o PIN é pedido de novo');
       await ctx.close();
     }
     {
-      /* trabalho rodando: não tranca; tranca logo que termina */
+      /* voltar depois de muito tempo (o navegador pode ter congelado os relógios): a conferência roda ao voltar, antes de mostrar qualquer coisa */
       const { ctx, page } = await abrir(browser, base, { relogio: true });
-      await page.evaluate(() => { document.body.classList.add('com-leitor'); });        // leitor aberto com voz de internet (motorVoz: gemini)
-      await page.clock.fastForward(6 * 60 * 1000); await page.waitForTimeout(300);
-      conferir(await page.evaluate(() => SolverCofre.aberto()), 'com o leitor aberto e voz de internet (trabalho rodando), passam 6 minutos e o cofre NÃO tranca');
       await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
-      await page.waitForTimeout(200);
-      conferir(await page.evaluate(() => SolverCofre.aberto()), 'nem ao esconder o app, enquanto o trabalho dura');
-      await page.evaluate(() => { document.body.classList.remove('com-leitor'); });      // o trabalho termina
+      await page.clock.runFor(1000);
+      await page.clock.setFixedTime(Date.now() + 90 * 60 * 1000);                      // 1 hora e meia depois, sem os relógios terem rodado
+      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await page.waitForTimeout(300);
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())) && !/Lia|Davi/.test(await page.evaluate(() => document.querySelector('#sub-hd').textContent)), 'voltar depois de 1h30: o cofre já está trancado e o cabeçalho sem nomes');
+      await ctx.close();
+    }
+    {
+      /* áudio tocando adia tudo; terminou, tranca. Leitor aberto e PARADO não segura mais nada */
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      await page.evaluate(() => { document.body.classList.add('com-leitor'); document.querySelector('#btn-play').textContent = '⏸'; });     // áudio tocando
+      await page.clock.fastForward(6 * 60 * 1000); await page.waitForTimeout(300);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'áudio tocando: passam 6 minutos e o cofre NÃO tranca');
+      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await page.clock.fastForward(2 * 60 * 1000); await page.waitForTimeout(300);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'áudio tocando: nem escondido por 2 minutos');
+      await page.evaluate(() => { document.querySelector('#btn-play').textContent = '▶'; });                                                   // o áudio parou
       await page.clock.fastForward(20000); await page.waitForTimeout(300);
-      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'logo que o trabalho termina, o cofre tranca');
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'o áudio parou: o cofre tranca logo');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      await page.evaluate(() => { document.body.classList.add('com-leitor'); document.querySelector('#btn-play').textContent = '▶'; });     // leitor aberto, PARADO
+      await page.clock.fastForward(5 * 60 * 1000 + 20000); await page.waitForTimeout(300);
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'leitor aberto mas parado não segura o cofre: tranca em 5 minutos');
+      await ctx.close();
+    }
+    {
+      /* "ocupado" (geração de história) só adia o relógio de 5 minutos; escondido por 1 minuto tranca mesmo assim; o console diz o que adiou */
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      const avisos = []; page.on('console', (m) => { if (m.type() === 'info' && /\[cofre\]/.test(m.text())) avisos.push(m.text()); });
+      await page.evaluate(() => { document.querySelector('#btn-gerar').disabled = true; });                                                   // geração em andamento
+      await page.clock.fastForward(6 * 60 * 1000); await page.waitForTimeout(300);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), '"ocupado" (gerando história): 6 minutos parado e o cofre não tranca');
+      conferir(avisos.some((m) => /adiado.*gerando-historia/.test(m)), 'o console diz qual condição adiou: ' + (avisos[0] || '(nada)'));
+      conferir(!avisos.some((m) => /AQ\.|sk-|Lia|Davi|Tobias/.test(m)), 'e a mensagem não tem segredo nenhum');
+      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await page.clock.fastForward(70 * 1000); await page.waitForTimeout(300);
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), '"ocupado" não segura o app escondido por mais de 1 minuto: tranca');
+      await ctx.close();
+    }
+    {
+      /* pagehide tranca (a não ser que um áudio esteja tocando) */
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      await page.evaluate(() => { document.body.classList.add('com-leitor'); document.querySelector('#btn-play').textContent = '⏸'; window.dispatchEvent(new Event('pagehide')); });
+      await page.waitForTimeout(300);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'pagehide com áudio tocando: não tranca');
+      await page.evaluate(() => { document.querySelector('#btn-play').textContent = '▶'; window.dispatchEvent(new Event('pagehide')); });
+      await page.waitForTimeout(300);
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'pagehide sem áudio tocando: tranca');
+      await ctx.close();
+    }
+    {
+      /* recarregar SEMPRE pede o PIN, mesmo com trabalho rodando e o cofre aberto */
+      const { ctx, page } = await abrir(browser, base);
+      await page.evaluate(() => { document.querySelector('#btn-gerar').disabled = true; });
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'ponto de partida: cofre aberto');
+      await page.reload();
+      await page.waitForSelector('#tela-inicio', { state: 'attached' });
+      await page.locator('#solver-cofre [role=dialog]').waitFor({ state: 'visible', timeout: 5000 });
+      const r = await page.evaluate(() => ({ aberto: SolverCofre.aberto(), topo: document.querySelector('#sub-hd').textContent, corpo: document.body.innerText + Array.from(document.querySelectorAll('input')).map((i) => i.value).join(' ') }));
+      conferir(!r.aberto, 'recarregar a página: o cofre abre trancado e o PIN é pedido');
+      conferir(!/Lia|Davi|Tobias/.test(r.topo) && !/Lia|Davi|Tobias/.test(r.corpo), 'e antes do PIN nenhum nome aparece (cabeçalho e telas)');
+      await ctx.close();
+    }
+    {
+      /* recarregar de novo com o cofre aberto e sem nenhum trabalho: o mesmo */
+      const { ctx, page } = await abrir(browser, base);
+      await page.reload();
+      await page.locator('#solver-cofre [role=dialog]').waitFor({ state: 'visible', timeout: 5000 });
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'recarregar (sem trabalho): também pede o PIN');
       await ctx.close();
     }
 
@@ -517,6 +586,87 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       const restou = await page.evaluate(() => new Promise((ok) => { const rq = indexedDB.open('ch_audio'); rq.onsuccess = () => { const g = rq.result.transaction('audio', 'readonly').objectStore('audio').getAllKeys(); g.onsuccess = () => ok(g.result.map(String).filter((k) => /^saudacao\|/.test(k)).length); }; }));
       conferir(restou === 0, 'os cumprimentos antigos que estavam guardados foram apagados na abertura');
       await ctx.close();
+    }
+
+    /* ============ 14. indicador, "Mostrar" que mostra, digitar com sinal de que guardou, texto de ajuda ============ */
+    console.log('\n14. Indicador, Mostrar, guardado e ajuda');
+    {
+      const { ctx, page } = await abrir(browser, base, { largura: 320 });
+      const ind = () => page.evaluate(() => { const b = document.querySelector('#btn-cofre'); return { visivel: !b.hidden && getComputedStyle(b).display !== 'none', txt: b.textContent, rotulo: b.getAttribute('aria-label') }; });
+      let i = await ind();
+      conferir(i.visivel && i.txt === '🔓' && /aberto/.test(i.rotulo), 'cabeçalho: com o cofre aberto aparece 🔓 "Cofre aberto — toque para trancar agora"');
+      conferir(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) <= 1, 'cabeçalho com o indicador cabe em 320 px (sem rolagem lateral)');
+      await page.click('#btn-cofre'); await page.waitForTimeout(400);
+      i = await ind();
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())) && i.txt === '🔒' && /trancado/.test(i.rotulo), 'tocar no 🔓 tranca na hora e o indicador vira 🔒');
+      conferir(!/Lia|Davi/.test(await page.evaluate(() => document.querySelector('#sub-hd').textContent)), 'trancado: cabeçalho e saudação neutros');
+      await page.click('#btn-cofre');
+      await resolverPin(page, PIN, 3000); await page.waitForTimeout(400);
+      i = await ind();
+      conferir((await page.evaluate(() => SolverCofre.aberto())) && i.txt === '🔓', 'tocar no 🔒 pede o PIN e o indicador volta a 🔓');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, base, { semSegredos: true, pin: 'nenhum' });
+      conferir(!(await page.locator('#btn-cofre').isVisible()), 'sem cofre e sem nada guardado: o indicador não aparece');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      await irConfig(page);
+      const tipo = () => page.evaluate(() => ({ t: document.querySelector('#in-gemini-key').type, v: document.querySelector('#in-gemini-key').value }));
+      let c = await tipo();
+      conferir(c.t === 'password' && c.v === '', 'chave escondida: campo de senha e vazio');
+      await page.click('#cfg-txt-gemini [data-mostrar=geminiKey]');
+      await resolverPin(page, PIN, 3000); await page.waitForTimeout(400);
+      c = await tipo();
+      conferir(c.t === 'text' && c.v === FALSO.geminiKey, '"Mostrar a chave": o campo vira texto e mostra a chave de verdade');
+      await page.clock.fastForward(31000); await page.waitForTimeout(300);
+      c = await tipo();
+      conferir(c.t === 'password' && c.v === '', 'passados 30 segundos o campo volta a ser de senha, escondido');
+      await page.click('#cfg-txt-gemini [data-mostrar=geminiKey]');
+      await resolverPin(page, PIN, 3000); await page.waitForTimeout(400);
+      await page.click('#cfg-txt-gemini [data-mostrar=geminiKey]'); await page.waitForTimeout(300);
+      c = await tipo();
+      conferir(c.t === 'password' && c.v === '', '"Esconder a chave" também volta para senha na hora');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, base);
+      await irConfig(page);
+      const dialogos0 = await page.locator('#solver-cofre [role=dialog]').count();
+      await page.fill('#in-gemini-key', 'abc');
+      const olho = page.locator('#cfg-txt-gemini [data-olho=geminiKey]');
+      conferir(await olho.isVisible(), 'ao digitar uma chave aparece o botão 👁');
+      conferir((await page.evaluate(() => document.querySelector('#in-gemini-key').type)) === 'password', 'o que se digita aparece em pontinhos');
+      await olho.click();
+      const v = await page.evaluate(() => ({ t: document.querySelector('#in-gemini-key').type, v: document.querySelector('#in-gemini-key').value }));
+      conferir(v.t === 'text' && v.v === 'abc', '👁 mostra o que está sendo digitado, sem pedir PIN ("abc")');
+      await page.waitForTimeout(900);
+      conferir((await page.evaluate(() => SolverCofre.lerAgora('ia:gemini'))) === 'abc', 'o valor guardado é exatamente o digitado ("abc" digitado, "abc" lido do cofre)');
+      const fb = await page.evaluate(() => { const g = document.querySelector('#cfg-txt-gemini [data-guardado=geminiKey]'); return { vis: !g.hidden && getComputedStyle(g).display !== 'none', txt: g.textContent, toast: document.querySelector('#toast').textContent }; });
+      conferir(fb.vis && /guardado/.test(fb.txt), 'aparece "✓ guardado" ao lado do campo');
+      conferir(/Guardado no cofre/.test(fb.toast), 'e o aviso "✓ Guardado no cofre"');
+      conferir((await page.locator('#solver-cofre [role=dialog]').count()) === dialogos0, 'digitar com o cofre aberto não pediu PIN');
+      await olho.click();
+      conferir((await page.evaluate(() => document.querySelector('#in-gemini-key').type)) === 'password', '🙈 volta a esconder o que se digita');
+      /* a máscara nunca vira valor */
+      await page.fill('#in-gemini-key', '••••••••'); await page.click('#sel-motor-texto button[data-motor=gemini]'); await page.waitForTimeout(900);
+      conferir((await page.evaluate(() => SolverCofre.lerAgora('ia:gemini'))) === 'abc', 'a máscara "••••••••" nunca é guardada como chave (continua "abc")');
+      /* nomes: mesmo sinal e valor exato */
+      await page.fill('#in-publico-nomes', 'Maia e Teo'); await page.waitForTimeout(900);
+      const nm = await page.evaluate(() => { const g = document.querySelector('[data-guardado=publicoNomes]'); return { v: SolverCofre.lerAgora('contador:publicoNomes'), vis: !g.hidden, txt: g.textContent }; });
+      conferir(nm.v === 'Maia e Teo' && nm.vis && /guardado/.test(nm.txt), 'nomes: guardados exatamente como digitados, com "✓ guardado" ao lado');
+      await ctx.close();
+    }
+    {
+      for (const [idioma, esperado] of [[null, ['Pede o PIN', 'Não pede o PIN', 'Tranca sozinho']], ['en', ['Asks for the PIN', 'Does not ask for the PIN', 'Locks by itself']]]) {
+        const { ctx, page } = await abrir(browser, base, idioma ? { idioma } : {});
+        await irConfig(page);
+        const txt = await page.evaluate(() => document.querySelector('#cofre-painel details').textContent);
+        conferir(esperado.every((e) => txt.includes(e)), (idioma ? 'EN' : 'PT') + ': o "Saiba mais" do cofre explica quando o PIN é pedido, quando não é e quando tranca sozinho');
+        await ctx.close();
+      }
     }
 
     // as 3 mensagens da CSP que o próprio teste 13 provoca de propósito (script de dentro da página e origem fora da lista) não contam;
