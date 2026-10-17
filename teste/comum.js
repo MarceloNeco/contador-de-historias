@@ -45,7 +45,7 @@ async function contexto(browser, base, opc) {
     viewport: { width: opc.largura || 420, height: opc.altura || 860 }
   });
   const ped = { texto: [], voz: [], outros: [] };
-  await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => {
+  await ctx.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, (route) => {
     const u = route.request().url();
     if (/generativelanguage\.googleapis\.com/.test(u)) {
       const corpo = route.request().postData() || '';
