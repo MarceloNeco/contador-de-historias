@@ -504,3 +504,22 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Chave só de pontinhos | Isso é só a máscara da chave. Cole a chave de verdade. | That is just the key mask. Paste the real key. |
 | Painel · Saiba mais | Saiba mais · quando o PIN é pedido | Learn more · when the PIN is asked |
 | Painel · linhas | Ver `pintarPainelCofre()` (3 linhas: "Pede o PIN", "Não pede o PIN", "Tranca sozinho") | See `pintarPainelCofre()` (3 lines: "Asks for the PIN", "Does not ask for the PIN", "Locks by itself") |
+
+## Digital no lugar do PIN (v1.26.0)
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Janela do cofre · botão | 👆 Abrir com a digital | 👆 Open with fingerprint |
+| Janela do cofre · separador | ou digite o PIN | or type the PIN |
+| Janela do cofre · explicação | Toque no botão para usar a digital, ou digite o PIN. | Tap the button to use your fingerprint, or type the PIN. |
+| Janela do cofre · digital falhou | Não deu certo com a digital. Tente de novo ou digite o PIN. | The fingerprint did not work. Try again or type the PIN. |
+| Janela do cofre · digital perdida | A digital deste aparelho não vale mais. Digite o PIN (depois você pode ativar a digital de novo). | This device’s fingerprint is no longer valid. Type the PIN (you can turn the fingerprint on again afterwards). |
+| Painel · oferta | Quer abrir o cofre com a digital, sem digitar o PIN? O PIN continua como reserva. | Want to open the vault with your fingerprint, without typing the PIN? The PIN stays as the backup. |
+| Painel · botão ligar | 👆 Ligar a digital | 👆 Turn on the fingerprint |
+| Painel · ligada | Digital ligada: o cofre abre com a digital. O PIN continua valendo como reserva. | Fingerprint on: the vault opens with your fingerprint. The PIN still works as the backup. |
+| Painel · botão tirar | Tirar a digital | Turn off the fingerprint |
+| Painel · aparelho sem digital | Para abrir com a digital, cadastre uma digital (ou o rosto) nas configurações do celular. | To open with your fingerprint, set up a fingerprint (or face) in your phone settings. |
+| Aviso · ligou | ✓ Digital ligada. Na próxima vez é só tocar nela. | ✓ Fingerprint on. Next time just touch it. |
+| Aviso · desligou | Digital desligada. Vale só o PIN. | Fingerprint off. Only the PIN works. |
+| Aviso · sem digital | Este aparelho não tem digital cadastrada. | This device has no fingerprint set up. |
+| Aviso · falhou | Não deu certo com a digital. Tente de novo. | The fingerprint did not work. Try again. |

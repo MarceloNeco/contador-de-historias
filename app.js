@@ -2836,7 +2836,8 @@ function pintarSegredos(){
       else if(escondida){ el.value = ''; el.placeholder = mascara; el.readOnly = false; delete el.dataset.cofre; }
       else { el.readOnly = false; delete el.dataset.cofre; el.placeholder = el.dataset.ph; el.value = Seg.agora(c); }
       })();
-      if(ctl.olho) ctl.olho.hidden = !(Seg.aberto() && el.value);
+      // v1.25.2: o 👁 é só para quem está digitando; com a chave mostrada pelo "Mostrar" ele não aparece (o botão "Esconder" já cuida disso)
+      if(ctl.olho) ctl.olho.hidden = !(Seg.aberto() && el.value && !reveladas[c] && (veDigitado[c] || document.activeElement===el || Date.now()-(editando[c]||0) < 8000));
     });
   });
 }
@@ -2915,6 +2916,7 @@ function pintarPainelCofre(){
   let h;
   if(!K) h = `<div class="aviso">${T('O cofre de chaves não carregou. Atualize a página.','The key vault did not load. Reload the page.')}</div>`;
   else if(Seg.aberto()) h = `<div>🔓 ${T('Cofre aberto neste aparelho.','Vault open on this device.')}</div>
+    <div id="cofre-digital" data-dgo-ignorar style="margin-top:10px"></div>
     <div style="height:8px"></div><button class="btn sm" id="btn-cofre-trancar">🔒 ${T('Trancar o cofre agora','Lock the vault now')}</button>`;
   else if(!K.existe() && Seg.pendentes()>0) h = `<div class="aviso">⚠️ ${T('Suas chaves e os nomes das crianças ainda estão sem proteção neste aparelho. Crie um PIN para trancar tudo no cofre.','Your keys and the children\'s names are still unprotected on this device. Create a PIN to lock everything in the vault.')}</div>
     <div style="height:8px"></div><button class="btn sm pri" id="btn-cofre-abrir">🔐 ${T('Criar o PIN agora','Create the PIN now')}</button>`;
@@ -2933,6 +2935,32 @@ function pintarPainelCofre(){
   el.innerHTML = h;
   const t = $('#btn-cofre-trancar'); if(t) t.onclick = ()=>{ Seg.trancar().then(()=>toast(T('🔒 Cofre trancado','🔒 Vault locked'))); };
   const a = $('#btn-cofre-abrir'); if(a) a.onclick = ()=>{ Seg.abrir().catch(()=>{}); };
+  if(K && Seg.aberto()) pintarDigitalNoPainel();
+}
+/* v1.26.0: abrir o cofre com a digital no lugar do PIN (o PIN continua como reserva). A digital é ligada aqui, com o cofre aberto. */
+let digitalDisp = null;   // o aparelho tem digital? (lembrado: o painel se repinta sem pular, e o toque no 👁 não se perde)
+function pintarDigitalNoPainel(){
+  const K = window.SolverCofre; if(!K || !K.digitalDisponivel) return;
+  const desenhar = ()=>{
+    const disp = digitalDisp;
+    const box = $('#cofre-digital'); if(!box || !Seg.aberto()) return;
+    if(K.digitalAtiva()){
+      box.innerHTML = `<div>👆 ${T('Digital ligada: o cofre abre com a digital. O PIN continua valendo como reserva.','Fingerprint on: the vault opens with your fingerprint. The PIN still works as the backup.')}</div>
+        <div style="height:8px"></div><button class="btn sm" id="btn-cofre-digital-tirar">${T('Tirar a digital','Turn off the fingerprint')}</button>`;
+      $('#btn-cofre-digital-tirar').onclick = ()=>{ K.desativarDigital().then(()=>{ toast(T('Digital desligada. Vale só o PIN.','Fingerprint off. Only the PIN works.')); pintarPainelCofre(); }); };
+    }else if(disp){
+      box.innerHTML = `<div>👆 ${T('Quer abrir o cofre com a digital, sem digitar o PIN? O PIN continua como reserva.','Want to open the vault with your fingerprint, without typing the PIN? The PIN stays as the backup.')}</div>
+        <div style="height:8px"></div><button class="btn sm pri" id="btn-cofre-digital-ligar">👆 ${T('Ligar a digital','Turn on the fingerprint')}</button>`;
+      $('#btn-cofre-digital-ligar').onclick = ()=>{
+        K.ativarDigital().then(()=>{ toast(T('✓ Digital ligada. Na próxima vez é só tocar nela.','✓ Fingerprint on. Next time just touch it.'), 4000); pintarPainelCofre(); },
+          e=>toast(e && e.message==='sem-digital-no-aparelho' ? T('Este aparelho não tem digital cadastrada.','This device has no fingerprint set up.') : T('Não deu certo com a digital. Tente de novo.','The fingerprint did not work. Try again.'), 4000));
+      };
+    }else{
+      box.innerHTML = `<div style="font-size:13px;opacity:.8">👆 ${T('Para abrir com a digital, cadastre uma digital (ou o rosto) nas configurações do celular.','To open with your fingerprint, set up a fingerprint (or face) in your phone settings.')}</div>`;
+    }
+  };
+  if(digitalDisp===null) K.digitalDisponivel().then(d=>{ digitalDisp = !!d; }, ()=>{ digitalDisp = false; }).then(desenhar);
+  else desenhar();
 }
 /* v1.25.0: indicador no cabeçalho — 🔓 cofre aberto / 🔒 trancado; tocar no 🔓 tranca na hora, tocar no 🔒 pede o PIN.
    Só aparece quando existe um cofre. */
@@ -3566,6 +3594,14 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.26.0','17/10/2026', [
+    'Agora dá para abrir o cofre com a digital, sem digitar o PIN. Em Configurações, com o cofre aberto, toque em "Ligar a digital". O PIN continua valendo como reserva (troca de celular ou digital que falhou)',
+    'A janela do cofre ganhou o botão "👆 Abrir com a digital"; vale também para "Mostrar a chave". A digital fica só neste aparelho e neste endereço',
+    'Por baixo: o cofre foi atualizado (versão 1.2.0)'
+  ]],
+  ['1.25.2','17/10/2026', [
+    'Corrigido: depois de "Mostrar a chave" aparecia um segundo botão (👁/🙈) que não fazia nada de útil. Agora o 👁 só aparece enquanto você está digitando; com a chave mostrada, só o botão "Esconder a chave"'
+  ]],
   ['1.25.1','17/10/2026', [
     'Corrigido: o botão 👁 pequeno de Configurações às vezes ficava na tela com o campo da chave já escondido (vazio) e sumia e voltava ao tocar. Agora ele só aparece quando há algo digitado'
   ]],

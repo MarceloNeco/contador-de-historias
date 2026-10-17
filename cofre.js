@@ -1,5 +1,5 @@
 /* =====================================================================
-   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.1.0, 17/Out/2026)
+   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.2.0, 17/Out/2026)
    ---------------------------------------------------------------------
    POR QUE ESTE ARQUIVO EXISTE
    Todos os apps da SolverONE moram no MESMO endereço (solverone.com.br/<app>/).
@@ -7,6 +7,13 @@
    aberto no navegador, em 4 lugares diferentes. Qualquer cópia do navegador,
    backup ou extensão curiosa lia tudo. Agora existe UM cofre só, igual em todos
    os apps: as chaves ficam embaralhadas aqui no aparelho e só abrem com o PIN.
+
+   1.2.0 (17/Out/2026, pedido do dono): abrir com a DIGITAL (WebAuthn, o mesmo jeito do RootifyONE) no
+   lugar de digitar o PIN, que continua sendo a reserva (troca de celular, digital que falhou). Depois de abrir
+   com o PIN, o app oferece "ativar a digital": o navegador cria uma chave presa ao aparelho (IndexedDB, não
+   exportável) que embrulha a chave de dados; ela só é usada depois que o sistema confirma a digital. Nada de
+   biometria sai do aparelho. A digital é presa ao endereço (solverone.com.br) e a este navegador. Mesmo limite
+   de sempre: código ruim dentro da página, com o cofre aberto, poderia usar as chaves.
 
    1.1.0 (17/Out/2026, pedido do dono, pendência #37 do Contador): sem "Lembrar neste
    aparelho" (abria sem PIN para qualquer um com o aparelho destravado; quem tinha
@@ -47,7 +54,7 @@
   'use strict';
   if (raiz.SolverCofre && raiz.SolverCofre.__carregado) return;
 
-  var VERSAO = '1.1.0';
+  var VERSAO = '1.2.0';
   var NOME = 'dgo:global:cofre';                 /* localStorage: o cofre (embaralhado) */
   var NOME_ERROS = 'dgo:global:cofre:erros';     /* localStorage: PIN errado { n, ate } */
   var NOME_SESSAO = 'dgo:global:cofre:sessao';   /* sessionStorage: { id, pac } desta aba */
@@ -92,6 +99,12 @@
     voltar: ['Voltar', 'Back'],
     apagado: ['Cofre apagado. Crie um PIN novo e cole as chaves de novo.', 'Vault deleted. Create a new PIN and paste the keys again.'],
     mostrar: ['Mostrar o PIN', 'Show the PIN'],
+    digitalBotao: ['👆 Abrir com a digital', '👆 Open with fingerprint'],
+    ouPin: ['ou digite o PIN', 'or type the PIN'],
+    explicaAbrirDigital: ['Toque no botão para usar a digital, ou digite o PIN.', 'Tap the button to use your fingerprint, or type the PIN.'],
+    digitalFalhou: ['Não deu certo com a digital. Tente de novo ou digite o PIN.', 'The fingerprint did not work. Try again or type the PIN.'],
+    digitalPerdida: ['A digital deste aparelho não vale mais. Digite o PIN (depois você pode ativar a digital de novo).',
+                     'This device’s fingerprint is no longer valid. Type the PIN (you can turn the fingerprint on again afterwards).'],
     motivoPadrao: ['Um app quer usar uma chave guardada.', 'An app wants to use a saved key.']
   };
   function lingua() {
@@ -210,6 +223,16 @@
         c.onerror = function () { ok(); };
       });
     }).catch(function () {});
+  }
+
+  /* digital (WebAuthn): o registro guarda { id, dominio, env } em envoltas.digital; a chave que abre o env
+     fica no IndexedDB ('digital', não exportável) e só é usada depois que o sistema confirma a digital */
+  function dominioAtual() { return String(raiz.location && raiz.location.hostname || '').toLowerCase(); }
+  function lerDigital(r) { var x = r && r.envoltas && r.envoltas.digital; return x && x.id && x.env && x.env.ct ? x : null; }
+  function tirarDigital() {
+    var r = lerRegistro();
+    if (r && r.envoltas && r.envoltas.digital) { delete r.envoltas.digital; gravarRegistro(r); }
+    return idbTirar('digital');
   }
 
   /* ------------------------------------------------------------------
@@ -469,7 +492,24 @@
         } else if (modo === 'abrir') {
           caixa.appendChild(el('h2', { id: 'sc-tit', texto: t('tituloAbrir') }));
           if (motivo) caixa.appendChild(el('p', { texto: motivo }));
-          caixa.appendChild(el('p', { class: 'sc-mini', texto: t('explicaAbrir') }));
+          var temDigital = API.digitalAtiva();
+          caixa.appendChild(el('p', { class: 'sc-mini', texto: t(temDigital ? 'explicaAbrirDigital' : 'explicaAbrir') }));
+          var botDigital = null;
+          if (temDigital) {
+            botDigital = el('button', { type: 'button', class: 'sc-b', 'data-sc': 'digital', texto: t('digitalBotao'), style: 'width:100%;margin-top:.5rem',
+              onclick: function () {
+                botDigital.disabled = true; botDigital.textContent = t('abrindo');
+                API.abrirComDigital().then(function () { fim(true); }, function (e) {
+                  var perdida = e && (e.message === 'digital-perdida' || e.message === 'digital-outro-endereco');
+                  if (perdida) { pintar('abrir', t('digitalPerdida')); return; }
+                  botDigital.disabled = false; botDigital.textContent = t('digitalBotao');
+                  erro.textContent = t('digitalFalhou');
+                });
+              } });
+            caixa.appendChild(botDigital);
+            caixa.appendChild(el('p', { class: 'sc-mini', style: 'text-align:center;margin:.6rem 0 0', texto: t('ouPin') }));
+          }
+          if (aviso) caixa.appendChild(el('p', { class: 'sc-erro', role: 'alert', texto: aviso }));
           var cp = campoPin(t('pin'));
           var form2 = el('form', { novalidate: true, autocomplete: 'off' }, [cp,
             erro,
@@ -493,7 +533,7 @@
             });
           });
           caixa.appendChild(form2);
-          cp._input.focus();
+          (botDigital || cp._input).focus();      /* com digital, o foco vai no botão: o teclado do celular não abre sem precisar */
         } else {   /* esqueci */
           caixa.appendChild(el('h2', { id: 'sc-tit', texto: t('tituloEsqueci') }));
           caixa.appendChild(el('p', { texto: t('esqueciTexto') }));
@@ -529,6 +569,62 @@
 
     existe: function () { return !!lerRegistro(); },
     aberto: function () { return E.aberto; },
+    /* digital (WebAuthn). Disponível = o aparelho tem digital/rosto/tela cadastrada e a página é segura */
+    digitalDisponivel: function () {
+      if (semCripto() || !raiz.PublicKeyCredential || !raiz.isSecureContext || !raiz.navigator || !raiz.navigator.credentials) return Promise.resolve(false);
+      try { return raiz.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(function (v) { return !!v; }, function () { return false; }); }
+      catch (e) { return Promise.resolve(false); }
+    },
+    /* a digital está ligada neste aparelho (e vale neste endereço)? */
+    digitalAtiva: function () { var x = lerDigital(lerRegistro()); return !!x && x.dominio === dominioAtual(); },
+    /* liga a digital: precisa do cofre aberto (pelo PIN). Pede a digital uma vez. Promise<true> */
+    ativarDigital: function () {
+      if (!E.aberto) return Promise.reject(erro('cofre-trancado'));
+      return API.digitalDisponivel().then(function (ok) {
+        if (!ok) throw erro('sem-digital-no-aparelho');
+        return navigator.credentials.create({ publicKey: {
+          challenge: aleatorio(32), rp: { name: 'SolverONE' },
+          user: { id: aleatorio(16), name: 'cofre-solverone', displayName: 'Cofre SolverONE' },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          timeout: 60000, attestation: 'none' } });
+      }).then(function (cred) {
+        if (!cred) throw erro('digital-cancelada');
+        return novaChaveFixa().then(function (k) {
+          return idbPor('digital', { k: k, em: Date.now() }).then(function () { return cifrar(k, E.bruta); });
+        }).then(function (env) {
+          var r = lerRegistro();
+          if (!r || idDe(r) !== E.id) throw erro('cofre-trocado');
+          r.envoltas.digital = { id: b64(cred.rawId), dominio: dominioAtual(), env: env, em: new Date().toISOString() };
+          gravarRegistro(r);
+          avisar('cofre:digital', { ativa: true });
+          return true;
+        });
+      }, function (e) { throw (e && /^(cofre-|sem-)/.test(e.message) ? e : erro('digital-cancelada')); });
+    },
+    /* abre com a digital (sem PIN). Erros: 'digital-cancelada' (pode tentar de novo), 'digital-perdida' e
+       'digital-outro-endereco' (a digital foi tirada daqui: use o PIN), 'sem-digital' */
+    abrirComDigital: function () {
+      if (semCripto()) return Promise.reject(erro('sem-suporte'));
+      var reg = lerRegistro();
+      if (!reg) return Promise.reject(erro('sem-cofre'));
+      if (E.aberto && E.id === idDe(reg)) return Promise.resolve(true);
+      var x = lerDigital(reg);
+      if (!x) return Promise.reject(erro('sem-digital'));
+      if (x.dominio !== dominioAtual()) return tirarDigital().then(function () { throw erro('digital-outro-endereco'); });
+      function perdida() { return tirarDigital().then(function () { throw erro('digital-perdida'); }); }
+      return navigator.credentials.get({ publicKey: { challenge: aleatorio(32), userVerification: 'required', timeout: 60000,
+        allowCredentials: [{ type: 'public-key', id: deB64(x.id) }] } })
+        .then(function (a) { if (!a) throw erro('digital-cancelada'); }, function () { throw erro('digital-cancelada'); })
+        .then(function () { return idbPegar('digital'); })
+        .then(function (o) { return o && o.k ? decifrar(o.k, x.env).catch(perdida) : perdida(); })
+        .then(function (bruta) {
+          return importarDEK(bruta).then(function (dek) { return decifrar(dek, reg.dados); }).then(function (b) { return abrirCom(bruta, deBytes(b), reg); });
+        })
+        .then(function () { return depoisDeAbrir('digital'); });
+    },
+    desativarDigital: function () { return tirarDigital().then(function () { avisar('cofre:digital', { ativa: false }); return true; }); },
+
     lembrado: function () { var r = lerRegistro(); return !!(r && r.envoltas && r.envoltas.aparelho); },
 
     criar: function (pin, opcoes) {
@@ -621,7 +717,7 @@
       var estava = fecharMemoria();
       try { raiz.localStorage.removeItem(NOME); } catch (e) {}
       gravarErros(null);
-      return Promise.all([apagarSessao(), idbTirar('aparelho')]).then(function () {
+      return Promise.all([apagarSessao(), idbTirar('aparelho'), idbTirar('digital')]).then(function () {
         avisar('cofre:trancado', { motivo: 'apagado', estava: estava }); return true;
       });
     },
