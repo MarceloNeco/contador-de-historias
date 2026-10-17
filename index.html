@@ -48,6 +48,9 @@ header{
 @media (min-width:600px){.hd{gap:10px;padding:12px 16px}}
 /* padrão comum (diretriz AssistONE e menu): ☰ + nome (= Início) | … | 🔍 📥 👤 — todos com 44 px de toque */
 .hd .icobtn{width:44px;height:44px;flex:none}
+#btn-cofre{width:38px;font-size:18px}
+small[data-guardado]{display:block;margin:4px 2px 0;font-size:12px;font-weight:700;color:#6ee7b7}
+small[data-guardado][hidden],#btn-cofre[hidden],[data-mostrar][hidden],[data-olho][hidden]{display:none !important}
 .hd .logo{width:24px;height:24px;flex:none;display:inline-flex;vertical-align:-5px;margin-right:6px}
 .hd .logo svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(227,160,74,.35))}
 #hd-marca{cursor:pointer;min-width:0;flex:1}
@@ -504,6 +507,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     <button class="icobtn" id="btn-menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-lateral">☰</button>
     <h1 id="hd-marca" role="button" tabindex="0" aria-label="UM Contador de Histórias — ir para o Início"><span class="logo" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M3 17v39c10-3 20-3 29 2 9-5 19-5 29-2V17z" fill="#E3A04A"/><path d="M32 13C24 8 14 8 6 11v40c8-3 18-3 26 3zM32 13c8-5 18-5 26-2v40c-8-3-18-3-26 3z" fill="#F7E8C9" stroke="#9A5F1E" stroke-width="3" stroke-linejoin="round"/><path d="M11 21c5-1.6 10-1.4 16 1M11 29c5-1.6 10-1.4 16 1M11 37c5-1.6 10-1.4 16 1M37 22c6-2.4 11-2.6 16-1M37 30c6-2.4 11-2.6 16-1M37 38c6-2.4 11-2.6 16-1" stroke="#C99A5B" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg></span>UM Contador de Histórias<small id="sub-hd">boa noite, meninas</small></h1>
     <button class="icobtn btn-mic oculto" id="btn-mic-topo" type="button" aria-label="Comando de voz">🎤</button>
+    <button class="icobtn" id="btn-cofre" type="button" hidden data-dgo-ignorar aria-label="Cofre"></button>
     <button class="icobtn" id="btn-busca-topo" type="button" aria-label="Buscar">🔍</button>
     <button class="icobtn" id="btn-inbox-topo" type="button" aria-label="Mensagens">📥<span class="badge" id="inbox-badge" hidden></span></button>
     <span class="perfil-nome" id="perfil-nome" aria-hidden="true"></span>

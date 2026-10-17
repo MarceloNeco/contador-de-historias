@@ -158,7 +158,7 @@ const Seg = (function(){
   let pend = Promise.resolve(), recusou = false, ouvintes = [];
   // enquanto a abertura não terminou de conferir o cofre (iniciarCofre), nada de nome nem de "aberto" na tela
   let prontoFlag = false, resolverPronto; const prontoP = new Promise(r=>{ resolverPronto = r; });
-  const ocupadoFns = [];
+  const ocupadoFns = [];                // [{rotulo, fn}]
   const agendados = {}; let relogio = 0;
   const trancadoErro = ()=>{
     const e = new Error(T('O cofre de chaves está trancado. Digite o PIN para usar as chaves guardadas.','The key vault is locked. Type the PIN to use the saved keys.'));
@@ -179,7 +179,7 @@ const Seg = (function(){
   }
   function descarregar(){
     clearTimeout(relogio);
-    Object.keys(agendados).forEach(c=>{ const v = agendados[c]; delete agendados[c]; gravar(c, v).catch(()=>{}); });
+    Object.keys(agendados).forEach(c=>{ const v = agendados[c]; delete agendados[c]; gravar(c, v).then(()=>avisarOuvintes('digitado', c), ()=>{}); });
   }
   async function ler(c, motivo){
     descarregar();
@@ -195,6 +195,8 @@ const Seg = (function(){
   const precisaPerguntar = ()=> !recusou && !aberto() && existe();
   function gravar(c, valor){
     valor = String(valor==null ? '' : valor).trim();
+    // a máscara "••••••••" é só desenho do campo: nunca pode virar o valor guardado
+    if(/^[•·●*]{3,}$/.test(valor)) return Promise.reject(new Error(T('Isso é só a máscara da chave. Cole a chave de verdade.','That is just the key mask. Paste the real key.')));
     const p = pend.then(()=>{
       const k = C(); if(!k) throw semCofre();
       return valor ? k.gravar(nome(c), valor, {motivo:MOTIVO}) : k.apagar(nome(c), {motivo:MOTIVO});
@@ -207,12 +209,13 @@ const Seg = (function(){
   }
   const emEspera = ()=> Object.keys(agendados).length > 0;
   const aoMudar = fn => { ouvintes.push(fn); };
-  const avisarOuvintes = ev => ouvintes.slice().forEach(fn=>{ try{ fn(ev); }catch(e){} });
+  const avisarOuvintes = (ev, extra) => ouvintes.slice().forEach(fn=>{ try{ fn(ev, extra); }catch(e){} });
   // a abertura terminou de conferir o cofre: agora a tela pode mostrar o que o cofre tem
   const liberar = ()=>{ prontoFlag = true; resolverPronto(); avisarOuvintes('pronto'); };
-  // trabalho rodando (fila de voz, geração, cópia, leitor com voz de internet…): o cofre não tranca sozinho enquanto durar
-  const ocupadoSe = fn => { ocupadoFns.push(fn); };
-  const ocupado = ()=> ocupadoFns.some(fn=>{ try{ return !!fn(); }catch(e){ return false; } });
+  // trabalho rodando (fila de voz, geração, cópia, áudio tocando…): só adia o relógio de 5 minutos do trancar sozinho.
+  // fn() devolve false, true ou um texto que diz qual (ex.: 'tarefa:copia'); ocupado() devolve a lista dos rótulos que estão valendo.
+  const ocupadoSe = (rotulo, fn) => { ocupadoFns.push({rotulo, fn}); };
+  const ocupado = ()=> ocupadoFns.map(o=>{ try{ const r = o.fn(); return r ? (typeof r==='string' ? r : o.rotulo) : ''; }catch(e){ return ''; } }).filter(Boolean);
   // "mostrar": tranca e pede o PIN de novo (quem pegou o celular aberto não vê a chave sem o PIN)
   async function reautenticar(motivo){
     const k = C(); if(!k) return false;
@@ -2800,32 +2803,54 @@ const CAMPOS_TELA = {
    o botão "Mostrar" tranca o cofre e pede o PIN de novo, mostra a chave por 30 s e volta a esconder. Digitar num
    campo escondido TROCA a chave. Os nomes das crianças aparecem com o cofre aberto (a pessoa pode ver o que escreveu). */
 const CHAVES_DE_IA = ['geminiKey','openaiKey','elevenKey','anthropicKey'];
-const reveladas = {};                                          // campo → relógio que volta a esconder a chave
+const reveladas = {};                                          // campo → relógio (30 s) da chave mostrada com o PIN
+const veDigitado = {};                                         // campo → true: o 👁 do campo mostra o que está sendo digitado (o cofre já está aberto)
+const editando = {};                                           // campo → quando a pessoa mexeu por último (8 s de folga antes de esconder o que ela digitou)
+const CTRL = new Map();                                        // <input> → {guardado, olho, mostrar} (os botões e o aviso "guardado" ao lado do campo)
 function pintarSegredos(){
-  if(Seg.emEspera()) return;                                   // a pessoa está digitando: não mexe
   const aviso = T('🔐 Guardado no cofre — abrir para ver ou mudar','🔐 Saved in the vault — open to see or change');
   const mascara = T('•••••••• (chave guardada)','•••••••• (key saved)');
   Object.keys(CAMPOS_TELA).forEach(c=>{
     const ehChave = CHAVES_DE_IA.includes(c);
     const trancado = !Seg.aberto() && Seg.tem(c);
-    const escondida = ehChave && Seg.aberto() && Seg.tem(c) && !reveladas[c];
+    const escondida = ehChave && Seg.aberto() && Seg.tem(c) && !reveladas[c] && !veDigitado[c];
     CAMPOS_TELA[c].forEach(sel=>{
       const el = $(sel); if(!el) return;
       if(el.dataset.ph===undefined) el.dataset.ph = el.getAttribute('placeholder')||'';
+      const ctl = CTRL.get(el) || {};
+      // v1.25.0: chave mostrada (com o PIN) ou "ver o que digito" (cofre aberto) = campo de texto; senão, de senha
+      if(ehChave) el.type = (Seg.aberto() && (reveladas[c] || veDigitado[c])) ? 'text' : 'password';
+      if(ctl.olho){
+        ctl.olho.hidden = !(Seg.aberto() && el.value);
+        ctl.olho.textContent = veDigitado[c] ? '🙈' : '👁';
+        const t = veDigitado[c] ? T('Esconder o que estou digitando','Hide what I am typing') : T('Ver o que estou digitando','See what I am typing');
+        ctl.olho.title = t; ctl.olho.setAttribute('aria-label', t);
+      }
+      if(ctl.mostrar){
+        ctl.mostrar.hidden = !Seg.tem(c);
+        ctl.mostrar.textContent = reveladas[c] ? T('🙈 Esconder a chave','🙈 Hide the key') : T('👁 Mostrar a chave (pede o PIN)','👁 Show the key (asks for the PIN)');
+      }
+      if(Seg.emEspera()) return;                               // a pessoa está digitando: não mexe no valor
       if(trancado){ el.value = ''; el.placeholder = aviso; el.readOnly = true; el.dataset.cofre = '1'; }
-      else if(document.activeElement===el) return;
+      else if(document.activeElement===el || (ctl.olho && document.activeElement===ctl.olho) || Date.now()-(editando[c]||0) < 8000) return;   // digitando ou tocando no 👁 do campo (o foco muda no meio do toque): não esconde agora
       else if(escondida){ el.value = ''; el.placeholder = mascara; el.readOnly = false; delete el.dataset.cofre; }
       else { el.readOnly = false; delete el.dataset.cofre; el.placeholder = el.dataset.ph; el.value = Seg.agora(c); }
-      const b = el.nextElementSibling;
-      if(b && b.dataset && b.dataset.mostrar===c){
-        b.hidden = !Seg.tem(c);
-        b.textContent = reveladas[c] ? T('🙈 Esconder a chave','🙈 Hide the key') : T('👁 Mostrar a chave (pede o PIN)','👁 Show the key (asks for the PIN)');
-      }
     });
   });
 }
+// v1.25.0: sinal de que guardou (toast + "✓ guardado" ao lado do campo)
+let ultimoToastGuardado = 0;
+function mostrarGuardado(c){
+  const vazio = !Seg.agora(c);
+  CAMPOS_TELA[c].forEach(sel=>{
+    const el = $(sel), g = el && CTRL.get(el) && CTRL.get(el).guardado; if(!g) return;
+    g.hidden = false; g.textContent = vazio ? T('✓ apagado do cofre','✓ removed from the vault') : T('✓ guardado','✓ saved');
+    clearTimeout(g._t); g._t = setTimeout(()=>{ g.hidden = true; }, 3500);
+  });
+  if(Date.now()-ultimoToastGuardado > 4000){ ultimoToastGuardado = Date.now(); toast(vazio ? T('✓ Apagado do cofre','✓ Removed from the vault') : T('✓ Guardado no cofre','✓ Saved in the vault'), 2500); }
+}
 function salvarSegredo(c, valor){
-  return Seg.gravar(c, valor).then(()=>pintarCofre(), e=>{
+  return Seg.gravar(c, valor).then(()=>{ pintarCofre(); mostrarGuardado(c); }, e=>{
     toast((e && e.message) || T('Não deu para guardar no cofre.','Could not save to the vault.'), 5000);
     pintarSegredos();
   });
@@ -2833,6 +2858,10 @@ function salvarSegredo(c, valor){
 Object.keys(CAMPOS_TELA).forEach(c=>{
   const els = CAMPOS_TELA[c].map(sel=>$(sel)).filter(Boolean);
   els.forEach(el=>{
+    const ctl = {};
+    // aviso pequeno "✓ guardado" ao lado do campo (aparece quando grava)
+    ctl.guardado = document.createElement('small');
+    ctl.guardado.setAttribute('data-dgo-ignorar',''); ctl.guardado.setAttribute('data-guardado', c); ctl.guardado.hidden = true; ctl.guardado.setAttribute('role','status');
     if(CHAVES_DE_IA.includes(c)){
       // chave de IA: sem autocompletar, sem maiúscula automática, sem corretor, sem copiar nem recortar; o valor nunca vai para log
       el.setAttribute('autocomplete','off'); el.setAttribute('autocapitalize','none'); el.setAttribute('spellcheck','false');
@@ -2840,7 +2869,6 @@ Object.keys(CAMPOS_TELA).forEach(c=>{
       ['copy','cut'].forEach(ev=>el.addEventListener(ev, e=>e.preventDefault()));
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'btn sm ghost'; b.dataset.mostrar = c; b.setAttribute('data-dgo-ignorar',''); b.hidden = true; b.style.marginTop = '8px';
-      el.insertAdjacentElement('afterend', b);
       b.addEventListener('click', async ()=>{
         if(reveladas[c]){ clearTimeout(reveladas[c]); delete reveladas[c]; pintarSegredos(); return; }
         const ok = await Seg.reautenticar(T('Digite o PIN para ver a chave.','Type the PIN to see the key.')).catch(()=>false);
@@ -2848,12 +2876,24 @@ Object.keys(CAMPOS_TELA).forEach(c=>{
         reveladas[c] = setTimeout(()=>{ delete reveladas[c]; pintarSegredos(); }, 30000);
         pintarSegredos();
       });
-      el.addEventListener('blur', ()=>setTimeout(pintarSegredos, 700));
+      // 👁/🙈: ver o que está sendo digitado, sem PIN (o cofre já está aberto)
+      const o = document.createElement('button');
+      o.type = 'button'; o.className = 'btn sm ghost'; o.dataset.olho = c; o.setAttribute('data-dgo-ignorar',''); o.hidden = true; o.style.cssText = 'margin:8px 8px 0 0;min-width:44px';
+      o.addEventListener('click', ()=>{ veDigitado[c] = !veDigitado[c]; pintarSegredos(); });
+      ctl.mostrar = b; ctl.olho = o;
+      el.insertAdjacentElement('afterend', b); el.insertAdjacentElement('afterend', o);
+      // saiu do campo (e não foi para o 👁 dele): volta a esconder o que estava sendo digitado
+      const aoSair = ()=>setTimeout(()=>{ const a = document.activeElement; if(a!==el && a!==o) veDigitado[c] = false; pintarSegredos(); }, 700);
+      el.addEventListener('blur', aoSair); o.addEventListener('blur', aoSair);
     }
+    (ctl.mostrar || el).insertAdjacentElement('afterend', ctl.guardado);   // depois dos botões: o aviso aparecendo não empurra o 👁 no meio do toque
+    CTRL.set(el, ctl);
     el.addEventListener('input', ()=>{
       if(el.dataset.cofre) return;
       els.forEach(o=>{ if(o!==el) o.value = el.value; });      // as duas telas da mesma chave ficam iguais
       if(Seg.aberto()) Seg.agendar(c, el.value);               // cofre aberto: grava sozinho, sem janela
+      editando[c] = Date.now(); setTimeout(pintarSegredos, 8100);   // passada a folga, o campo volta a esconder a chave
+      pintarSegredos();                                        // mostra/esconde o 👁 conforme há texto
     });
     el.addEventListener('change', ()=>{                        // cofre fechado: o PIN é pedido aqui (cria ou abre) e a ação segue
       if(el.dataset.cofre) return;
@@ -2872,53 +2912,112 @@ function pintarPainelCofre(){
   const K = window.SolverCofre;
   let h;
   if(!K) h = `<div class="aviso">${T('O cofre de chaves não carregou. Atualize a página.','The key vault did not load. Reload the page.')}</div>`;
-  else if(Seg.aberto()) h = `<div>🔓 ${T('Cofre aberto neste aparelho. Ele tranca sozinho depois de 5 minutos sem uso e quando você sai do app (menos enquanto um trabalho está rodando).','Vault open on this device. It locks by itself after 5 minutes without use and when you leave the app (except while a job is running).')}</div>
+  else if(Seg.aberto()) h = `<div>🔓 ${T('Cofre aberto neste aparelho.','Vault open on this device.')}</div>
     <div style="height:8px"></div><button class="btn sm" id="btn-cofre-trancar">🔒 ${T('Trancar o cofre agora','Lock the vault now')}</button>`;
   else if(!K.existe() && Seg.pendentes()>0) h = `<div class="aviso">⚠️ ${T('Suas chaves e os nomes das crianças ainda estão sem proteção neste aparelho. Crie um PIN para trancar tudo no cofre.','Your keys and the children\'s names are still unprotected on this device. Create a PIN to lock everything in the vault.')}</div>
     <div style="height:8px"></div><button class="btn sm pri" id="btn-cofre-abrir">🔐 ${T('Criar o PIN agora','Create the PIN now')}</button>`;
   else if(K.existe()) h = `<div>🔐 ${T('Cofre trancado. As chaves e os nomes das crianças só aparecem com o PIN.','Vault locked. The keys and the children\'s names only show with the PIN.')}</div>
     <div style="height:8px"></div><button class="btn sm" id="btn-cofre-abrir">🔓 ${T('Abrir o cofre','Open the vault')}</button>`;
   else h = `<div>🔐 ${T('Ao colar uma chave ou escrever o nome das crianças, o app pede para criar um PIN e tranca tudo num cofre neste aparelho.','When you paste a key or write the children\'s names, the app asks you to create a PIN and locks everything in a vault on this device.')}</div>`;
+  // v1.25.0: quando o PIN é pedido e quando não é (3 linhas; a caixa lembra se estava aberta)
+  if(K){
+    const estavaAberta = !!el.querySelector('details[open]');
+    h += `<details class="saiba" data-dgo-ignorar${estavaAberta?' open':''}><summary>${T('Saiba mais · quando o PIN é pedido','Learn more · when the PIN is asked')}</summary>
+      <div>${T('<b>Pede o PIN:</b> ao abrir ou recarregar o app; ao voltar depois de 5 minutos parado ou de sair do app; e ao tocar em “Mostrar a chave”.','<b>Asks for the PIN:</b> when you open or reload the app; when you come back after 5 idle minutes or after leaving the app; and when you tap “Show the key”.')}</div>
+      <div>${T('<b>Não pede o PIN:</b> ao digitar ou colar chaves e nomes com o cofre aberto (aparece “✓ guardado” ao lado do campo).','<b>Does not ask for the PIN:</b> when you type or paste keys and names with the vault open (“✓ saved” shows next to the field).')}</div>
+      <div>${T('<b>Tranca sozinho:</b> depois de 5 minutos sem mexer (espera se um trabalho estiver rodando) e depois de 1 minuto fora do app (espera só se um áudio estiver tocando).','<b>Locks by itself:</b> after 5 minutes without touching (waits if a job is running) and after 1 minute outside the app (waits only if audio is playing).')}</div>
+    </details>`;
+  }
   el.innerHTML = h;
   const t = $('#btn-cofre-trancar'); if(t) t.onclick = ()=>{ Seg.trancar().then(()=>toast(T('🔒 Cofre trancado','🔒 Vault locked'))); };
   const a = $('#btn-cofre-abrir'); if(a) a.onclick = ()=>{ Seg.abrir().catch(()=>{}); };
 }
-Seg.aoMudar(()=>{ pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualizarSaudacao(); });
-document.addEventListener('dgo:idioma', ()=>{ pintarSegredos(); pintarPainelCofre(); });
-pintarSegredos(); pintarPainelCofre();
+/* v1.25.0: indicador no cabeçalho — 🔓 cofre aberto / 🔒 trancado; tocar no 🔓 tranca na hora, tocar no 🔒 pede o PIN.
+   Só aparece quando existe um cofre. */
+function pintarIndicadorCofre(){
+  const b = $('#btn-cofre'); if(!b) return;
+  const K = window.SolverCofre;
+  const existe = !!(K && K.existe());
+  b.hidden = !existe;
+  if(!existe) return;
+  const aberto = Seg.aberto();
+  b.textContent = aberto ? '🔓' : '🔒';
+  const t = aberto ? T('Cofre aberto — toque para trancar agora','Vault open — tap to lock now') : T('Cofre trancado — toque para abrir com o PIN','Vault locked — tap to open with the PIN');
+  b.title = t; b.setAttribute('aria-label', t);
+}
+const btnCofre = $('#btn-cofre');
+if(btnCofre) btnCofre.addEventListener('click', ()=>{
+  if(Seg.aberto()) Seg.trancar().then(()=>toast(T('🔒 Cofre trancado','🔒 Vault locked'), 2500));
+  else Seg.abrir().catch(()=>{});
+});
+Seg.aoMudar((ev, c)=>{
+  if(ev==='digitado'){ mostrarGuardado(c); return; }           // gravou o que a pessoa digitou (cofre aberto)
+  pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualizarSaudacao(); pintarIndicadorCofre();
+});
+document.addEventListener('dgo:idioma', ()=>{ pintarSegredos(); pintarPainelCofre(); pintarIndicadorCofre(); });
+pintarSegredos(); pintarPainelCofre(); pintarIndicadorCofre();
 
-/* ---------- trancar sozinho (v1.23.0): 5 min sem uso e ao sair do app; nunca com trabalho rodando ----------
-   Trabalho rodando = fila de voz, tarefa em andamento (cópia, nuvem, foto), geração de história, ou leitor aberto com voz de
-   internet. Aí o cofre espera e tranca logo que o trabalho termina (a conferência roda a cada 15 s). */
-Seg.ocupadoSe(()=>FilaVoz.rodando());
-Seg.ocupadoSe(()=>{ const t = window.DGO && DGO.tarefa && DGO.tarefa.ativas && DGO.tarefa.ativas(); return !!(t && t.length); });
-Seg.ocupadoSe(()=>document.body.classList.contains('com-leitor') && cfg.motorVoz!=='nativo');
-Seg.ocupadoSe(()=>{ const b = $('#btn-gerar'); return !!(b && b.disabled && cfg.motorTexto!=='manual'); });
+/* ---------- trancar sozinho (v1.25.0) ----------
+   Três relógios:
+   • 5 minutos sem tocar, digitar ou rolar → tranca, MAS "ocupado" adia (fila de voz, tarefa do DGO, geração de história,
+     áudio tocando). Ocupado segura SÓ este relógio.
+   • App escondido por mais de 1 minuto → tranca de qualquer jeito, a não ser que um áudio esteja tocando neste exato momento.
+   • Fechar ou recarregar a página (pagehide) → tranca, a não ser que um áudio esteja tocando.
+   Ao voltar para o app a conferência roda ANTES de mostrar qualquer coisa (o navegador pode ter congelado os relógios).
+   Quando algo adia o trancamento, o console diz o quê (só o nome da condição, nunca segredo). */
+const audioTocando = ()=> document.body.classList.contains('com-leitor') && ($('#btn-play')||{}).textContent==='⏸';
+Seg.ocupadoSe('fila-de-voz', ()=>FilaVoz.rodando());
+Seg.ocupadoSe('tarefa', ()=>{ const t = window.DGO && DGO.tarefa && DGO.tarefa.ativas && DGO.tarefa.ativas(); return (t && t.length) ? 'tarefa:'+t.join('+') : false; });
+Seg.ocupadoSe('gerando-historia', ()=>{ const b = $('#btn-gerar'); return !!(b && b.disabled && cfg.motorTexto!=='manual'); });
+Seg.ocupadoSe('audio-tocando', ()=>audioTocando());
 (function(){
-  const LIMITE = 5*60*1000; let ultima = Date.now();
+  const LIMITE = 5*60*1000, FORA = 60*1000;
+  let ultima = Date.now(), saiuEm = document.hidden ? Date.now() : 0, ultimoAviso = '';
   const marca = ()=>{ ultima = Date.now(); };
   ['pointerdown','keydown','touchstart','wheel'].forEach(ev=>document.addEventListener(ev, marca, {passive:true, capture:true}));
-  function conferir(){
-    if(!Seg.aberto() || Seg.ocupado()) return;
-    if(document.hidden || Date.now()-ultima >= LIMITE) Seg.trancar().then(()=>{ if(!document.hidden) toast(T('🔒 Cofre trancado (sem uso)','🔒 Vault locked (idle)'), 3500); });
+  function adiou(por){ const m = '[cofre] trancamento adiado: '+por.join(', '); if(m!==ultimoAviso){ ultimoAviso = m; console.info(m); } }
+  function trancarPor(motivo){
+    ultimoAviso = ''; console.info('[cofre] trancado: '+motivo);
+    return Seg.trancar().then(()=>{ if(motivo==='ocioso' && !document.hidden) toast(T('🔒 Cofre trancado (sem uso)','🔒 Vault locked (idle)'), 3500); });
   }
-  setInterval(conferir, 15000);
+  // devolve a promessa do trancamento (ou null se nada foi trancado)
+  function conferir(origem){
+    if(!Seg.aberto()) return null;
+    const agora = Date.now();
+    const foraDoApp = !!saiuEm && agora-saiuEm >= FORA;
+    if(origem==='pagehide' || foraDoApp){
+      if(audioTocando()){ adiou(['audio-tocando']); return null; }
+      return trancarPor(origem==='pagehide' ? 'pagehide' : 'fora-do-app');
+    }
+    if(agora-ultima >= LIMITE){
+      const por = Seg.ocupado();
+      if(por.length){ adiou(por); return null; }
+      return trancarPor('ocioso');
+    }
+    return null;
+  }
+  setInterval(()=>conferir('relogio'), 15000);
   document.addEventListener('visibilitychange', ()=>{
-    if(document.hidden){ conferir(); return; }
-    marca();
-    if(Seg.precisaPerguntar()) Seg.abrir(T('Digite o PIN para abrir o Contador.','Type the PIN to open Storyteller.')).catch(()=>{});   // voltou ao app: pede o PIN
+    if(document.hidden){ saiuEm = Date.now(); return; }
+    const p = conferir('voltou');                                                  // voltou ao app: confere antes de mostrar qualquer coisa
+    saiuEm = 0; marca();
+    const pedir = ()=>{ if(Seg.precisaPerguntar()) Seg.abrir(T('Digite o PIN para abrir o Contador.','Type the PIN to open Storyteller.')).catch(()=>{}); };
+    if(p) p.then(pedir); else pedir();
   });
-  window.addEventListener('pagehide', conferir);
+  window.addEventListener('pagehide', ()=>conferir('pagehide'));
+  window.addEventListener('pageshow', e=>{ if(e.persisted){ saiuEm = 0; marca(); pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualizarSaudacao(); pintarIndicadorCofre(); } });
 })();
 
-/* ---------- abertura (v1.23.0): confere o cofre e pede o PIN logo de cara ----------
-   Antes de "pronto" a tela não mostra nome de criança nem chave. (Quem tinha "Lembrar" na 1.22.0 volta a digitar o PIN: o
-   cofre.js 1.1.0 apaga essa chave do aparelho sozinho ao carregar.) Cofre criado e trancado, ou chaves/nomes ainda em texto aberto: abre a janela do PIN (criar ou digitar);
+/* ---------- abertura (v1.25.0): SEMPRE tranca antes de perguntar ----------
+   O cofre.js deixa a aba reabrir o cofre sozinha depois de recarregar (a sessão fica na aba). O Contador NÃO aproveita isso:
+   ao abrir ou recarregar, tranca de novo e pede o PIN. Antes de "pronto" a tela não mostra nome de criança nem chave.
+   Cofre criado e trancado, ou chaves/nomes ainda em texto aberto: abre a janela do PIN (criar ou digitar);
    "Agora não" deixa o app abrir, mas sem nomes (texto neutro) até o PIN. */
 (async function iniciarCofre(){
   const K = window.SolverCofre;
   if(K){
     try{ await K.pronto; }catch(e){}
+    if(K.aberto()){ try{ await K.trancar(); }catch(e){} }                          // recarregar = pede o PIN
   }
   Seg.liberar();
   Guarda.apagarSaudacoes().catch(()=>{});                                          // cumprimentos antigos (tinham nomes na chave)
@@ -3465,6 +3564,14 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.25.0','17/10/2026', [
+    'Recarregar a página (F5) agora SEMPRE tranca o cofre e pede o PIN. Antes, em alguns casos o app reabria sozinho e mostrava os nomes das crianças sem PIN',
+    'Sair do app (aba escondida por mais de 1 minuto, ou fechar/recarregar) tranca o cofre mesmo com trabalho rodando. A única exceção é uma voz ou história sendo ouvida naquele instante. Trabalho rodando só adia o relógio dos 5 minutos de sem uso',
+    'Novo indicador no cabeçalho: 🔓 cofre aberto / 🔒 trancado. Tocar no 🔓 tranca na hora. Trancado, o cabeçalho e a saudação ficam neutros',
+    '"Mostrar a chave" agora mostra de verdade (o campo vira texto por 30 segundos). Novo botão 👁 para ver o que você está digitando, sem pedir PIN',
+    'Ao digitar uma chave ou os nomes com o cofre aberto aparece "✓ guardado" ao lado do campo e o aviso "✓ Guardado no cofre"',
+    'Texto novo ao lado do cofre e em "Saiba mais": quando o PIN é pedido e quando não é'
+  ]],
   ['1.24.0','17/10/2026', [
     'As chaves de voz (Gemini, OpenAI e ElevenLabs) não ficam mais copiadas em texto aberto: o Eleições 2026 agora usa o mesmo cofre, então a cópia temporária saiu na hora, como as outras chaves',
     'O cofre foi atualizado (versão 1.1.0): a janela do PIN já vem sem "Lembrar neste aparelho" e com o campo do PIN protegido (sem salvar, copiar ou recortar). Nada muda para você: o PIN continua sendo pedido ao abrir',
