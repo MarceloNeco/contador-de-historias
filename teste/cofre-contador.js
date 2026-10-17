@@ -1,7 +1,7 @@
 /* Teste do cofre no Contador de Histórias (v1.22.0): chaves de IA e nomes das crianças saem do texto aberto.
    Só valores de mentira. Internet e voz simuladas. Uso: node teste/cofre-contador.js */
 const fs = require('fs');
-const { FALSO, PIN, contexto, semear, vozDeMentira, vigiar, resolverPin, iniciar } = require('./comum');
+const { FALSO, PIN, contexto, semear, vozDeMentira, vigiarCsp, vigiar, resolverPin, iniciar } = require('./comum');
 
 const HISTORIA = { id: 'teste_1', titulo: 'Historia de teste', idade: '6-9', tema: 'lua', personagens: '', serie: '', ordem: 0,
   criadaEm: '2026-10-01T10:00:00.000Z', texto: 'Era uma vez uma estrela pequena. Ela brilhava devagar. A noite ficou calma.' };
@@ -12,10 +12,16 @@ const TEXTOS_SEGREDO = Object.values(FALSO);
 const falhas = [], erros = [];
 const conferir = (ok, msg) => { if (!ok) { falhas.push(msg); console.log('  ✗ ' + msg); } else console.log('  ✓ ' + msg); };
 
+const agoraNao = (page) => page.locator('#solver-cofre button:has-text("Agora não"), #solver-cofre button:has-text("Not now")').first();
+/* v1.23.0: com o cofre criado e trancado, ou chaves em texto aberto, o app pede o PIN logo de cara.
+   opc.pin: 'criar' (padrão: cria/digita o PIN se a janela aparecer) · 'recusar' (toca em "Agora não") · 'nenhum' (não mexe) */
 async function abrir(browser, base, opc) {
   opc = opc || {};
   const { ctx, ped } = await contexto(browser, base, { largura: opc.largura });
   await vozDeMentira(ctx);
+  await vigiarCsp(ctx);
+  // só para o teste: o balão do AssistONE aparece com o tempo e cobre os botões
+  await ctx.addInitScript(() => { document.addEventListener('DOMContentLoaded', () => { const e = document.createElement('style'); e.textContent = '#assist-balao,#assist-dica,#assist-btn{display:none!important}'; document.head.appendChild(e); }); });
   const cfg = Object.assign({}, OUTROS, opc.semSegredos ? {} : FALSO, opc.cfg || {});
   const dados = { ch_config: cfg, ch_historias: [HISTORIA], ch_stats: STATS };
   if (opc.extra) Object.assign(dados, opc.extra);
@@ -23,11 +29,17 @@ async function abrir(browser, base, opc) {
   await semear(ctx, dados);
   const page = await ctx.newPage();
   vigiar(page, erros);
-  await page.goto(base + '/index.html');
+  if (opc.relogio) await page.clock.install();
+  await page.goto(base + '/index.html' + (opc.hash || ''));
   await page.waitForSelector('#tela-inicio', { state: 'attached' });
   await page.waitForTimeout(600);
+  if (opc.pin === 'recusar') {
+    try { await page.locator('#solver-cofre [role=dialog]').waitFor({ state: 'visible', timeout: 3500 }); await agoraNao(page).click(); } catch (e) {}
+  } else if (opc.pin !== 'nenhum') { await resolverPin(page, PIN, 2500); }
+  await page.waitForTimeout(400);
   return { ctx, page, ped };
 }
+const cspViolacoes = (page) => page.evaluate(() => window.__csp || []);
 const lerCfg = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('ch_config') || 'null'));
 const cofreCru = (page) => page.evaluate(() => localStorage.getItem('dgo:global:cofre') || '');
 const todoOArmazenamento = (page) => page.evaluate(async () => {
@@ -38,6 +50,7 @@ const todoOArmazenamento = (page) => page.evaluate(async () => {
 });
 const irConfig = async (page) => { await page.click('nav.tabs button[data-tela=config]'); await page.waitForTimeout(250); };
 const criarPinPelaTela = async (page) => {
+  if (await page.evaluate(() => window.SolverCofre && SolverCofre.aberto())) { await irConfig(page); return; }
   await irConfig(page);
   await page.click('#btn-cofre-abrir');
   await resolverPin(page, PIN, 4000);
@@ -53,7 +66,7 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
     /* ============ 1. criar o PIN: chaves e nomes vão para o cofre ============ */
     console.log('\n1. Migração ao criar o PIN');
     {
-      const { ctx, page } = await abrir(browser, base);
+      const { ctx, page } = await abrir(browser, base, { pin: 'recusar' });
       const antes = await lerCfg(page);
       conferir(TEXTOS_SEGREDO.every((v) => JSON.stringify(antes).includes(v)), 'antes do PIN: os valores de mentira estão no ch_config (ponto de partida)');
       await irConfig(page);
@@ -77,8 +90,8 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       conferir(vals.g === FALSO.geminiKey && vals.n === FALSO.publicoNomes && vals.a === FALSO.anthropicKey, 'os valores no cofre são os de antes');
       const saudacao = await page.evaluate(() => document.querySelector('#sub-hd').textContent);
       conferir(/Lia e Davi/.test(saudacao), 'cofre aberto: a saudação do topo mostra os nomes');
-      const tela = await page.evaluate(() => ({ g: document.querySelector('#in-gemini-key').value, n: document.querySelector('#in-publico-nomes').value }));
-      conferir(tela.g === FALSO.geminiKey && tela.n === FALSO.publicoNomes, 'cofre aberto: os campos mostram os valores do cofre');
+      const tela = await page.evaluate(() => ({ g: document.querySelector('#in-gemini-key').value, ph: document.querySelector('#in-gemini-key').placeholder, n: document.querySelector('#in-publico-nomes').value }));
+      conferir(tela.g === '' && /••••/.test(tela.ph) && tela.n === FALSO.publicoNomes, 'cofre aberto: a chave aparece só como "••••••••" e os nomes aparecem');
       /* fechar o app e abrir de novo (aba nova = cofre trancado) */
       await trancar(page);
       const trancada = await page.evaluate(() => ({ g: document.querySelector('#in-gemini-key').value, ph: document.querySelector('#in-gemini-key').placeholder, ro: document.querySelector('#in-gemini-key').readOnly,
@@ -93,8 +106,8 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       const pediu = await resolverPin(page, PIN, 3000);
       await page.waitForTimeout(400);
       conferir(pediu, 'tocar num campo trancado abre a janela do PIN');
-      const aberto = await page.evaluate(() => document.querySelector('#in-gemini-key').value);
-      conferir(aberto === FALSO.geminiKey, 'depois do PIN o campo mostra a chave');
+      const aberto = await page.evaluate(() => ({ v: document.querySelector('#in-gemini-key').value, ph: document.querySelector('#in-gemini-key').placeholder }));
+      conferir(aberto.v === '' && /••••/.test(aberto.ph), 'depois do PIN a chave continua escondida (só "Mostrar" com o PIN de novo)');
       conferir(await page.locator('#btn-cofre-trancar').isVisible(), 'há o botão "🔒 Trancar o cofre agora"');
       await page.click('#btn-cofre-trancar'); await page.waitForTimeout(400);
       conferir(!(await page.evaluate(() => SolverCofre.aberto())), '"Trancar o cofre agora" tranca');
@@ -149,24 +162,32 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       const { ctx, page } = await abrir(browser, base);
       await criarPinPelaTela(page);
       await page.fill('#in-gemini-key', 'AQ.outra-chave-de-mentira-999');
+      const espelhoNaHora = await page.evaluate(() => document.querySelector('#in-gemini-key-voz').value);
       await page.fill('#in-publico-nomes', 'Maia e Teo');
       await page.fill('#in-nomes-protegidos', 'Bento');
       await page.click('#sel-motor-texto button[data-motor=gemini]');   // tira o foco: grava
       await page.waitForTimeout(900);
-      const v = await page.evaluate(() => ({ g: SolverCofre.lerAgora('ia:gemini'), n: SolverCofre.lerAgora('contador:publicoNomes'), p: SolverCofre.lerAgora('contador:nomesProtegidos'), espelho: document.querySelector('#in-gemini-key-voz').value }));
+      const v = await page.evaluate(() => ({ g: SolverCofre.lerAgora('ia:gemini'), n: SolverCofre.lerAgora('contador:publicoNomes'), p: SolverCofre.lerAgora('contador:nomesProtegidos'), espelho: '' }));
       conferir(v.g === 'AQ.outra-chave-de-mentira-999' && v.n === 'Maia e Teo' && v.p === 'Bento', 'chave e nomes novos foram para o cofre');
-      conferir(v.espelho === 'AQ.outra-chave-de-mentira-999', 'a chave do Gemini aparece igual nos dois lugares da tela');
+      conferir(espelhoNaHora === 'AQ.outra-chave-de-mentira-999', 'a chave do Gemini digitada aparece igual nos dois lugares da tela');
       const c = await lerCfg(page);
       conferir(!('publicoNomes' in c) && !('nomesProtegidos' in c) && !('anthropicKey' in c) && !('geminiKey' in c), 'nada voltou para o ch_config (a cópia antiga da chave trocada também saiu)');
       conferir(c.openaiKey === FALSO.openaiKey && c.elevenKey === FALSO.elevenKey, 'as cópias das chaves que não mudaram continuam para o Eleições');
       await page.click('#sel-motor-voz button[data-motor=elevenlabs]');
+      // apagar uma chave também pede o PIN: "Mostrar" (PIN de novo) e então limpar o campo
+      await page.click('[data-mostrar=elevenKey]');
+      await resolverPin(page, PIN, 3000);
+      await page.waitForTimeout(400);
       await page.fill('#in-eleven-key', '');
       await page.click('#sel-motor-texto button[data-motor=gemini]'); await page.waitForTimeout(700);
       const c2 = await lerCfg(page);
       conferir(!('elevenKey' in c2) && !(await page.evaluate(() => SolverCofre.tem('ia:elevenlabs'))), 'apagar uma chave tira do cofre e da cópia (não ressuscita)');
       await page.reload(); await page.waitForTimeout(900);
+      const pediuNoF5 = await resolverPin(page, PIN, 3000);
+      await page.waitForTimeout(500);
       const c3 = await lerCfg(page);
-      conferir(!('elevenKey' in c3) && (await page.evaluate(() => SolverCofre.aberto())), 'depois de recarregar (F5): o cofre continua aberto e a chave apagada não voltou');
+      conferir(pediuNoF5, 'recarregar a página (F5) conta como sair do app: o cofre tranca e o PIN é pedido de novo');
+      conferir(!('elevenKey' in c3) && (await page.evaluate(() => SolverCofre.aberto())) && !(await page.evaluate(() => SolverCofre.tem('ia:elevenlabs'))), 'depois do PIN: a chave apagada não voltou');
       const tudo = await todoOArmazenamento(page);
       conferir(!['AQ.outra-chave-de-mentira-999', 'Maia e Teo', 'Bento', FALSO.anthropicKey, FALSO.publicoNomes, FALSO.nomesProtegidos, FALSO.geminiKey].some((x) => tudo.includes(x)), 'nenhum valor secreto novo ou antigo em claro no localStorage/sessionStorage');
       await ctx.close();
@@ -281,7 +302,8 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
         rq.onsuccess = () => { const g = rq.result.transaction('audio', 'readonly').objectStore('audio').getAllKeys(); g.onsuccess = () => ok(g.result.map(String)); g.onerror = () => ok([]); };
         rq.onerror = () => ok([]);
       }));
-      conferir(guardados.some((k) => /^saudacao\|/.test(k)), 'o cumprimento com nomes ficou guardado no aparelho (ponto de partida)');
+      conferir(!guardados.some((k) => /^saudacao\|/.test(k)) && guardados.length > 0, 'o cumprimento (que fala os nomes) não ficou guardado no aparelho; o resto da voz sim');
+      conferir(ped.voz.length > 0 && ped.voz.some((v) => /Lia e Davi/.test(v.corpo)), 'o cumprimento é gerado na hora, com os nomes só dentro do pedido ao Google');
       await page.evaluate(() => { document.querySelector('#leitor').classList.remove('on'); });
       await irConfig(page);
       const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#btn-voz-exportar')]);
@@ -312,18 +334,24 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
     /* ============ 8. fila de voz com o cofre trancado ============ */
     console.log('\n8. Fila de voz');
     {
-      const { ctx, page, ped } = await abrir(browser, base, { extra: { ch_fila_voz: { ids: ['teste_1'], ligada: true, feitas: 0, parou: '' } } });
+      const { ctx, page, ped } = await abrir(browser, base);
       await criarPinPelaTela(page);
       await trancar(page);
+      await page.evaluate(() => localStorage.setItem('ch_fila_voz', JSON.stringify({ ids: ['teste_1'], ligada: true, feitas: 0, parou: '' })));
       const p2 = await novaAba(ctx, base);
       await p2.locator('#solver-cofre [role=dialog]').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
       const apareceu = await p2.locator('#solver-cofre [role=dialog]').isVisible();
       conferir(apareceu, 'a fila de voz, ao abrir o app com o cofre trancado, pede o PIN');
       if (apareceu) {
-        await p2.locator('#solver-cofre button:has-text("Agora não")').click();
-        await p2.waitForTimeout(1500);
+        // a abertura pede o PIN e a fila pode pedir de novo: recusa todas até a fila pausar (no máximo ~12 s)
+        for (let k = 0; k < 24; k++) {
+          if (await p2.locator('#solver-cofre [role=dialog]').isVisible()) await agoraNao(p2).click();
+          const lig = await p2.evaluate(() => JSON.parse(localStorage.getItem('ch_fila_voz')).ligada);
+          if (!lig) break;
+          await p2.waitForTimeout(500);
+        }
         const fila = await p2.evaluate(() => JSON.parse(localStorage.getItem('ch_fila_voz')));
-        conferir(fila.ligada === false && ped.voz.length === 0, 'recusou o PIN: a fila pausou e nenhuma voz foi pedida');
+        conferir(fila.ligada === false && ped.voz.length === 0, 'recusou o PIN: a fila pausou e nenhuma voz foi pedida (ligada=' + fila.ligada + ', parou="' + (fila.parou || '').slice(0, 60) + '", vozes pedidas=' + ped.voz.length + ')');
       }
       await ctx.close();
     }
@@ -331,7 +359,7 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
     /* ============ 9. inglês e 320 px ============ */
     console.log('\n9. Inglês e tela pequena');
     {
-      const { ctx, page } = await abrir(browser, base, { idioma: 'en', largura: 320 });
+      const { ctx, page } = await abrir(browser, base, { idioma: 'en', largura: 320, pin: 'recusar' });
       await irConfig(page);
       const painelEn = await page.locator('#cofre-painel').innerText();
       conferir(/unprotected|Create the PIN/.test(painelEn), 'em inglês: o aviso do cofre está em inglês');
@@ -354,7 +382,152 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       await ctx.close();
     }
 
-    conferir(erros.length === 0, 'nenhuma tela com erro (pageerror/console): ' + (erros.slice(0, 3).join(' | ') || 'zero'));
+    /* ============ 10. abertura: PIN logo de cara, nada de nome antes dele, janela do PIN endurecida ============ */
+    console.log('\n10. Abertura e janela do PIN');
+    {
+      const { ctx, page } = await abrir(browser, base, { pin: 'nenhum' });
+      const jan = page.locator('#solver-cofre [role=dialog]');
+      await jan.waitFor({ state: 'visible', timeout: 4000 });
+      conferir(await jan.isVisible(), 'chaves em texto aberto: o app abre já pedindo para criar o PIN');
+      const antes = await page.evaluate(() => ({ topo: document.querySelector('#sub-hd').textContent, corpo: document.body.innerText + ' ' + Array.from(document.querySelectorAll('input,textarea')).map((e) => e.value).join(' ') }));
+      conferir(!/Lia|Davi|Tobias/.test(antes.topo), 'antes do PIN o cabeçalho não mostra nome: "' + antes.topo.trim() + '"');
+      conferir(!/Lia|Davi|Tobias/.test(antes.corpo), 'antes do PIN nenhum nome de criança aparece em lugar nenhum da tela');
+      const marcaLembrar = await page.evaluate(() => { const l = document.querySelector('#solver-cofre .sc-marca'); return l ? getComputedStyle(l).display : 'sem'; });
+      conferir(marcaLembrar === 'none' || marcaLembrar === 'sem', '"Lembrar neste aparelho" não aparece');
+      const campos = await page.evaluate(() => Array.from(document.querySelectorAll('#solver-cofre input[type=password]')).map((i) => ({ t: i.type, ac: i.autocomplete, sp: i.spellcheck, im: i.inputMode })));
+      conferir(campos.length === 2 && campos.every((c) => c.t === 'password' && c.ac === 'off' && c.sp === false), 'os campos do PIN são de senha (pontinhos), sem autocompletar e sem corretor');
+      const copia = await page.evaluate(() => { const i = document.querySelector('#solver-cofre input[type=password]'); const ev = new Event('copy', { cancelable: true, bubbles: true }); i.dispatchEvent(ev); const ev2 = new Event('cut', { cancelable: true, bubbles: true }); i.dispatchEvent(ev2); return ev.defaultPrevented && ev2.defaultPrevented; });
+      conferir(copia, 'não dá para copiar nem recortar o PIN');
+      /* mesmo marcando "lembrar" à força, nada é gravado no aparelho */
+      await page.evaluate(() => { const l = document.querySelector('#sc-lembrar'); if (l) l.checked = true; });
+      const campos2 = page.locator('#solver-cofre input[type=password]');
+      await campos2.nth(0).fill(PIN); await campos2.nth(1).fill(PIN);
+      await page.locator('#solver-cofre button[type=submit]').click();
+      await jan.waitFor({ state: 'hidden', timeout: 8000 });
+      await page.waitForTimeout(500);
+      const lem = await page.evaluate(() => new Promise((ok) => {
+        const rq = indexedDB.open('solverone-cofre');
+        rq.onsuccess = () => { try { const g = rq.result.transaction('chaves', 'readonly').objectStore('chaves').get('aparelho'); g.onsuccess = () => ok({ lembrado: SolverCofre.lembrado(), chaveNoIdb: !!g.result }); g.onerror = () => ok({ lembrado: SolverCofre.lembrado(), chaveNoIdb: false }); } catch (e) { ok({ lembrado: SolverCofre.lembrado(), chaveNoIdb: false }); } };
+        rq.onerror = () => ok({ lembrado: SolverCofre.lembrado(), chaveNoIdb: false });
+      }));
+      conferir(!lem.lembrado && !lem.chaveNoIdb, 'mesmo forçando "lembrar", nenhuma chave de aparelho é gravada (cofre sem a opção)');
+      const depois = await page.evaluate(() => document.querySelector('#sub-hd').textContent);
+      conferir(/Lia e Davi/.test(depois), 'depois do PIN os nomes aparecem no cabeçalho');
+      await ctx.close();
+    }
+    {
+      /* aparelho que tinha "Lembrar" (versão 1.22.0): na abertura o app esquece e pede o PIN; os nomes não aparecem antes */
+      const { ctx, page } = await abrir(browser, base, { semSegredos: true, pin: 'nenhum' });
+      await page.evaluate(async (pin) => { await SolverCofre.criar(pin, { lembrar: false }); }, PIN);
+      await page.evaluate(async () => { await SolverCofre.gravar('contador:publicoNomes', 'Lia e Davi'); await SolverCofre.gravar('ia:gemini', 'AQ.chave-de-mentira-legado'); });
+      /* o jeito antigo: grava a chave de aparelho como a 1.22.0 fazia (a função original ainda está no cofre.js) */
+      await page.addInitScript(() => {});
+      const legado = await ctx.newPage(); vigiar(legado, erros);
+      await ctx.route(base + '/legado.html', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><head><meta charset="utf-8"><script src="/cofre.js"></script></head><body>legado</body></html>' }));
+      await legado.goto(base + '/legado.html');
+      await legado.evaluate(async (pin) => { await SolverCofre.abrir(pin); await SolverCofre.lembrarAparelho(); }, PIN);
+      const lembradoAntes = await legado.evaluate(() => SolverCofre.lembrado());
+      conferir(lembradoAntes, 'ponto de partida: o cofre estava "lembrado neste aparelho" (como na 1.22.0)');
+      await legado.close(); await page.close();
+      const nova = await ctx.newPage(); vigiar(nova, erros);
+      await nova.goto(base + '/index.html'); await nova.waitForSelector('#tela-inicio', { state: 'attached' }); await nova.waitForTimeout(1500);
+      const estado = await nova.evaluate(() => ({ aberto: SolverCofre.aberto(), lembrado: SolverCofre.lembrado(), topo: document.querySelector('#sub-hd').textContent, dialogo: !!document.querySelector('#solver-cofre [role=dialog]') }));
+      conferir(!estado.aberto && !estado.lembrado && estado.dialogo, 'o app esqueceu o "lembrar", trancou e pediu o PIN');
+      conferir(!/Lia|Davi/.test(estado.topo), 'sem entrar com o PIN, o cabeçalho não mostra nome');
+      await resolverPin(nova, PIN, 3000); await nova.waitForTimeout(500);
+      conferir(/Lia e Davi/.test(await nova.evaluate(() => document.querySelector('#sub-hd').textContent)), 'com o PIN, os nomes voltam');
+      await ctx.close();
+    }
+
+    /* ============ 11. chaves mascaradas e "Mostrar" pede o PIN de novo ============ */
+    console.log('\n11. Chaves mascaradas');
+    {
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      await irConfig(page);
+      const campo = () => page.evaluate(() => ({ v: document.querySelector('#in-gemini-key').value, ph: document.querySelector('#in-gemini-key').placeholder, t: document.querySelector('#in-gemini-key').type, ac: document.querySelector('#in-gemini-key').autocomplete }));
+      let c = await campo();
+      conferir(c.v === '' && /••••/.test(c.ph) && c.t === 'password' && c.ac === 'off', 'com o cofre aberto a chave aparece como "••••••••" (campo de senha, sem autocompletar)');
+      const tudo = await page.evaluate(() => document.body.innerText + JSON.stringify(Array.from(document.querySelectorAll('input')).map((i) => i.value + i.placeholder)));
+      conferir(!tudo.includes(FALSO.geminiKey) && !tudo.includes(FALSO.openaiKey) && !tudo.includes(FALSO.elevenKey) && !tudo.includes(FALSO.anthropicKey), 'nenhuma chave inteira aparece na tela');
+      conferir(await page.locator('#cfg-txt-gemini [data-mostrar=geminiKey]').isVisible(), 'há o botão "Mostrar a chave (pede o PIN)"');
+      const copiou = await page.evaluate(() => { const i = document.querySelector('#in-gemini-key'); const e = new Event('copy', { cancelable: true, bubbles: true }); i.dispatchEvent(e); return e.defaultPrevented; });
+      conferir(copiou, 'o campo da chave não deixa copiar');
+      await page.click('#cfg-txt-gemini [data-mostrar=geminiKey]');
+      const pediu = await resolverPin(page, PIN, 3000); await page.waitForTimeout(400);
+      c = await campo();
+      conferir(pediu && c.v === FALSO.geminiKey, '"Mostrar" tranca e pede o PIN de novo; com o PIN a chave aparece');
+      await page.clock.fastForward(31000); await page.waitForTimeout(300);
+      c = await campo();
+      conferir(c.v === '' && /••••/.test(c.ph), 'depois de 30 segundos a chave volta a ficar escondida');
+      await ctx.close();
+    }
+
+    /* ============ 12. trancar sozinho ============ */
+    console.log('\n12. Bloqueio automático');
+    {
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      const aberto = () => page.evaluate(() => SolverCofre.aberto());
+      conferir(await aberto(), 'ponto de partida: cofre aberto');
+      await page.clock.fastForward(4 * 60 * 1000); await page.waitForTimeout(200);
+      conferir(await aberto(), 'com 4 minutos sem uso ainda está aberto');
+      await page.evaluate(() => document.dispatchEvent(new Event('pointerdown', { bubbles: true })));
+      await page.clock.fastForward(4 * 60 * 1000); await page.waitForTimeout(200);
+      conferir(await aberto(), 'mexer no app zera a contagem (4 + 4 minutos, com um toque no meio, continua aberto)');
+      await page.clock.fastForward(60 * 1000 + 20000); await page.waitForTimeout(300);
+      conferir(!(await aberto()), 'passados 5 minutos sem uso o cofre tranca sozinho');
+      conferir(!/Lia|Davi/.test(await page.evaluate(() => document.querySelector('#sub-hd').textContent)), 'e os nomes somem do cabeçalho');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await page.waitForTimeout(400);
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'ao sair do app (aba escondida) o cofre tranca na hora');
+      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await page.locator('#solver-cofre [role=dialog]').waitFor({ state: 'visible', timeout: 4000 });
+      conferir(true, 'ao voltar para o app, o PIN é pedido de novo');
+      await ctx.close();
+    }
+    {
+      /* trabalho rodando: não tranca; tranca logo que termina */
+      const { ctx, page } = await abrir(browser, base, { relogio: true });
+      await page.evaluate(() => { document.body.classList.add('com-leitor'); });        // leitor aberto com voz de internet (motorVoz: gemini)
+      await page.clock.fastForward(6 * 60 * 1000); await page.waitForTimeout(300);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'com o leitor aberto e voz de internet (trabalho rodando), passam 6 minutos e o cofre NÃO tranca');
+      await page.evaluate(() => { Object.defineProperty(document, 'hidden', { get: () => true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await page.waitForTimeout(200);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'nem ao esconder o app, enquanto o trabalho dura');
+      await page.evaluate(() => { document.body.classList.remove('com-leitor'); });      // o trabalho termina
+      await page.clock.fastForward(20000); await page.waitForTimeout(300);
+      conferir(!(await page.evaluate(() => SolverCofre.aberto())), 'logo que o trabalho termina, o cofre tranca');
+      await ctx.close();
+    }
+
+    /* ============ 13. CSP e saudação ============ */
+    console.log('\n13. CSP e cumprimento');
+    {
+      const { ctx, page } = await abrir(browser, base);
+      conferir(await page.evaluate(() => !!document.querySelector('meta[http-equiv="Content-Security-Policy"]')), 'a página tem a Content-Security-Policy');
+      for (const t of ['acervo', 'nova', 'config', 'inicio']) { await page.click('nav.tabs button[data-tela=' + t + ']'); await page.waitForTimeout(250); }
+      const v1 = await cspViolacoes(page);
+      conferir(v1.length === 0, 'nenhuma tela quebrou por causa da CSP (violações: ' + (v1.join(' | ') || 'zero') + ')');
+      const inline = await page.evaluate(() => { const e = document.createElement('script'); e.textContent = 'window.__x=1'; document.head.appendChild(e); return window.__x === 1; });
+      conferir(!inline, 'script escrito dentro da página é bloqueado');
+      const fora = await page.evaluate(() => fetch('https://exemplo-nao-liberado.test/').then(() => 'passou', () => 'bloqueou'));
+      const v2 = await cspViolacoes(page);
+      conferir(fora === 'bloqueou' && v2.some((x) => /connect-src/.test(x)), 'pedido para uma origem fora da lista é bloqueado (connect-src)');
+      /* cumprimentos antigos (com nomes na chave) são apagados na abertura */
+      await page.evaluate(() => new Promise((ok) => { const rq = indexedDB.open('ch_audio'); rq.onsuccess = () => { const t = rq.result.transaction('audio', 'readwrite'); t.objectStore('audio').put(new Blob(['x']), 'saudacao|gemini|Sulafat|x|Olá Lia e Davi, vamos ouvir uma historinha?'); t.oncomplete = () => ok(); }; }));
+      await page.reload(); await page.waitForTimeout(1200); await resolverPin(page, PIN, 2500); await page.waitForTimeout(800);
+      const restou = await page.evaluate(() => new Promise((ok) => { const rq = indexedDB.open('ch_audio'); rq.onsuccess = () => { const g = rq.result.transaction('audio', 'readonly').objectStore('audio').getAllKeys(); g.onsuccess = () => ok(g.result.map(String).filter((k) => /^saudacao\|/.test(k)).length); }; }));
+      conferir(restou === 0, 'os cumprimentos antigos que estavam guardados foram apagados na abertura');
+      await ctx.close();
+    }
+
+    // as 3 mensagens da CSP que o próprio teste 13 provoca de propósito (script de dentro da página e origem fora da lista) não contam;
+    // violações de verdade da CSP já foram conferidas ali (zero, antes das provocações)
+    const reais = erros.filter((e) => !/exemplo-nao-liberado|Refused to execute inline script/.test(e));
+    conferir(reais.length === 0, 'nenhuma tela com erro (pageerror/console): ' + (reais.slice(0, 3).join(' | ') || 'zero'));
   } finally { await fechar(); }
   if (falhas.length) { console.log('\nFALHAS (' + falhas.length + '):\n - ' + falhas.join('\n - ')); process.exit(1); }
   console.log('\nTudo certo.');

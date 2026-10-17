@@ -21,6 +21,8 @@ async function abrir(browser, base, opc) {
   opc = opc || {};
   const { ctx, ped } = await contexto(browser, base, opc);
   await vozDeMentira(ctx);
+  // só para o teste: o balão do AssistONE aparece com o tempo e cobre os botões; o resto da tela não muda
+  await ctx.addInitScript(() => { document.addEventListener('DOMContentLoaded', () => { const e = document.createElement('style'); e.textContent = '#assist-balao,#assist-dica,#assist-btn{display:none!important}'; document.head.appendChild(e); }); });
   await semear(ctx, { ch_config: Object.assign({}, CFG_ANTIGA, opc.cfg || {}), ch_historias: [HISTORIA], ch_assist: { tour: true, vistas: {} } });
   const page = await ctx.newPage();
   const erros = [];
@@ -28,6 +30,8 @@ async function abrir(browser, base, opc) {
   await page.goto(base + '/index.html');
   await page.waitForSelector('#tela-inicio', { state: 'attached' });
   await page.waitForTimeout(700);
+  await resolverPin(page, PIN, 1500);   // v1.23.0: com chaves em texto aberto o app pede o PIN logo de cara (antes: nada aparece)
+  await page.waitForTimeout(300);
   return { ctx, page, ped, erros };
 }
 
