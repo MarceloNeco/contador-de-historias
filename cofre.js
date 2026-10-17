@@ -1,5 +1,5 @@
 /* =====================================================================
-   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.2.0, 17/Out/2026)
+   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.3.0, 17/Out/2026)
    ---------------------------------------------------------------------
    POR QUE ESTE ARQUIVO EXISTE
    Todos os apps da SolverONE moram no MESMO endereço (solverone.com.br/<app>/).
@@ -7,6 +7,15 @@
    aberto no navegador, em 4 lugares diferentes. Qualquer cópia do navegador,
    backup ou extensão curiosa lia tudo. Agora existe UM cofre só, igual em todos
    os apps: as chaves ficam embaralhadas aqui no aparelho e só abrem com o PIN.
+
+   1.3.0 (17/Out/2026, pedido do dono): a digital deixa de ficar escondida. PIN e digital andam juntos na MESMA
+   janela: (1) com a digital ligada, a janela de abrir já tenta a digital sozinha (se o navegador deixar sem toque;
+   senão o botão grande fica focado e um toque basta), o PIN fica embaixo, menor, e o teclado nunca abre sozinho;
+   (2) logo depois de criar o PIN ou abrir com ele, se o aparelho tem digital e ela não está ligada, a mesma janela
+   pergunta UMA vez "Quer abrir com a digital da próxima vez?" ("Agora não" vale para este aparelho); (3) função
+   pública SolverCofre.painelDigital(elemento) desenha o estado da digital (ligada/desligada, ligar, tirar) dentro
+   do elemento que o app indicar, igual em todo app, trancado ou aberto. Aparelho sem digital: nenhuma pergunta
+   nem botão, só uma frase de orientação.
 
    1.2.0 (17/Out/2026, pedido do dono): abrir com a DIGITAL (WebAuthn, o mesmo jeito do RootifyONE) no
    lugar de digitar o PIN, que continua sendo a reserva (troca de celular, digital que falhou). Depois de abrir
@@ -54,9 +63,10 @@
   'use strict';
   if (raiz.SolverCofre && raiz.SolverCofre.__carregado) return;
 
-  var VERSAO = '1.2.0';
+  var VERSAO = '1.3.0';
   var NOME = 'dgo:global:cofre';                 /* localStorage: o cofre (embaralhado) */
   var NOME_ERROS = 'dgo:global:cofre:erros';     /* localStorage: PIN errado { n, ate } */
+  var NOME_OFERTA = 'dgo:global:cofre:digital-recusada';  /* localStorage: '1' = a pessoa disse "Agora não" à pergunta da digital */
   var NOME_SESSAO = 'dgo:global:cofre:sessao';   /* sessionStorage: { id, pac } desta aba */
   var BANCO = 'solverone-cofre';                 /* IndexedDB: chaves não exportáveis */
   var ITER = 310000;
@@ -101,7 +111,21 @@
     mostrar: ['Mostrar o PIN', 'Show the PIN'],
     digitalBotao: ['👆 Abrir com a digital', '👆 Open with fingerprint'],
     ouPin: ['ou digite o PIN', 'or type the PIN'],
-    explicaAbrirDigital: ['Toque no botão para usar a digital, ou digite o PIN.', 'Tap the button to use your fingerprint, or type the PIN.'],
+    ofertaTitulo: ['Quer abrir com a digital da próxima vez?', 'Want to open with your fingerprint next time?'],
+    ofertaTexto: ['Sem digitar o PIN. O PIN continua valendo como reserva.', 'No need to type the PIN. The PIN still works as the backup.'],
+    ofertaSim: ['👆 Sim, usar a digital', '👆 Yes, use my fingerprint'],
+    ofertaFalhou: ['Não deu certo com a digital. Tente de novo ou toque em "Agora não".', 'The fingerprint did not work. Try again or tap "Not now".'],
+    digitalLigada: ['Digital ligada', 'Fingerprint on'],
+    digitalLigadaTexto: ['O cofre abre com a digital. O PIN continua valendo como reserva.', 'The vault opens with your fingerprint. The PIN still works as the backup.'],
+    digitalDesligada: ['Digital desligada', 'Fingerprint off'],
+    digitalDesligadaTexto: ['Hoje o cofre abre só com o PIN.', 'Right now the vault opens only with the PIN.'],
+    ligar: ['👆 Ligar a digital', '👆 Turn on the fingerprint'],
+    tirar: ['Tirar a digital', 'Turn off the fingerprint'],
+    ligouMsg: ['✓ Digital ligada. Na próxima vez é só tocar nela.', '✓ Fingerprint on. Next time just touch it.'],
+    tirouMsg: ['Digital desligada. Vale só o PIN.', 'Fingerprint off. Only the PIN works.'],
+    ligarFalhou: ['Não deu certo com a digital. Tente de novo.', 'The fingerprint did not work. Try again.'],
+    semDigitalNoAparelho: ['Para abrir com a digital, cadastre uma digital (ou o rosto) nas configurações do celular.', 'To open with your fingerprint, set up a fingerprint (or face) in your phone settings.'],
+    motivoLigar: ['Digite o PIN para ligar a digital.', 'Type the PIN to turn on the fingerprint.'],
     digitalFalhou: ['Não deu certo com a digital. Tente de novo ou digite o PIN.', 'The fingerprint did not work. Try again or type the PIN.'],
     digitalPerdida: ['A digital deste aparelho não vale mais. Digite o PIN (depois você pode ativar a digital de novo).',
                      'This device’s fingerprint is no longer valid. Type the PIN (you can turn the fingerprint on again afterwards).'],
@@ -229,6 +253,10 @@
      fica no IndexedDB ('digital', não exportável) e só é usada depois que o sistema confirma a digital */
   function dominioAtual() { return String(raiz.location && raiz.location.hostname || '').toLowerCase(); }
   function lerDigital(r) { var x = r && r.envoltas && r.envoltas.digital; return x && x.id && x.env && x.env.ct ? x : null; }
+  var _disp = null;       /* o aparelho tem digital? (lembrado: o painel se repinta sem pular) */
+  function ofertaRecusada() { try { return raiz.localStorage.getItem(NOME_OFERTA) === '1'; } catch (e) { return false; } }
+  function recusarOferta() { try { raiz.localStorage.setItem(NOME_OFERTA, '1'); } catch (e) {} }
+  function esquecerOferta() { try { raiz.localStorage.removeItem(NOME_OFERTA); } catch (e) {} }
   function tirarDigital() {
     var r = lerRegistro();
     if (r && r.envoltas && r.envoltas.digital) { delete r.envoltas.digital; gravarRegistro(r); }
@@ -396,6 +424,13 @@
       '.sc-b{flex:1 1 140px;min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--sc-c);background:var(--sc-c);color:var(--sc-ct);font:600 16px system-ui,sans-serif;cursor:pointer}',
       '.sc-b2{background:transparent;color:var(--sc-t);border-color:var(--sc-l)}',
       '.sc-b[disabled]{opacity:.5;cursor:not-allowed}',
+      '.sc-grande{min-height:56px;font-size:18px;width:100%;margin-top:.6rem}',
+      '.sc-ou{text-align:center;margin:.8rem 0 .2rem}',
+      '.sc-pin-menor{font-size:.92rem}.sc-pin-menor label.sc-campo{margin-top:.2rem;font-weight:500}',
+      '.sc-painel p{margin:.3rem 0}.sc-painel .sc-mini{font-size:.9rem;opacity:.85}.sc-painel .sc-botoes{margin-top:.6rem}',
+      '.sc-painel .sc-b{flex:0 1 auto;min-height:44px;padding:8px 16px;border-radius:10px;border:1px solid #047857;background:#047857;color:#fff;font:600 16px system-ui,sans-serif;cursor:pointer}',
+      '.sc-painel .sc-b2{background:transparent;color:inherit;border-color:currentColor}',
+      '.sc-painel .sc-b[disabled]{opacity:.5;cursor:not-allowed}',
       '.sc-link{background:none;border:0;color:var(--sc-t);text-decoration:underline;min-height:44px;padding:0 4px;font:15px system-ui,sans-serif;cursor:pointer;margin-top:.4rem}',
       '.sc-erro{background:var(--sc-erf);color:var(--sc-er);border-radius:10px;padding:8px 10px;margin-top:.7rem}',
       '.sc-erro:empty{display:none}',
@@ -441,7 +476,7 @@
       var fundo = el('div', { class: 'sc-fundo', id: 'solver-cofre' });
       var caixa = el('div', { class: 'sc-caixa', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sc-tit' });
       fundo.appendChild(caixa);
-      var terminou = false;
+      var terminou = false, modoAtual = '';
       function fim(ok) {
         if (terminou) return; terminou = true;
         d.removeEventListener('keydown', teclas, true);
@@ -451,7 +486,7 @@
       }
       function teclas(ev) {
         if (!fundo.parentNode) return;
-        if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fim(false); return; }
+        if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); if (modoAtual === 'oferta') { recusarOferta(); fim(true); } else fim(false); return; }
         if (ev.key === 'Tab') {     /* o foco não sai da janela */
           var f = caixa.querySelectorAll('button:not([disabled]),input,[tabindex="0"]');
           if (!f.length) return;
@@ -462,7 +497,14 @@
       }
       d.addEventListener('keydown', teclas, true);
 
-      function pintar(modo, aviso) {
+      /* depois de criar o PIN ou abrir com ele: se o aparelho tem digital e ela não está ligada, pergunta uma vez */
+      function oferecerOuFechar() {
+        if ((opcoes && opcoes.semOferta) || ofertaRecusada() || API.digitalAtiva()) { fim(true); return; }
+        API.digitalDisponivel().then(function (disp) { if (disp) pintar('oferta'); else fim(true); }, function () { fim(true); });
+      }
+      function pintar(modo, aviso, semAuto) {
+        if (terminou) return;
+        modoAtual = modo;
         caixa.innerHTML = '';
         var erro = el('p', { class: 'sc-erro', role: 'alert', 'aria-live': 'assertive' });
         if (modo === 'criar') {
@@ -483,38 +525,57 @@
             if (a.length < MIN_PIN) { erro.textContent = t('curto'); c1._input.focus(); return; }
             if (a !== b) { erro.textContent = t('diferente'); c2._input.value = ''; c2._input.focus(); return; }
             var bt = form.querySelector('button[type=submit]'); bt.disabled = true; bt.textContent = t('abrindo');
-            API.criar(a).then(function () { fim(true); }, function () {
+            API.criar(a).then(oferecerOuFechar, function () {
               bt.disabled = false; bt.textContent = t('criar'); erro.textContent = t('falhou');
             });
           });
           caixa.appendChild(form);
           c1._input.focus();
+        } else if (modo === 'oferta') {
+          caixa.appendChild(el('h2', { id: 'sc-tit', texto: t('ofertaTitulo') }));
+          caixa.appendChild(el('p', { texto: t('ofertaTexto') }));
+          var bSim = el('button', { type: 'button', class: 'sc-b sc-grande', 'data-sc': 'oferta-sim', texto: t('ofertaSim'),
+            onclick: function () {
+              bSim.disabled = true; bSim.textContent = t('abrindo');
+              API.ativarDigital().then(function () { fim(true); }, function () {
+                bSim.disabled = false; bSim.textContent = t('ofertaSim'); erro.textContent = t('ofertaFalhou'); bSim.focus();
+              });
+            } });
+          caixa.appendChild(bSim);
+          caixa.appendChild(erro);
+          caixa.appendChild(el('div', { class: 'sc-botoes' }, [
+            el('button', { type: 'button', class: 'sc-b sc-b2', 'data-sc': 'oferta-nao', texto: t('agoraNao'), onclick: function () { recusarOferta(); fim(true); } })]));
+          bSim.focus();
         } else if (modo === 'abrir') {
           caixa.appendChild(el('h2', { id: 'sc-tit', texto: t('tituloAbrir') }));
           if (motivo) caixa.appendChild(el('p', { texto: motivo }));
           var temDigital = API.digitalAtiva();
-          caixa.appendChild(el('p', { class: 'sc-mini', texto: t(temDigital ? 'explicaAbrirDigital' : 'explicaAbrir') }));
           var botDigital = null;
-          if (temDigital) {
-            botDigital = el('button', { type: 'button', class: 'sc-b', 'data-sc': 'digital', texto: t('digitalBotao'), style: 'width:100%;margin-top:.5rem',
-              onclick: function () {
-                botDigital.disabled = true; botDigital.textContent = t('abrindo');
-                API.abrirComDigital().then(function () { fim(true); }, function (e) {
-                  var perdida = e && (e.message === 'digital-perdida' || e.message === 'digital-outro-endereco');
-                  if (perdida) { pintar('abrir', t('digitalPerdida')); return; }
-                  botDigital.disabled = false; botDigital.textContent = t('digitalBotao');
-                  erro.textContent = t('digitalFalhou');
-                });
-              } });
-            caixa.appendChild(botDigital);
-            caixa.appendChild(el('p', { class: 'sc-mini', style: 'text-align:center;margin:.6rem 0 0', texto: t('ouPin') }));
-          }
+          if (!temDigital) caixa.appendChild(el('p', { class: 'sc-mini', texto: t('explicaAbrir') }));
           if (aviso) caixa.appendChild(el('p', { class: 'sc-erro', role: 'alert', texto: aviso }));
+          /* digital ligada: o botão grande vem primeiro e já tenta a digital; se o navegador não deixar sem toque,
+             o botão fica focado e um toque basta. O PIN fica embaixo, menor, e o teclado nunca abre sozinho. */
+          if (temDigital) {
+            var tentarDigital = function (auto) {
+              botDigital.disabled = true; botDigital.textContent = t('abrindo');
+              API.abrirComDigital().then(function () { fim(true); }, function (e) {
+                if (e && (e.message === 'digital-perdida' || e.message === 'digital-outro-endereco')) { pintar('abrir', t('digitalPerdida'), true); return; }
+                if (terminou) return;
+                botDigital.disabled = false; botDigital.textContent = t('digitalBotao'); botDigital.focus();
+                if (!auto) erro.textContent = t('digitalFalhou');
+              });
+            };
+            botDigital = el('button', { type: 'button', class: 'sc-b sc-grande', 'data-sc': 'digital', texto: t('digitalBotao'),
+              onclick: function () { erro.textContent = ''; tentarDigital(false); } });
+            caixa.appendChild(botDigital);
+            caixa.appendChild(erro);
+            caixa.appendChild(el('p', { class: 'sc-mini sc-ou', texto: t('ouPin') }));
+          }
           var cp = campoPin(t('pin'));
-          var form2 = el('form', { novalidate: true, autocomplete: 'off' }, [cp,
-            erro,
+          var form2 = el('form', { novalidate: true, autocomplete: 'off', class: temDigital ? 'sc-pin-menor' : '' }, [cp,
+            temDigital ? null : erro,
             el('div', { class: 'sc-botoes' }, [
-              el('button', { type: 'submit', class: 'sc-b', texto: t('abrir') }),
+              el('button', { type: 'submit', class: temDigital ? 'sc-b sc-b2' : 'sc-b', texto: t('abrir') }),
               el('button', { type: 'button', class: 'sc-b sc-b2', texto: t('agoraNao'), onclick: function () { fim(false); } })
             ]),
             el('button', { type: 'button', class: 'sc-link', texto: t('esqueci'), onclick: function () { pintar('esqueci'); } })
@@ -524,7 +585,7 @@
           form2.addEventListener('submit', function (ev) {
             ev.preventDefault();
             var bt = form2.querySelector('button[type=submit]'); bt.disabled = true; bt.textContent = t('abrindo');
-            API.abrir(cp._input.value).then(function () { fim(true); }, function (e) {
+            API.abrir(cp._input.value).then(oferecerOuFechar, function (e) {
               bt.disabled = false; bt.textContent = t('abrir');
               var m = e && e.message;
               erro.textContent = (m === 'esperar' || (m === 'pin-errado' && e.segundos > 0)) ? t('esperar', { s: e.segundos }) :
@@ -533,7 +594,8 @@
             });
           });
           caixa.appendChild(form2);
-          (botDigital || cp._input).focus();      /* com digital, o foco vai no botão: o teclado do celular não abre sem precisar */
+          if (botDigital) { botDigital.focus(); if (!semAuto) tentarDigital(true); }   /* foco no botão: o teclado do celular não abre sozinho */
+          else cp._input.focus();
         } else {   /* esqueci */
           caixa.appendChild(el('h2', { id: 'sc-tit', texto: t('tituloEsqueci') }));
           caixa.appendChild(el('p', { texto: t('esqueciTexto') }));
@@ -548,7 +610,7 @@
           caixa.appendChild(el('label', { class: 'sc-campo', for: idc, texto: t('digite') }));
           caixa.appendChild(el('div', { class: 'sc-linha-in' }, [conf]));
           caixa.appendChild(el('div', { class: 'sc-botoes' }, [bApagar,
-            el('button', { type: 'button', class: 'sc-b sc-b2', texto: t('voltar'), onclick: function () { pintar('abrir'); } })]));
+            el('button', { type: 'button', class: 'sc-b sc-b2', texto: t('voltar'), onclick: function () { pintar('abrir', '', true); } })]));
           conf.focus();
         }
       }
@@ -563,6 +625,35 @@
   function erro(cod, extra) { var e = new Error(cod); if (extra) Object.keys(extra).forEach(function (k) { e[k] = extra[k]; }); return e; }
   function semCripto() { return !sub || !raiz.localStorage; }
 
+  /* painel da digital (função pública painelDigital): cada elemento indicado pelo app fica na lista e se repinta sozinho
+     quando a digital liga/desliga ou o cofre é apagado */
+  var _paineis = [];
+  function desenharPainel(item) {
+    var box = item.el;
+    if (!box.isConnected) { _paineis = _paineis.filter(function (x) { return x !== item; }); return; }
+    box.textContent = '';
+    box.className = (box.className.replace(/\bsc-painel\b/g, '') + ' sc-painel').trim();
+    var ativa = API.digitalAtiva();
+    if (!lerRegistro() || (_disp === null && !ativa)) return;
+    function msg() { if (item.msg) box.appendChild(el('p', { class: 'sc-mini', role: 'status', texto: item.msg })); }
+    if (!ativa && !_disp) { box.appendChild(el('p', { class: 'sc-mini', texto: t('semDigitalNoAparelho') })); return; }
+    box.appendChild(el('p', {}, [el('strong', { texto: '👆 ' + t(ativa ? 'digitalLigada' : 'digitalDesligada') })]));
+    box.appendChild(el('p', { class: 'sc-mini', texto: t(ativa ? 'digitalLigadaTexto' : 'digitalDesligadaTexto') }));
+    msg();
+    var b = el('button', { type: 'button', class: ativa ? 'sc-b sc-b2' : 'sc-b', 'data-sc': ativa ? 'tirar' : 'ligar', texto: t(ativa ? 'tirar' : 'ligar') });
+    b.addEventListener('click', function () {
+      b.disabled = true;
+      if (ativa) { API.desativarDigital().then(function () { item.msg = t('tirouMsg'); desenharPainel(item); }); return; }
+      API.pedir({ motivo: { pt: TX.motivoLigar[0], en: TX.motivoLigar[1] }, semOferta: true }).then(function (ok) {
+        if (!ok) return null;
+        return API.ativarDigital().then(function () { item.msg = t('ligouMsg'); });
+      }).then(function () { desenharPainel(item); }, function (e) {
+        item.msg = e && e.message === 'sem-digital-no-aparelho' ? t('semDigitalNoAparelho') : t('ligarFalhou'); desenharPainel(item);
+      });
+    });
+    box.appendChild(el('div', { class: 'sc-botoes' }, [b]));
+  }
+
   var API = {
     __carregado: true,
     versao: VERSAO,
@@ -571,9 +662,10 @@
     aberto: function () { return E.aberto; },
     /* digital (WebAuthn). Disponível = o aparelho tem digital/rosto/tela cadastrada e a página é segura */
     digitalDisponivel: function () {
-      if (semCripto() || !raiz.PublicKeyCredential || !raiz.isSecureContext || !raiz.navigator || !raiz.navigator.credentials) return Promise.resolve(false);
-      try { return raiz.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(function (v) { return !!v; }, function () { return false; }); }
-      catch (e) { return Promise.resolve(false); }
+      if (_disp !== null) return Promise.resolve(_disp);
+      if (semCripto() || !raiz.PublicKeyCredential || !raiz.isSecureContext || !raiz.navigator || !raiz.navigator.credentials) { _disp = false; return Promise.resolve(false); }
+      try { return raiz.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(function (v) { _disp = !!v; return _disp; }, function () { _disp = false; return false; }); }
+      catch (e) { _disp = false; return Promise.resolve(false); }
     },
     /* a digital está ligada neste aparelho (e vale neste endereço)? */
     digitalAtiva: function () { var x = lerDigital(lerRegistro()); return !!x && x.dominio === dominioAtual(); },
@@ -597,6 +689,7 @@
           if (!r || idDe(r) !== E.id) throw erro('cofre-trocado');
           r.envoltas.digital = { id: b64(cred.rawId), dominio: dominioAtual(), env: env, em: new Date().toISOString() };
           gravarRegistro(r);
+          esquecerOferta();
           avisar('cofre:digital', { ativa: true });
           return true;
         });
@@ -623,7 +716,24 @@
         })
         .then(function () { return depoisDeAbrir('digital'); });
     },
-    desativarDigital: function () { return tirarDigital().then(function () { avisar('cofre:digital', { ativa: false }); return true; }); },
+    /* tirar a digital é escolha da pessoa: a pergunta da próxima abertura não volta */
+    desativarDigital: function () { recusarOferta(); return tirarDigital().then(function () { avisar('cofre:digital', { ativa: false }); return true; }); },
+
+    /* desenha, dentro de `elemento` (o app indica), o estado da digital: ligada/desligada, "Ligar a digital" (pede o PIN
+       se o cofre estiver trancado e, em seguida, a digital) ou "Tirar a digital". Igual em todo app, trancado ou aberto.
+       Só desenha se o cofre existe. Aparelho sem digital cadastrada: só a frase de orientação, sem botão. Se o app
+       repintar o elemento por fora, basta chamar de novo. */
+    painelDigital: function (elemento) {
+      if (!elemento) return false;
+      estilo();
+      var item = _paineis.filter(function (x) { return x.el === elemento; })[0];
+      if (!item) { item = { el: elemento, msg: '' }; _paineis.push(item); }
+      elemento.setAttribute('data-dgo-ignorar', '');
+      desenharPainel(item);
+      if (_disp === null) API.digitalDisponivel().then(function () { desenharPainel(item); });
+      return true;
+    },
+
 
     lembrado: function () { var r = lerRegistro(); return !!(r && r.envoltas && r.envoltas.aparelho); },
 
@@ -716,6 +826,7 @@
     apagarCofre: function () {
       var estava = fecharMemoria();
       try { raiz.localStorage.removeItem(NOME); } catch (e) {}
+      esquecerOferta();
       gravarErros(null);
       return Promise.all([apagarSessao(), idbTirar('aparelho'), idbTirar('digital')]).then(function () {
         avisar('cofre:trancado', { motivo: 'apagado', estava: estava }); return true;
@@ -791,7 +902,7 @@
       _pedindo = API.abrirSemPin().then(function (ok) {
         if (ok) return true;
         if (!d.body) return false;
-        return janela({ motivo: opcoes.motivo || { pt: TX.motivoPadrao[0], en: TX.motivoPadrao[1] } });
+        return janela({ motivo: opcoes.motivo || { pt: TX.motivoPadrao[0], en: TX.motivoPadrao[1] }, semOferta: !!opcoes.semOferta });
       }).then(function (ok) { _pedindo = null; return ok; }, function () { _pedindo = null; return false; });
       return _pedindo;
     },
@@ -853,6 +964,12 @@
     decifrar(dek, reg.dados).then(function (b) { if (E.aberto && E.dek === dek) { E.conteudo = deBytes(b); avisar('cofre:mudou', { nome: '*' }); } })
       .catch(function () { if (fecharMemoria()) avisar('cofre:trancado', { motivo: 'outra-aba' }); });
   });
+
+  /* os painéis da digital acompanham quando ela liga/desliga ou o cofre é apagado */
+  ['cofre:digital', 'cofre:trancado'].forEach(function (ev) {
+    d.addEventListener(ev, function () { _paineis.slice().forEach(desenharPainel); });
+  });
+  API.digitalDisponivel();     /* descobre já se o aparelho tem digital: o painel e a janela não precisam esperar */
 
   /* ao carregar: quem tinha "Lembrar neste aparelho" (1.0.0) perde a chave do aparelho e volta a usar o PIN;
      depois tenta continuar aberto só se for F5 nesta aba */

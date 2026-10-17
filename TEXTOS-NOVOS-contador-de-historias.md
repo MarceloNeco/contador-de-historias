@@ -523,3 +523,5 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Aviso · desligou | Digital desligada. Vale só o PIN. | Fingerprint off. Only the PIN works. |
 | Aviso · sem digital | Este aparelho não tem digital cadastrada. | This device has no fingerprint set up. |
 | Aviso · falhou | Não deu certo com a digital. Tente de novo. | The fingerprint did not work. Try again. |
+
+> **v1.26.1:** os textos da digital (janela, pergunta "Quer abrir com a digital da próxima vez?", painel, avisos) passaram a morar no `cofre.js` 1.3.0 (`TX`, PT/EN), iguais em todos os apps. A tabela da 1.26.0 acima vale como histórico; o app não tem mais texto da digital.
