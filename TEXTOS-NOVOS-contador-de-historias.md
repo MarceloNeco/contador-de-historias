@@ -525,3 +525,22 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Aviso · falhou | Não deu certo com a digital. Tente de novo. | The fingerprint did not work. Try again. |
 
 > **v1.26.1:** os textos da digital (janela, pergunta "Quer abrir com a digital da próxima vez?", painel, avisos) passaram a morar no `cofre.js` 1.3.0 (`TX`, PT/EN), iguais em todos os apps. A tabela da 1.26.0 acima vale como histórico; o app não tem mais texto da digital.
+
+## v1.27.0 — janelas e confirmações
+
+| Onde | Português | English |
+|---|---|---|
+| Confirmação · título | Tem certeza? | Are you sure? |
+| Confirmação · cancelar | Cancelar | Cancel |
+| Confirmação · confirmar (padrão) | Confirmar | Confirm |
+| Confirmação · apagar a voz de uma história / de todas | Apagar a voz · Apagar tudo | Delete voice · Delete all |
+| Confirmação · apagar a história | Apagar | Delete |
+| Confirmação · esvaziar a fila de voz | Tirar da fila | Remove |
+| Confirmação · apagar a voz de uma história (texto) | Apagar a voz guardada de "…"? | Delete the saved voice of "…"? |
+| Confirmação · apagar a história (texto) | Apagar "…" deste celular? | Delete "…" from this phone? |
+| Confirmação · apagar toda a voz (texto) | Apagar TODA a voz guardada? As histórias continuam aqui; só a voz vai precisar ser gerada de novo. | Delete ALL the saved voice? The stories stay here; only the voice will need to be generated again. |
+| Gaveta ☰ · nome para o leitor de tela | Menu | Menu |
+| Tour · nome para o leitor de tela | Tour rápido | Quick tour |
+| Pergunta ao fechar com texto digitado | Descartar o que você digitou? (Descartar / Continuar) | Discard what you typed? (Discard / Keep editing) |
+
+> A pergunta "Descartar?" mora no `janela.js` (PT/EN); o app não tem texto dela. A lista de versões 1.27.0 está em PT e EN no `HISTORICO` do `app.js` (as versões antigas continuam só em português).

@@ -111,7 +111,7 @@ function vigiar(page, lista) {
 
 /* se a janela do cofre aparecer, cria o PIN (ou abre com ele) e segue; sem janela, não faz nada. true = apareceu */
 async function resolverPin(page, pin, esperaMs) {
-  const j = page.locator('#solver-cofre [role=dialog]');
+  const j = page.locator('#solver-cofre .sc-caixa');
   try { await j.waitFor({ state: 'visible', timeout: esperaMs == null ? 1500 : esperaMs }); } catch (e) { return false; }
   const campos = j.locator('input[type=password]');
   const n = await campos.count();

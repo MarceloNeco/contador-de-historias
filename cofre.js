@@ -1,5 +1,5 @@
 /* =====================================================================
-   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.3.0, 17/Out/2026)
+   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.4.0, 17/Out/2026)
    ---------------------------------------------------------------------
    POR QUE ESTE ARQUIVO EXISTE
    Todos os apps da SolverONE moram no MESMO endereço (solverone.com.br/<app>/).
@@ -7,6 +7,15 @@
    aberto no navegador, em 4 lugares diferentes. Qualquer cópia do navegador,
    backup ou extensão curiosa lia tudo. Agora existe UM cofre só, igual em todos
    os apps: as chaves ficam embaralhadas aqui no aparelho e só abrem com o PIN.
+
+   1.4.0 (17/Out/2026, pedido do dono): (1) a janela do PIN passa pela janela comum (janela.js, SolverJanela):
+   a página de trás não rola nem recebe toque, e tocar fora, Esc ou Voltar valem "Agora não" (o PIN digitado pela
+   metade não pergunta "Descartar?"). Sem o janela.js na página, o cofre avisa no console e abre do jeito antigo.
+   (2) As regras do PIN do Contador 1.25 viram uma opção de todo app: SolverCofre.proteger({...}) → com chave
+   guardada, pede o PIN ao abrir e ao recarregar (F5); tranca ao sair do app (fechar, recarregar, ir para outro
+   site ou outro app), com o app escondido por mais de 1 minuto e com 5 minutos sem uso ("ocupado" só adia este
+   último). Passar de uma página para outra do MESMO app não pede o PIN de novo. Quem não guarda chave nunca vê o PIN.
+   A digital de verdade (chave derivada pela própria digital, PRF) fica para a próxima versão (pendência #113).
 
    1.3.0 (17/Out/2026, pedido do dono): a digital deixa de ficar escondida. PIN e digital andam juntos na MESMA
    janela: (1) com a digital ligada, a janela de abrir já tenta a digital sozinha (se o navegador deixar sem toque;
@@ -35,7 +44,7 @@
      segredos, cada um com um nome: 'ia:openai', 'ia:gemini', 'telegram:omnilife-one'…
    - Essa chave de dados fica guardada "embrulhada":
        pelo PIN/senha (PBKDF2-SHA256, 310 mil rodadas, sal aleatório).
-   - Recarregar a página (F5) não pede o PIN de novo: a chave de dados fica
+   - Recarregar a página (F5) não pede o PIN de novo (a não ser no app que pediu SolverCofre.proteger): a chave de dados fica
      embrulhada por uma chave de sessão não exportável (IndexedDB) e o pacote
      vai para o sessionStorage, que é só desta aba e some quando ela fecha.
    - Nada secreto fica em claro. Em claro só ficam os NOMES dos segredos
@@ -44,6 +53,7 @@
      chaves de novo (elas continuam valendo no site de cada provedor).
 
    ORDEM NA PÁGINA (em todo app):
+       <script src="janela.js"></script>
        <script src="cofre.js"></script>
        <script src="diretrizes.js"></script>
        <script src="diretrizes-config.js"></script>
@@ -63,11 +73,12 @@
   'use strict';
   if (raiz.SolverCofre && raiz.SolverCofre.__carregado) return;
 
-  var VERSAO = '1.3.0';
+  var VERSAO = '1.4.0';
   var NOME = 'dgo:global:cofre';                 /* localStorage: o cofre (embaralhado) */
   var NOME_ERROS = 'dgo:global:cofre:erros';     /* localStorage: PIN errado { n, ate } */
   var NOME_OFERTA = 'dgo:global:cofre:digital-recusada';  /* localStorage: '1' = a pessoa disse "Agora não" à pergunta da digital */
   var NOME_SESSAO = 'dgo:global:cofre:sessao';   /* sessionStorage: { id, pac } desta aba */
+  var NOME_SAIU = 'dgo:global:cofre:saiu';       /* sessionStorage: { app, em } de quando a página saiu (proteger: passar de página no mesmo app) */
   var BANCO = 'solverone-cofre';                 /* IndexedDB: chaves não exportáveis */
   var ITER = 310000;
   var MIN_PIN = 6;
@@ -467,18 +478,40 @@
     return bloco;
   }
 
+  /* 1.4.0: a janela comum (janela.js). Sem ela na página, o jeito antigo continua, com aviso no console. */
+  function janelaComum() { var J = raiz.SolverJanela; return (J && J.__carregado) ? J : null; }
+  var _avisouSemJanela = false;
+  function avisarSemJanela() {
+    if (_avisouSemJanela) return; _avisouSemJanela = true;
+    try { console.warn('[SolverCofre ' + VERSAO + '] janela.js não está nesta página: a janela do PIN abre do jeito antigo (a página de trás continua rolando). Carregue <script src="janela.js"></script> antes do cofre.js.'); } catch (e) {}
+  }
+
   /* abre a janela; devolve Promise<boolean> (true = cofre aberto) */
   function janela(opcoes) {
     estilo();
     var motivo = textoDe(opcoes && opcoes.motivo);
     var antes = d.activeElement;
     return new Promise(function (resolver) {
-      var fundo = el('div', { class: 'sc-fundo', id: 'solver-cofre' });
-      var caixa = el('div', { class: 'sc-caixa', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sc-tit' });
-      fundo.appendChild(caixa);
+      var SJ = janelaComum(), J = null, fundo, caixa;
       var terminou = false, modoAtual = '';
+      if (SJ) {
+        /* o PIN abre por cima de outra janela quando é ela que precisa da chave (exceção da regra "uma por vez");
+           tocar fora, Esc e Voltar = "Agora não"; PIN digitado pela metade não pergunta "Descartar?" */
+        caixa = el('div', { class: 'sc-caixa' });
+        J = SJ.abrir({ conteudo: caixa, classe: 'sc-fundo', id: 'solver-cofre', porCima: true, temTexto: false,
+          atributos: { 'aria-labelledby': 'sc-tit' },
+          aoFechar: function (m) { if (m === 'cancelar') cancelou(); } });
+        fundo = J.el;
+      } else {
+        avisarSemJanela();
+        fundo = el('div', { class: 'sc-fundo', id: 'solver-cofre' });
+        caixa = el('div', { class: 'sc-caixa', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sc-tit' });
+        fundo.appendChild(caixa);
+      }
+      function cancelou() { if (modoAtual === 'oferta') { recusarOferta(); fim(true); } else fim(false); }
       function fim(ok) {
         if (terminou) return; terminou = true;
+        if (J) { J.fechar('ok'); resolver(!!ok); return; }
         d.removeEventListener('keydown', teclas, true);
         if (fundo.parentNode) fundo.parentNode.removeChild(fundo);
         try { if (antes && antes.focus) antes.focus(); } catch (e) {}
@@ -495,7 +528,7 @@
           else if (!ev.shiftKey && d.activeElement === u) { ev.preventDefault(); p.focus(); }
         }
       }
-      d.addEventListener('keydown', teclas, true);
+      if (!J) d.addEventListener('keydown', teclas, true);   /* com a janela comum, Esc e o foco preso são do navegador */
 
       /* depois de criar o PIN ou abrir com ele: se o aparelho tem digital e ela não está ligada, pergunta uma vez */
       function oferecerOuFechar() {
@@ -614,7 +647,7 @@
           conf.focus();
         }
       }
-      d.body.appendChild(fundo);
+      if (!J) d.body.appendChild(fundo);
       pintar(lerRegistro() ? 'abrir' : 'criar');
     });
   }
@@ -652,6 +685,99 @@
       });
     });
     box.appendChild(el('div', { class: 'sc-botoes' }, [b]));
+  }
+
+  /* ------------------------------------------------------------------
+     7a. PROTEGER (1.4.0): as regras do PIN do Contador 1.25, para qualquer app que pedir
+     ------------------------------------------------------------------ */
+  var _prot = null;
+  /* o app de um endereço: a primeira pasta (solverone.com.br/<app>/...). Passar de página no mesmo app não tranca. */
+  function appDe(caminho) { var m = String(caminho || '').match(/^\/([^\/]+)\//); return m ? m[1] : ''; }
+  function appAqui() { return appDe(raiz.location && raiz.location.pathname); }
+  function tipoDeEntrada() {
+    try { var n = raiz.performance.getEntriesByType('navigation')[0]; if (n && n.type) return n.type; } catch (e) {}
+    try { var t = raiz.performance.navigation.type; return t === 1 ? 'reload' : t === 2 ? 'back_forward' : 'navigate'; } catch (e2) {}
+    return 'navigate';
+  }
+  /* veio de outra página DESTE app há poucos segundos (link ou Voltar entre as páginas do app)? */
+  function veioDeDentro() {
+    var tipo = tipoDeEntrada(), s = null;
+    try { s = JSON.parse(raiz.sessionStorage.getItem(NOME_SAIU) || 'null'); raiz.sessionStorage.removeItem(NOME_SAIU); } catch (e) {}
+    if (tipo === 'reload' || !s || s.app !== appAqui() || Date.now() - (s.em || 0) > 10000) return false;
+    if (tipo === 'back_forward') return true;
+    try { var r = d.referrer ? new URL(d.referrer) : null; return !!r && r.origin === raiz.location.origin && appDe(r.pathname) === appAqui(); } catch (e3) { return false; }
+  }
+  function temSegredo() {
+    var r = lerRegistro();
+    if (r && Array.isArray(r.nomes) && r.nomes.length) return true;
+    return procurar(todasFontes()).achados.length > 0;
+  }
+  function trancarPor(motivo) {
+    _prot && (_prot.adiado = '');
+    try { console.info('[cofre] trancado: ' + motivo); } catch (e) {}
+    var estava = fecharMemoria();
+    return apagarSessao().then(function () { if (estava) avisar('cofre:trancado', { motivo: motivo }); return true; });
+  }
+  function rotulosOcupado() {
+    var f = _prot && _prot.ocupado, r = [];
+    (Array.isArray(f) ? f : f ? [f] : []).forEach(function (fn) { try { var v = fn(); if (v) r.push(typeof v === 'string' ? v : 'ocupado'); } catch (e) {} });
+    return r;
+  }
+  function tocandoAgora() { try { return !!(_prot && typeof _prot.tocando === 'function' && _prot.tocando()); } catch (e) { return false; } }
+  /* devolve a promessa do trancamento, ou null se nada foi trancado */
+  function conferirProtecao(origem) {
+    if (!_prot || !E.aberto) return null;
+    var agora = Date.now();
+    if (_prot.saiuEm && agora - _prot.saiuEm >= _prot.fora) {
+      if (tocandoAgora()) { adiar(['audio-tocando']); return null; }
+      return trancarPor('fora-do-app');
+    }
+    if (agora - _prot.ultima >= _prot.ocioso) {
+      var por = rotulosOcupado(); if (tocandoAgora()) por.push('audio-tocando');
+      if (por.length) { adiar(por); return null; }
+      return trancarPor('ocioso');
+    }
+    return null;
+  }
+  function adiar(por) {
+    var m = '[cofre] trancamento adiado: ' + por.join(', ');
+    if (m !== _prot.adiado) { _prot.adiado = m; try { console.info(m); } catch (e) {} }
+  }
+  function pedirSePrecisa() {
+    /* chamado cedo (no <head>): espera a página existir para mostrar a janela */
+    if (!d.body) return new Promise(function (ok) { d.addEventListener('DOMContentLoaded', function () { ok(pedirSePrecisa()); }, { once: true }); });
+    if (!_prot || E.aberto || _prot.recusou || !temSegredo()) return Promise.resolve(E.aberto);
+    return API.pedir({ motivo: _prot.motivo }).then(function (ok) { if (!ok) _prot.recusou = true; return ok; });
+  }
+  function ligarProtecao() {
+    var marca = function () { if (_prot) _prot.ultima = Date.now(); };
+    ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(function (ev) { d.addEventListener(ev, marca, { passive: true, capture: true }); });
+    /* confere a cada 15 s (ou mais vezes, se o app pediu um prazo curto) */
+    raiz.setInterval(function () { conferirProtecao('relogio'); }, Math.min(15000, Math.max(500, Math.floor(_prot.ocioso / 3))));
+    d.addEventListener('visibilitychange', function () {
+      if (!_prot) return;
+      if (d.hidden) { _prot.saiuEm = Date.now(); return; }
+      var p = conferirProtecao('voltou');                  /* voltou ao app: confere antes de mostrar qualquer coisa */
+      _prot.saiuEm = 0; marca();
+      if (p) p.then(pedirSePrecisa); else pedirSePrecisa();
+    });
+    /* saindo da página: tranca a memória (a não ser com áudio tocando). A sessão da aba fica só para a próxima página
+       do MESMO app abrir sem PIN; se a próxima for outro app, outro site ou um F5, ela tranca ao carregar. */
+    raiz.addEventListener('pagehide', function () {
+      if (!_prot || tocandoAgora()) return;
+      try { raiz.sessionStorage.setItem(NOME_SAIU, JSON.stringify({ app: appAqui(), em: Date.now(), protegido: true })); } catch (e) {}
+      fecharMemoria();
+    });
+    raiz.addEventListener('pageshow', function (e) {
+      if (!_prot || !e.persisted) return;               /* voltou pelo Voltar com a página guardada na memória do navegador */
+      _prot.saiuEm = 0; marca();
+      var dentro = veioDeDentro();
+      (dentro ? API.abrirSemPin() : trancarPor('voltou-de-fora')).then(function () {
+        avisar(E.aberto ? 'cofre:aberto' : 'cofre:trancado', { motivo: 'pagina' });
+        if (!E.aberto) pedirSePrecisa();
+      });
+    });
+    d.addEventListener('cofre:trancado', function () { if (_prot) _prot.recusou = false; });
   }
 
   var API = {
@@ -800,6 +926,26 @@
     trancar: function () {
       var estava = fecharMemoria();
       return apagarSessao().then(function () { if (estava) avisar('cofre:trancado', { motivo: 'trancar' }); return true; });
+    },
+
+    /* 1.4.0: liga as regras do PIN neste app (uma vez, ao abrir). Promise<boolean> = cofre aberto depois da conferência.
+       opcoes: motivo {pt,en} (texto da janela ao abrir) · ocioso (ms, padrão 5 min) · fora (ms escondido, padrão 1 min) ·
+       ocupado: função (ou lista) que devolve false/true/'rótulo' — trabalho rodando só adia o trancar por falta de uso ·
+       tocando: função — áudio tocando neste instante não tranca ao esconder nem ao sair. */
+    proteger: function (opcoes) {
+      opcoes = opcoes || {};
+      var primeira = !_prot;
+      _prot = { motivo: opcoes.motivo || { pt: TX.motivoPadrao[0], en: TX.motivoPadrao[1] },
+        ocioso: opcoes.ocioso > 0 ? opcoes.ocioso : 5 * 60 * 1000, fora: opcoes.fora > 0 ? opcoes.fora : 60 * 1000,
+        ocupado: opcoes.ocupado || null, tocando: opcoes.tocando || null,
+        ultima: Date.now(), saiuEm: d.hidden ? Date.now() : 0, recusou: false, adiado: '' };
+      if (!primeira) return Promise.resolve(E.aberto);
+      ligarProtecao();
+      /* ao abrir: F5, outro app, outro site ou endereço digitado = tranca e pede o PIN; outra página do mesmo app = segue */
+      var dentro = veioDeDentro();
+      return API.pronto.then(function () {
+        return (E.aberto && !dentro) ? trancarPor(tipoDeEntrada() === 'reload' ? 'recarregou' : 'abriu') : null;
+      }).then(function () { return pedirSePrecisa(); }).catch(function () { return E.aberto; });
     },
 
     /* "Lembrar neste aparelho" saiu na 1.1.0 (abria sem PIN para quem pegasse o aparelho destravado).
@@ -973,8 +1119,18 @@
 
   /* ao carregar: quem tinha "Lembrar neste aparelho" (1.0.0) perde a chave do aparelho e volta a usar o PIN;
      depois tenta continuar aberto só se for F5 nesta aba */
+  /* 1.4.0: se a aba acabou de sair de um app com as regras do PIN (proteger) e esta página é OUTRO app,
+     a sessão da aba não serve: o cofre fica trancado (sair do app tranca, em qualquer app que abrir depois) */
+  function saiuDeOutroAppProtegido() {
+    var s = null;
+    try { s = JSON.parse(raiz.sessionStorage.getItem(NOME_SAIU) || 'null'); } catch (e) {}
+    if (!s || !s.protegido || s.app === appAqui()) return false;
+    try { raiz.sessionStorage.removeItem(NOME_SAIU); } catch (e2) {}
+    return true;
+  }
   API.pronto = (API.lembrado() ? API.esquecerAparelho().catch(function () {}) : Promise.resolve())
-    .then(function () { return API.abrirSemPin(); }).catch(function () { return false; });
+    .then(function () { if (saiuDeOutroAppProtegido()) return apagarSessao().then(function () { return false; }); return API.abrirSemPin(); })
+    .catch(function () { return false; });
 
   raiz.SolverCofre = API;
 })(typeof window !== 'undefined' ? window : this);
