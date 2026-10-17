@@ -156,6 +156,9 @@ const Seg = (function(){
   const C = ()=> window.SolverCofre || null;
   const nome = c => SEGREDOS[c];
   let pend = Promise.resolve(), recusou = false, ouvintes = [];
+  // enquanto a abertura não terminou de conferir o cofre (iniciarCofre), nada de nome nem de "aberto" na tela
+  let prontoFlag = false, resolverPronto; const prontoP = new Promise(r=>{ resolverPronto = r; });
+  const ocupadoFns = [];
   const agendados = {}; let relogio = 0;
   const trancadoErro = ()=>{
     const e = new Error(T('O cofre de chaves está trancado. Digite o PIN para usar as chaves guardadas.','The key vault is locked. Type the PIN to use the saved keys.'));
@@ -163,8 +166,8 @@ const Seg = (function(){
   };
   const semCofre = ()=> new Error(T('O cofre de chaves não carregou. Atualize a página.','The key vault did not load. Reload the page.'));
   const tem = c => { const k=C(); return !!(k && k.tem(nome(c))); };
-  const agora = c => { const k=C(); return k ? String(k.lerAgora(nome(c))||'') : ''; };
-  const aberto = ()=>{ const k=C(); return !!(k && k.aberto()); };
+  const agora = c => { const k=C(); return (prontoFlag && k) ? String(k.lerAgora(nome(c))||'') : ''; };
+  const aberto = ()=>{ const k=C(); return !!(prontoFlag && k && k.aberto()); };
   const existe = ()=>{ const k=C(); return !!(k && (k.existe() || k.pendentes().length>0)); };
   const pendentes = ()=>{ const k=C(); return k ? k.pendentes().length : 0; };
   // a cópia em texto aberto do ch_config (a temporária do Eleições, ou a que ainda não migrou) sai quando o valor muda ou é apagado
@@ -180,6 +183,7 @@ const Seg = (function(){
   }
   async function ler(c, motivo){
     descarregar();
+    await prontoP;
     await pend;
     const k = C(); if(!k) return '';
     try{ return String(await k.ler(nome(c), {motivo: motivo||MOTIVO}) || ''); }
@@ -203,12 +207,25 @@ const Seg = (function(){
   }
   const emEspera = ()=> Object.keys(agendados).length > 0;
   const aoMudar = fn => { ouvintes.push(fn); };
+  const avisarOuvintes = ev => ouvintes.slice().forEach(fn=>{ try{ fn(ev); }catch(e){} });
+  // a abertura terminou de conferir o cofre: agora a tela pode mostrar o que o cofre tem
+  const liberar = ()=>{ prontoFlag = true; resolverPronto(); avisarOuvintes('pronto'); };
+  // trabalho rodando (fila de voz, geração, cópia, leitor com voz de internet…): o cofre não tranca sozinho enquanto durar
+  const ocupadoSe = fn => { ocupadoFns.push(fn); };
+  const ocupado = ()=> ocupadoFns.some(fn=>{ try{ return !!fn(); }catch(e){ return false; } });
+  // "mostrar": tranca e pede o PIN de novo (quem pegou o celular aberto não vê a chave sem o PIN)
+  async function reautenticar(motivo){
+    const k = C(); if(!k) return false;
+    await k.trancar();
+    return k.pedir({motivo: motivo||MOTIVO});
+  }
   ['cofre:aberto','cofre:trancado','cofre:mudou','cofre:migrado'].forEach(ev=>{
-    document.addEventListener(ev, ()=>{ if(ev==='cofre:trancado') recusou = false; ouvintes.slice().forEach(fn=>{ try{ fn(ev); }catch(e){} }); });
+    document.addEventListener(ev, ()=>{ if(ev==='cofre:trancado') recusou = false; avisarOuvintes(ev); });
   });
   document.addEventListener('visibilitychange', ()=>{ if(document.hidden) descarregar(); });
   window.addEventListener('pagehide', descarregar);
   return { tem, agora, ler, abrir, gravar, agendar, descarregar, aberto, existe, pendentes, precisaPerguntar, emEspera, aoMudar, MOTIVO,
+           liberar, ocupadoSe, ocupado, reautenticar,
            pedir: motivo=>{ const k=C(); return k ? k.pedir({motivo: motivo||MOTIVO}) : Promise.resolve(false); },
            trancar: ()=>{ const k=C(); return k ? k.trancar() : Promise.resolve(true); } };
 })();
@@ -792,9 +809,13 @@ const Guarda = (function(){
     chave(idHistoria, i, txt, marca){
       return idHistoria+'|'+i+'|'+(marca||this.marca())+'|'+this.hashTexto(txt);
     },
-    pegar(k){ return op('readonly', s=>s.get(k)); },
-    existe(k){ return op('readonly', s=>s.getKey(k)).then(r=>!!r); },
+    // o cumprimento ("Olá <nomes das crianças>…") nunca fica guardado no aparelho (v1.23.0): a chave levava o nome em claro
+    pegar(k){ if(/^saudacao\|/.test(String(k))) return Promise.resolve(null); return op('readonly', s=>s.get(k)); },
+    existe(k){ if(/^saudacao\|/.test(String(k))) return Promise.resolve(false); return op('readonly', s=>s.getKey(k)).then(r=>!!r); },
+    // apaga os cumprimentos que as versões antigas deixaram guardados (a chave de cada um tem o nome das crianças)
+    apagarSaudacoes(){ chavesPorId.clear(); return op('readwrite', s=>{ s.delete(IDBKeyRange.bound('saudacao|', 'saudacao|\uffff')); return null; }); },
     guardar(k, blob){
+      if(/^saudacao\|/.test(String(k))) return Promise.resolve();
       const id = String(k).split('|')[0];
       if(chavesPorId.has(id) && !chavesPorId.get(id).includes(String(k))) chavesPorId.get(id).push(String(k));
       pedirPersistencia();
@@ -846,6 +867,7 @@ const Guarda = (function(){
       const itens = Array.isArray(indice.itens) ? indice.itens : [];
       for(let j=0; j<itens.length; j++){
         const it = itens[j], b = arquivo.slice(pos, pos+it.n, it.t||'audio/mpeg'); pos += it.n;
+        if(/^saudacao\|/.test(String(it.k))){ continue; }        // arquivo de versão antiga: o cumprimento não entra
         if(await this.existe(it.k)){ iguais++; continue; }       // o que já existe aqui não é trocado
         await op('readwrite', s=>s.put(b, it.k)); novos++;
         if(aviso && (j%15===0)) aviso(j+1, itens.length);
@@ -1172,6 +1194,9 @@ const Leitor = (function(){
     if(marcaUso){                                                // voz guardada: nunca gera de novo
       if(fila[i].saudacao) return null;                          // cumprimento cai para a voz do celular
       const e = new Error('Este trecho não está entre a voz guardada ('+nomeMarca(marcaUso)+').'); e.faltando = true; throw e;
+    }
+    if(fila[i].saudacao){                                        // cumprimento: gerado na hora, nunca guardado; falhou, cai para a voz do celular
+      try{ const b = await gerarAudio(txt); memoria.set(i, b); return b; }catch(e){ return null; }
     }
     const esperas = [8000, 20000, 45000];
     let ultimo=null;
@@ -1501,7 +1526,7 @@ const Leitor = (function(){
   async function contarNoDisco(){
     let total=0, prontos=0;
     for(let i=0;i<fila.length;i++){
-      if(fila[i].tipo!=='fala') continue;
+      if(fila[i].tipo!=='fala' || fila[i].saudacao) continue;   // o cumprimento não fica guardado: não conta
       total++;
       const k = fila[i].saudacao ? ('saudacao|'+marcaAt()+'|'+fila[i].texto)
                                   : Guarda.chave(hist.id,i,fila[i].texto,marcaAt());
@@ -2241,6 +2266,7 @@ const COLETIVO = { meninas:'meninas', meninos:'meninos', misto:'crianças' };
 function vocativo(){
   const nomes = nomesPorExtenso();
   if(nomes) return nomes;
+  if(Seg.tem('publicoNomes')) return '';        // há nomes guardados, mas o cofre está trancado: texto neutro, sem nome e sem pista
   return COLETIVO[cfg.publicoTipo] || '';
 }
 function periodoDoDia(){
@@ -2770,16 +2796,31 @@ const CAMPOS_TELA = {
   elevenKey:['#in-eleven-key'], anthropicKey:['#in-anthropic-key'],
   publicoNomes:['#in-publico-nomes'], nomesProtegidos:['#in-nomes-protegidos']
 };
+/* v1.23.0: as CHAVES de IA nunca aparecem inteiras sem o PIN. Com o cofre aberto o campo mostra só "••••••••";
+   o botão "Mostrar" tranca o cofre e pede o PIN de novo, mostra a chave por 30 s e volta a esconder. Digitar num
+   campo escondido TROCA a chave. Os nomes das crianças aparecem com o cofre aberto (a pessoa pode ver o que escreveu). */
+const CHAVES_DE_IA = ['geminiKey','openaiKey','elevenKey','anthropicKey'];
+const reveladas = {};                                          // campo → relógio que volta a esconder a chave
 function pintarSegredos(){
   if(Seg.emEspera()) return;                                   // a pessoa está digitando: não mexe
   const aviso = T('🔐 Guardado no cofre — abrir para ver ou mudar','🔐 Saved in the vault — open to see or change');
+  const mascara = T('•••••••• (chave guardada)','•••••••• (key saved)');
   Object.keys(CAMPOS_TELA).forEach(c=>{
+    const ehChave = CHAVES_DE_IA.includes(c);
     const trancado = !Seg.aberto() && Seg.tem(c);
+    const escondida = ehChave && Seg.aberto() && Seg.tem(c) && !reveladas[c];
     CAMPOS_TELA[c].forEach(sel=>{
       const el = $(sel); if(!el) return;
       if(el.dataset.ph===undefined) el.dataset.ph = el.getAttribute('placeholder')||'';
       if(trancado){ el.value = ''; el.placeholder = aviso; el.readOnly = true; el.dataset.cofre = '1'; }
-      else if(document.activeElement!==el){ el.readOnly = false; delete el.dataset.cofre; el.placeholder = el.dataset.ph; el.value = Seg.agora(c); }
+      else if(document.activeElement===el) return;
+      else if(escondida){ el.value = ''; el.placeholder = mascara; el.readOnly = false; delete el.dataset.cofre; }
+      else { el.readOnly = false; delete el.dataset.cofre; el.placeholder = el.dataset.ph; el.value = Seg.agora(c); }
+      const b = el.nextElementSibling;
+      if(b && b.dataset && b.dataset.mostrar===c){
+        b.hidden = !Seg.tem(c);
+        b.textContent = reveladas[c] ? T('🙈 Esconder a chave','🙈 Hide the key') : T('👁 Mostrar a chave (pede o PIN)','👁 Show the key (asks for the PIN)');
+      }
     });
   });
 }
@@ -2792,6 +2833,23 @@ function salvarSegredo(c, valor){
 Object.keys(CAMPOS_TELA).forEach(c=>{
   const els = CAMPOS_TELA[c].map(sel=>$(sel)).filter(Boolean);
   els.forEach(el=>{
+    if(CHAVES_DE_IA.includes(c)){
+      // chave de IA: sem autocompletar, sem maiúscula automática, sem corretor, sem copiar nem recortar; o valor nunca vai para log
+      el.setAttribute('autocomplete','off'); el.setAttribute('autocapitalize','none'); el.setAttribute('spellcheck','false');
+      el.setAttribute('data-lpignore','true'); el.setAttribute('data-1p-ignore','');
+      ['copy','cut'].forEach(ev=>el.addEventListener(ev, e=>e.preventDefault()));
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn sm ghost'; b.dataset.mostrar = c; b.setAttribute('data-dgo-ignorar',''); b.hidden = true; b.style.marginTop = '8px';
+      el.insertAdjacentElement('afterend', b);
+      b.addEventListener('click', async ()=>{
+        if(reveladas[c]){ clearTimeout(reveladas[c]); delete reveladas[c]; pintarSegredos(); return; }
+        const ok = await Seg.reautenticar(T('Digite o PIN para ver a chave.','Type the PIN to see the key.')).catch(()=>false);
+        if(!ok) return;
+        reveladas[c] = setTimeout(()=>{ delete reveladas[c]; pintarSegredos(); }, 30000);
+        pintarSegredos();
+      });
+      el.addEventListener('blur', ()=>setTimeout(pintarSegredos, 700));
+    }
     el.addEventListener('input', ()=>{
       if(el.dataset.cofre) return;
       els.forEach(o=>{ if(o!==el) o.value = el.value; });      // as duas telas da mesma chave ficam iguais
@@ -2814,7 +2872,7 @@ function pintarPainelCofre(){
   const K = window.SolverCofre;
   let h;
   if(!K) h = `<div class="aviso">${T('O cofre de chaves não carregou. Atualize a página.','The key vault did not load. Reload the page.')}</div>`;
-  else if(Seg.aberto()) h = `<div>🔓 ${T('Cofre aberto neste aparelho. As chaves e os nomes das crianças ficam trancados com o seu PIN.','Vault open on this device. The keys and the children\'s names stay locked with your PIN.')}</div>
+  else if(Seg.aberto()) h = `<div>🔓 ${T('Cofre aberto neste aparelho. Ele tranca sozinho depois de 5 minutos sem uso e quando você sai do app (menos enquanto um trabalho está rodando).','Vault open on this device. It locks by itself after 5 minutes without use and when you leave the app (except while a job is running).')}</div>
     <div style="height:8px"></div><button class="btn sm" id="btn-cofre-trancar">🔒 ${T('Trancar o cofre agora','Lock the vault now')}</button>`;
   else if(!K.existe() && Seg.pendentes()>0) h = `<div class="aviso">⚠️ ${T('Suas chaves e os nomes das crianças ainda estão sem proteção neste aparelho. Crie um PIN para trancar tudo no cofre.','Your keys and the children\'s names are still unprotected on this device. Create a PIN to lock everything in the vault.')}</div>
     <div style="height:8px"></div><button class="btn sm pri" id="btn-cofre-abrir">🔐 ${T('Criar o PIN agora','Create the PIN now')}</button>`;
@@ -2828,6 +2886,69 @@ function pintarPainelCofre(){
 Seg.aoMudar(()=>{ pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualizarSaudacao(); });
 document.addEventListener('dgo:idioma', ()=>{ pintarSegredos(); pintarPainelCofre(); });
 pintarSegredos(); pintarPainelCofre();
+
+/* ---------- janela do PIN mais segura, sem "Lembrar neste aparelho" (v1.23.0) ----------
+   "Lembrar" guardava uma chave no próprio navegador que abre o cofre SEM PIN para quem usar o aparelho ou o app: saiu.
+   A janela do cofre é do cofre.js (arquivo mestre, não editado aqui); o Contador esconde a opção, impede que ela seja
+   gravada e acerta os campos do PIN: sem autocompletar, sem corretor, sem copiar (a mudança definitiva é do mestre: PENDENCIAS.md). */
+(function(){
+  const K = window.SolverCofre; if(!K) return;
+  K.lembrarAparelho = function(){ return Promise.resolve(false); };                 // nunca grava chave de aparelho
+  const est = document.createElement('style');
+  est.textContent = '#solver-cofre .sc-marca{display:none !important}';
+  document.head.appendChild(est);
+  function ajustar(fundo){
+    $$('input[type=password]', fundo).forEach(i=>{
+      if(i.dataset.pinOk) return; i.dataset.pinOk = '1';
+      i.setAttribute('autocomplete','off'); i.setAttribute('autocapitalize','none'); i.setAttribute('spellcheck','false');
+      i.setAttribute('inputmode','text'); i.setAttribute('data-lpignore','true'); i.setAttribute('data-1p-ignore','');
+      ['copy','cut'].forEach(ev=>i.addEventListener(ev, e=>e.preventDefault()));
+    });
+    const l = $('#sc-lembrar', fundo); if(l) l.checked = false;
+  }
+  new MutationObserver(()=>{ const f = document.getElementById('solver-cofre'); if(f) ajustar(f); }).observe(document.body, {childList:true, subtree:true});
+})();
+
+/* ---------- trancar sozinho (v1.23.0): 5 min sem uso e ao sair do app; nunca com trabalho rodando ----------
+   Trabalho rodando = fila de voz, tarefa em andamento (cópia, nuvem, foto), geração de história, ou leitor aberto com voz de
+   internet. Aí o cofre espera e tranca logo que o trabalho termina (a conferência roda a cada 15 s). */
+Seg.ocupadoSe(()=>FilaVoz.rodando());
+Seg.ocupadoSe(()=>{ const t = window.DGO && DGO.tarefa && DGO.tarefa.ativas && DGO.tarefa.ativas(); return !!(t && t.length); });
+Seg.ocupadoSe(()=>document.body.classList.contains('com-leitor') && cfg.motorVoz!=='nativo');
+Seg.ocupadoSe(()=>{ const b = $('#btn-gerar'); return !!(b && b.disabled && cfg.motorTexto!=='manual'); });
+(function(){
+  const LIMITE = 5*60*1000; let ultima = Date.now();
+  const marca = ()=>{ ultima = Date.now(); };
+  ['pointerdown','keydown','touchstart','wheel'].forEach(ev=>document.addEventListener(ev, marca, {passive:true, capture:true}));
+  function conferir(){
+    if(!Seg.aberto() || Seg.ocupado()) return;
+    if(document.hidden || Date.now()-ultima >= LIMITE) Seg.trancar().then(()=>{ if(!document.hidden) toast(T('🔒 Cofre trancado (sem uso)','🔒 Vault locked (idle)'), 3500); });
+  }
+  setInterval(conferir, 15000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ conferir(); return; }
+    marca();
+    if(Seg.precisaPerguntar()) Seg.abrir(T('Digite o PIN para abrir o Contador.','Type the PIN to open Storyteller.')).catch(()=>{});   // voltou ao app: pede o PIN
+  });
+  window.addEventListener('pagehide', conferir);
+})();
+
+/* ---------- abertura (v1.23.0): confere o cofre e pede o PIN logo de cara ----------
+   Antes de "pronto" a tela não mostra nome de criança nem chave. Se este aparelho tinha "Lembrar" (versão 1.22.0), esquece
+   e tranca. Cofre criado e trancado, ou chaves/nomes ainda em texto aberto: abre a janela do PIN (criar ou digitar);
+   "Agora não" deixa o app abrir, mas sem nomes (texto neutro) até o PIN. */
+(async function iniciarCofre(){
+  const K = window.SolverCofre;
+  if(K){
+    try{ await K.pronto; }catch(e){}
+    const eraLembrado = K.lembrado();
+    try{ await K.esquecerAparelho(); }catch(e){}                                   // apaga qualquer chave de aparelho já criada
+    if(eraLembrado && K.aberto()){ try{ await K.trancar(); }catch(e){} }           // abriu sozinho por ela: tranca e pede o PIN
+  }
+  Seg.liberar();
+  Guarda.apagarSaudacoes().catch(()=>{});                                          // cumprimentos antigos (tinham nomes na chave)
+  if(Seg.precisaPerguntar()) Seg.abrir(T('Digite o PIN para abrir o Contador.','Type the PIN to open Storyteller.')).catch(()=>{});
+})();
 
 // Configurações → Voz guardada: total em MB e a lista por história, cada uma com a sua lixeira
 function mostrarGuarda(){
@@ -3369,6 +3490,14 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.23.0','17/10/2026', [
+    'O app agora pede o PIN logo ao abrir (ou ao voltar para ele). Com o cofre trancado, nenhum nome de criança aparece: o cabeçalho e a saudação ficam neutros',
+    'A opção "Lembrar neste aparelho" saiu: ela abria o cofre sem PIN. Quem tinha marcado, passa a digitar o PIN',
+    'O cofre tranca sozinho depois de 5 minutos sem uso e quando você sai do app (menos enquanto uma voz ou uma história está sendo preparada)',
+    'As chaves de IA aparecem só como "••••••••". Para ver uma chave, toque em "Mostrar": o app pede o PIN de novo e esconde de novo em 30 segundos',
+    'A saudação falada ("Olá, <nomes>…") não fica mais guardada no aparelho; as que já estavam guardadas foram apagadas',
+    'Proteção extra do app: só roda código do próprio site e só fala com os serviços que ele usa (Gemini, OpenAI, ElevenLabs, Claude e a conta SolverONE)'
+  ]],
   ['1.22.0','16/10/2026', [
     'Cofre de chaves: as chaves de IA (Gemini, OpenAI, ElevenLabs, Claude) e os nomes das crianças saíram do texto aberto do navegador e ficam trancados num cofre com um PIN seu, o mesmo cofre dos outros apps da SolverONE',
     'Com o cofre trancado, o app pede o PIN na hora de usar uma chave ou os nomes e continua sozinho; em Configurações há "🔒 Trancar o cofre agora"',
@@ -5035,7 +5164,7 @@ const FilaVoz = (function(){
   async function umaHistoria(h){
     const marca = Guarda.marca();
     const f = Leitor.trechos(h, cfg.motorVoz);
-    const falas = []; f.forEach((x,i)=>{ if(x.tipo==='fala') falas.push(i); });
+    const falas = []; f.forEach((x,i)=>{ if(x.tipo==='fala' && !x.saudacao) falas.push(i); });   // sem o cumprimento: ele não fica guardado
     trecho = {feitos:0, total:falas.length, id:h.id};
     for(let n=0; n<falas.length; n++){
       if(!st.ligada || leitorAberto() || Guarda.marca()!==marca) return false;
@@ -5159,7 +5288,7 @@ const FilaVoz = (function(){
     // a fila que ficou ligada continua sozinha ao abrir o app
     if(st.ligada && st.ids.length) setTimeout(()=>{ toast(T('📥 Continuando a fila de voz…','📥 Resuming the voice queue…')); trabalhar(); }, 4000);
   }
-  return { iniciar, adicionar, escolher, continuar, pausar:()=>parar(''), estado:()=>JSON.parse(JSON.stringify(st)), acordar:acordarJa };
+  return { iniciar, adicionar, escolher, continuar, pausar:()=>parar(''), estado:()=>JSON.parse(JSON.stringify(st)), acordar:acordarJa, rodando:()=>rodando };
 })();
 FilaVoz.iniciar();
 

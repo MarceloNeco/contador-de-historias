@@ -91,6 +91,14 @@ async function vozDeMentira(ctx) {
   });
 }
 
+/* guarda toda violação da CSP (o navegador também avisa no console) */
+async function vigiarCsp(ctx) {
+  await ctx.addInitScript(() => {
+    window.__csp = [];
+    document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI));
+  });
+}
+
 function vigiar(page, lista) {
   page.on('pageerror', (e) => lista.push('pageerror: ' + e.message));
   page.on('console', (m) => {
@@ -121,4 +129,4 @@ async function iniciar(opc) {
   return { servidor, base, browser, fechar: async () => { await browser.close(); servidor.close(); } };
 }
 
-module.exports = { FALSO, PIN, AUDIO_B64, servir, contexto, semear, vozDeMentira, vigiar, resolverPin, iniciar, RAIZ };
+module.exports = { FALSO, PIN, AUDIO_B64, servir, contexto, semear, vozDeMentira, vigiarCsp, vigiar, resolverPin, iniciar, RAIZ };

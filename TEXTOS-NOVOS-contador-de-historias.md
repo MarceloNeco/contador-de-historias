@@ -476,3 +476,16 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Arquivo de voz | Este arquivo não tem senha: o cumprimento com os nomes das crianças não vai nele (os nomes só saem na cópia protegida). | This file has no password: the greeting with the children's names is not in it (names only leave in the protected copy). |
 | Apagar tudo | …Apaga as histórias, os ajustes, os nomes das crianças e as contas de leitura… As chaves de IA ficam no cofre (valem também para os outros apps da SolverONE)… | …Erases the stories, settings, the children's names and reading counts… The AI keys stay in the vault (they also serve the other SolverONE apps)… |
 | Apagar tudo · cofre trancado | Não apaguei nada: abra o cofre (PIN) para apagar também os nomes das crianças. | I erased nothing: open the vault (PIN) to erase the children's names too. |
+
+## Cofre endurecido (v1.23.0)
+
+| Onde | Português (pt-BR) | English (en-US) |
+|---|---|---|
+| Janela do PIN · motivo (abertura e volta ao app) | Digite o PIN para abrir o Contador. | Type the PIN to open Storyteller. |
+| Painel · aberto | Cofre aberto neste aparelho. Ele tranca sozinho depois de 5 minutos sem uso e quando você sai do app (menos enquanto um trabalho está rodando). | Vault open on this device. It locks by itself after 5 minutes without use and when you leave the app (except while a job is running). |
+| Aviso ao trancar sozinho | 🔒 Cofre trancado (sem uso) | 🔒 Vault locked (idle) |
+| Campo da chave, cofre aberto | •••••••• (chave guardada) | •••••••• (key saved) |
+| Botão mostrar | 👁 Mostrar a chave (pede o PIN) | 👁 Show the key (asks for the PIN) |
+| Botão esconder | 🙈 Esconder a chave | 🙈 Hide the key |
+| Janela do PIN · motivo de "Mostrar" | Digite o PIN para ver a chave. | Type the PIN to see the key. |
+
