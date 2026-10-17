@@ -71,12 +71,11 @@ small[data-guardado][hidden],#btn-cofre[hidden],[data-mostrar][hidden],[data-olh
 .hd .icobtn:focus-visible,#hd-marca:focus-visible{outline:3px solid var(--roxo);outline-offset:2px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* gaveta do ☰ (celular e computador): abre e fecha com movimento suave */
-.gaveta-fundo{position:fixed;inset:0;z-index:180;background:rgba(8,5,16,.55);opacity:0;pointer-events:none;transition:opacity .22s}
+.gaveta-janela{background:rgba(8,5,16,.55)}
 .gaveta{position:fixed;top:0;bottom:0;left:0;z-index:181;width:min(300px,84vw);background:var(--bg2);border-right:1px solid var(--line);
   box-shadow:var(--sh);transform:translateX(-102%);transition:transform .22s ease;overflow-y:auto;
   padding:calc(12px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:2px}
 body.com-menu .gaveta{transform:none}
-body.com-menu .gaveta-fundo{opacity:1;pointer-events:auto}
 .gaveta .gv-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding-left:10px}
 .gaveta .gv-topo b{font-size:15px}
 .gaveta button.gv{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 12px;border-radius:14px;font-size:15px;font-weight:600;min-height:48px}
@@ -104,7 +103,7 @@ body.com-menu .gaveta-fundo{opacity:1;pointer-events:auto}
 .menu-perfil button.mp .toggle{margin-left:auto}
 .menu-perfil button.mp:hover,.menu-perfil button.mp:focus-visible{background:var(--card)}
 .menu-perfil button.mp.sair{color:var(--vermelho)}
-@media (prefers-reduced-motion:reduce){.gaveta,.gaveta-fundo,.menu-perfil{transition:none}}
+@media (prefers-reduced-motion:reduce){.gaveta,.menu-perfil{transition:none}}
 /* "Reduzir animações" (Configurações): tira todo movimento do app */
 body.sem-animacao *,body.sem-animacao *::before,body.sem-animacao *::after{animation:none!important;transition:none!important}
 .icobtn{width:42px;height:42px;border-radius:14px;background:var(--card);border:1px solid var(--line);position:relative;
@@ -132,7 +131,7 @@ body.tema-claro .destaque{background:linear-gradient(150deg,#ece4ff,#f7f3ff);bor
 body.tema-claro .aviso{color:#8d1f3a} body.tema-claro .info{color:#4a2fb8} body.tema-claro .ok{color:#17704c}
 body.tema-claro .faixa.verde{color:#17704c} body.tema-claro .faixa.amarela{color:#9a5a0c} body.tema-claro .faixa.vermelha{color:#8d1f3a}
 body.tema-claro .seg button.on{box-shadow:0 2px 8px rgba(60,40,110,.15)}
-body.tema-claro .gaveta-fundo{background:rgba(40,25,80,.35)}
+body.tema-claro .gaveta-janela{background:rgba(40,25,80,.35)}
 /* ---------- abas ---------- */
 nav.tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:50;
@@ -514,7 +513,6 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     <button class="icobtn perfil" id="btn-perfil-topo" type="button" aria-label="Perfil" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-perfil">👤</button>
   </div>
 </header>
-<div class="gaveta-fundo" id="gaveta-fundo"></div>
 <nav class="gaveta" id="menu-lateral" aria-label="Menu" aria-hidden="true" data-dgo-ignorar></nav>
 <div class="menu-perfil" id="menu-perfil" role="menu" aria-label="Perfil" data-dgo-ignorar></div>
 <div class="sr-only" id="inbox-vivo" aria-live="polite"></div>
@@ -1106,13 +1104,8 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
   </div>
 </div>
 
-<!-- ====================== MODAL ====================== -->
-<div class="modal" id="modal">
-  <div class="box">
-    <div class="puxa"></div>
-    <div id="modal-conteudo"></div>
-  </div>
-</div>
+<!-- ====================== MODAL ======================
+     As janelas do app (modal(), gaveta ☰, tour, confirmações) são <dialog> criados pelo janela.js na hora de abrir. -->
 <div class="toast" id="toast"></div>
 
 <!-- AssistONE: o ajudante, sempre no mesmo canto -->
@@ -1135,6 +1128,8 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
      estiverem no repositório, o site funciona igual — só ignora estas linhas. -->
 <!-- interruptores do RootifyONE → Controle dos apps (o que o dono liga e desliga). Antes do código do app. -->
 <script src="recursos.js" data-app="contador-de-historias"></script>
+<!-- janela comum (SolverJanela): sempre ANTES do cofre.js e de tudo que abre janela -->
+<script src="janela.js"></script>
 <!-- cofre comum de chaves (SolverCofre): sempre ANTES do diretrizes.js -->
 <script src="cofre.js"></script>
 <script src="diretrizes.js"></script>

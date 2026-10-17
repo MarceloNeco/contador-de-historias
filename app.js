@@ -7,8 +7,13 @@
 "use strict";
 
 /* ----------------------------- utilidades ----------------------------- */
-const $  = (s,r)=> (r||document).querySelector(s);
-const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+/* janelaEl: o <dialog> da janela do app (modal) enquanto ela espera a vez (janela.js: uma por vez, e logo depois de fechar
+   outra o histórico ainda está acompanhando). Ele ainda não está na página, mas o código que monta a janela a procura
+   por aqui logo em seguida; por isso $ e $$ também olham dentro dele. */
+let janelaEl = null;
+const naEspera = ()=> janelaEl && !janelaEl.isConnected;
+const $  = (s,r)=> (r||document).querySelector(s) || (!r && naEspera() ? janelaEl.querySelector(s) : null);
+const $$ = (s,r)=> { const l = Array.from((r||document).querySelectorAll(s)); return (!l.length && !r && naEspera()) ? Array.from(janelaEl.querySelectorAll(s)) : l; };
 const hoje = ()=> new Date().toISOString().slice(0,10);
 const uid  = ()=> 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const esc  = t => String(t==null?'':t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -24,15 +29,16 @@ function T(pt, en){ return idiomaEN() ? en : pt; }
 // interruptores do RootifyONE (recursos.js). Sem o arquivo, vale o padrão do código: tudo ligado.
 const Rec = window.SolverRecursos || { ligado:(id,p)=>p!==false, valor:(id,p)=>p, aoMudar:()=>{} };
 /* ---------- botão Voltar do celular: navega dentro do app ----------
-   Cada camada aberta (outra aba, o leitor, uma janela) ganha uma entrada no histórico do
-   navegador. O Voltar fecha a camada de cima; só sai do app quando já está no Início sem
-   nada aberto. As idas e voltas no histórico são assíncronas, por isso a fila. */
+   Cada camada de tela (outra aba, o leitor) ganha uma entrada no histórico do navegador. O Voltar fecha a camada
+   de cima; só sai do app quando já está no Início sem nada aberto. As idas e voltas no histórico são assíncronas,
+   por isso a fila. As JANELAS (modal, gaveta ☰, tour, confirmação) não passam por aqui: o janela.js cuida do Voltar
+   delas e responde antes; aqui só espera o histórico dele acompanhar antes de mexer (SolverJanela.quandoQuieto). */
 const Nav = (function(){
-  const pilha = [];                 // o que empurramos, em ordem: 'tela' | 'leitor' | 'modal'
+  const pilha = [];                 // o que empurramos, em ordem: 'tela' | 'leitor'
   let ignorar = 0, fila = [], pend = 0, agendado = false;
   const ocupado = ()=> ignorar>0 || agendado;
   function rodarFila(){ const f = fila; fila = []; f.forEach(x=>x()); }
-  function livre(fn){ if(ocupado()) fila.push(fn); else fn(); }
+  function livre(fn){ if(ocupado()) fila.push(fn); else SolverJanela.quandoQuieto(fn); }
   function empurrar(tipo){
     livre(()=>{ pilha.push(tipo); try{ history.pushState({ch:tipo, n:pilha.length}, ''); }catch(e){} });
   }
@@ -49,32 +55,54 @@ const Nav = (function(){
         ignorar++;
         try{ history.go(-n); }catch(e){ ignorar--; rodarFila(); }
       };
-      if(ignorar>0) fila.unshift(executar); else executar();
+      if(ignorar>0) fila.unshift(executar); else SolverJanela.quandoQuieto(executar);
     }, 0);
   }
   window.addEventListener('popstate', ()=>{
     if(ignorar>0){ ignorar--; if(!ocupado()) rodarFila(); return; }
     const tipo = pilha.pop();       // o usuário apertou Voltar
-    if(tipo==='modal') fecharModal(true);
-    else if(tipo==='menu'){ if(typeof Topo!=='undefined') Topo.fecharGaveta(true); }
-    else if(tipo==='leitor'){ if(typeof Leitor!=='undefined') Leitor.fechar(true); }
+    if(tipo==='leitor'){ if(typeof Leitor!=='undefined') Leitor.fechar(true); }
     else if(tipo==='tela') irTela('inicio', true);
   });
   try{ history.replaceState({ch:'base'}, ''); }catch(e){}
   return { empurrar, tirar, tem: t=>pilha.includes(t) };
 })();
-function modal(html){
-  const jaAberto = $('#modal').classList.contains('on');
-  $('#modal-conteudo').innerHTML=html; $('#modal').classList.add('on');
+/* janela do app (v1.27.0): tudo o que abre por aqui é uma janela comum (janela.js): a página de trás não rola nem
+   recebe toque; ✕/botão, Esc, Voltar e toque na parte escura fecham; texto digitado e não salvo pergunta "Descartar?".
+   opc.aoFechar roda quando a janela fecha de qualquer jeito; opc.temTexto:false para campo de busca (não é texto a perder). */
+let janelaModal = null, aoFecharModal = null;
+function modal(html, opc){
+  opc = opc||{};
+  const caixa = document.createElement('div'); caixa.className = 'box';
+  caixa.innerHTML = '<div class="puxa"></div><div id="modal-conteudo">'+html+'</div>';
+  aoFecharModal = opc.aoFechar||null;
+  if(janelaModal){ janelaModal.trocar(caixa); return; }
   document.body.classList.add('com-modal');
-  if(!jaAberto) Nav.empurrar('modal');
+  const j = janelaModal = SolverJanela.abrir({ conteudo:caixa, classe:'modal on', id:'modal', temTexto:opc.temTexto,
+    aoFechar: ()=>{
+      if(janelaModal===j){ janelaModal = null; janelaEl = null; }
+      document.body.classList.remove('com-modal');
+      const f = aoFecharModal; aoFecharModal = null; if(f) f();
+    } });
+  janelaEl = j.el;
 }
-function fecharModal(semHistorico){
-  const estava = $('#modal').classList.contains('on');
-  $('#modal').classList.remove('on'); document.body.classList.remove('com-modal');
-  if(estava && semHistorico!==true) Nav.tirar('modal');
+function fecharModal(){ if(janelaModal) janelaModal.fechar('fechar'); }
+/* confirmação curta ("Apagar?"), pedida pela própria janela: abre POR CIMA da que estiver aberta (a pessoa continua
+   vendo o formulário escurecido, com o que digitou) e fecha junto com ela. Cancelar, Esc, Voltar e toque fora = não. */
+function confirmar(texto, sim){
+  return new Promise(ok=>{
+    let decidiu = false;
+    const caixa = document.createElement('div'); caixa.className = 'box';
+    caixa.innerHTML = `<div class="puxa"></div><h3>${T('Tem certeza?','Are you sure?')}</h3>
+      <p class="hint" style="font-size:14px">${esc(texto)}</p><div style="height:14px"></div>
+      <button class="btn pri" type="button" data-cf="sim">${esc(sim||T('Confirmar','Confirm'))}</button><div style="height:10px"></div>
+      <button class="btn sm ghost" type="button" data-cf="nao">${T('Cancelar','Cancel')}</button>`;
+    const j = SolverJanela.abrir({ conteudo:caixa, classe:'modal on', papel:'alertdialog', porCima:!!SolverJanela.aberta(), temTexto:false,
+      aoFechar: ()=>ok(decidiu) });
+    $('[data-cf=sim]', caixa).onclick = ()=>{ decidiu = true; j.fechar('sim'); };
+    $('[data-cf=nao]', caixa).onclick = ()=>j.fechar('nao');
+  });
 }
-$('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') fecharModal(); });
 
 /* ----------------------------- estado ----------------------------- */
 const CHAVE_H='ch_historias', CHAVE_C='ch_config', CHAVE_S='ch_stats';
@@ -228,7 +256,7 @@ const Seg = (function(){
   document.addEventListener('visibilitychange', ()=>{ if(document.hidden) descarregar(); });
   window.addEventListener('pagehide', descarregar);
   return { tem, agora, ler, abrir, gravar, agendar, descarregar, aberto, existe, pendentes, precisaPerguntar, emEspera, aoMudar, MOTIVO,
-           liberar, ocupadoSe, ocupado, reautenticar,
+           liberar, ocupadoSe, ocupado, reautenticar, recusar: ()=>{ recusou = true; },
            pedir: motivo=>{ const k=C(); return k ? k.pedir({motivo: motivo||MOTIVO}) : Promise.resolve(false); },
            trancar: ()=>{ const k=C(); return k ? k.trancar() : Promise.resolve(true); } };
 })();
@@ -1603,7 +1631,8 @@ const Leitor = (function(){
   async function apagarVozDaHistoria(){
     if(!hist) return;
     const r = VOZ_GUARDADA.get(hist.id);
-    if(!confirm('Apagar a voz guardada de "'+hist.titulo+'"'+(r? ' ('+fmtBytes(r.bytes)+')':'')+'? O texto fica; só a voz vai precisar ser gerada de novo.')) return;
+    if(!await confirmar(T('Apagar a voz guardada de "'+hist.titulo+'"'+(r? ' ('+fmtBytes(r.bytes)+')':'')+'? O texto fica; só a voz vai precisar ser gerada de novo.',
+      'Delete the saved voice of "'+hist.titulo+'"'+(r? ' ('+fmtBytes(r.bytes)+')':'')+'? The text stays; only the voice will need to be generated again.'), T('Apagar a voz','Delete voice'))) return;
     if(tocando) pausar();
     await Guarda.limparHistoria(hist.id);
     hist.audioCompleto = {}; hist.audioPronto = false; hist.audioParcial = 0;
@@ -2615,8 +2644,8 @@ $('#btn-menu-hist').addEventListener('click',()=>{
     editandoId = h.id; $('#btn-salvar-manual').textContent='💾 Salvar alterações';
   };
   $('#mh-copiar').onclick=()=>{ navigator.clipboard.writeText(h.titulo+'\n\n'+h.texto).then(()=>toast('Copiado!')); fecharModal(); };
-  $('#mh-apagar').onclick=()=>{
-    if(!confirm('Apagar "'+h.titulo+'" deste celular?')) return;
+  $('#mh-apagar').onclick=async ()=>{
+    if(!await confirmar(T('Apagar "'+h.titulo+'" deste celular?','Delete "'+h.titulo+'" from this phone?'), T('Apagar','Delete'))) return;
     historias = historias.filter(x=>x.id!==h.id); salvarHistorias();
     Guarda.limparHistoria(h.id).then(()=>atualizarVozGuardada(true));   // a voz dela vai junto
     fecharModal(); Leitor.fechar(); pintarTudo(); toast('Apagada');
@@ -2963,71 +2992,35 @@ Seg.aoMudar((ev, c)=>{
 document.addEventListener('dgo:idioma', ()=>{ pintarSegredos(); pintarPainelCofre(); pintarIndicadorCofre(); });
 pintarSegredos(); pintarPainelCofre(); pintarIndicadorCofre();
 
-/* ---------- trancar sozinho (v1.25.0) ----------
-   Três relógios:
-   • 5 minutos sem tocar, digitar ou rolar → tranca, MAS "ocupado" adia (fila de voz, tarefa do DGO, geração de história,
-     áudio tocando). Ocupado segura SÓ este relógio.
-   • App escondido por mais de 1 minuto → tranca de qualquer jeito, a não ser que um áudio esteja tocando neste exato momento.
-   • Fechar ou recarregar a página (pagehide) → tranca, a não ser que um áudio esteja tocando.
-   Ao voltar para o app a conferência roda ANTES de mostrar qualquer coisa (o navegador pode ter congelado os relógios).
-   Quando algo adia o trancamento, o console diz o quê (só o nome da condição, nunca segredo). */
+/* ---------- PIN do cofre (v1.27.0): as regras vêm do cofre comum ----------
+   SolverCofre.proteger (cofre.js 1.4.0) cuida de: pedir o PIN ao abrir e ao recarregar (F5), trancar ao sair do app,
+   com o app escondido por mais de 1 minuto e com 5 minutos sem uso. "Ocupado" (fila de voz, tarefa do DGO, gerando
+   história) só adia o trancar por falta de uso; áudio tocando não tranca ao esconder nem ao sair.
+   Aqui ficam só as partes que são do Contador: dizer o que está ocupado, o indicador 🔓/🔒 e o aviso de "sem uso". */
 const audioTocando = ()=> document.body.classList.contains('com-leitor') && ($('#btn-play')||{}).textContent==='⏸';
 Seg.ocupadoSe('fila-de-voz', ()=>FilaVoz.rodando());
 Seg.ocupadoSe('tarefa', ()=>{ const t = window.DGO && DGO.tarefa && DGO.tarefa.ativas && DGO.tarefa.ativas(); return (t && t.length) ? 'tarefa:'+t.join('+') : false; });
 Seg.ocupadoSe('gerando-historia', ()=>{ const b = $('#btn-gerar'); return !!(b && b.disabled && cfg.motorTexto!=='manual'); });
-Seg.ocupadoSe('audio-tocando', ()=>audioTocando());
-(function(){
-  const LIMITE = 5*60*1000, FORA = 60*1000;
-  let ultima = Date.now(), saiuEm = document.hidden ? Date.now() : 0, ultimoAviso = '';
-  const marca = ()=>{ ultima = Date.now(); };
-  ['pointerdown','keydown','touchstart','wheel'].forEach(ev=>document.addEventListener(ev, marca, {passive:true, capture:true}));
-  function adiou(por){ const m = '[cofre] trancamento adiado: '+por.join(', '); if(m!==ultimoAviso){ ultimoAviso = m; console.info(m); } }
-  function trancarPor(motivo){
-    ultimoAviso = ''; console.info('[cofre] trancado: '+motivo);
-    return Seg.trancar().then(()=>{ if(motivo==='ocioso' && !document.hidden) toast(T('🔒 Cofre trancado (sem uso)','🔒 Vault locked (idle)'), 3500); });
-  }
-  // devolve a promessa do trancamento (ou null se nada foi trancado)
-  function conferir(origem){
-    if(!Seg.aberto()) return null;
-    const agora = Date.now();
-    const foraDoApp = !!saiuEm && agora-saiuEm >= FORA;
-    if(origem==='pagehide' || foraDoApp){
-      if(audioTocando()){ adiou(['audio-tocando']); return null; }
-      return trancarPor(origem==='pagehide' ? 'pagehide' : 'fora-do-app');
-    }
-    if(agora-ultima >= LIMITE){
-      const por = Seg.ocupado();
-      if(por.length){ adiou(por); return null; }
-      return trancarPor('ocioso');
-    }
-    return null;
-  }
-  setInterval(()=>conferir('relogio'), 15000);
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.hidden){ saiuEm = Date.now(); return; }
-    const p = conferir('voltou');                                                  // voltou ao app: confere antes de mostrar qualquer coisa
-    saiuEm = 0; marca();
-    const pedir = ()=>{ if(Seg.precisaPerguntar()) Seg.abrir(T('Digite o PIN para abrir o Contador.','Type the PIN to open Storyteller.')).catch(()=>{}); };
-    if(p) p.then(pedir); else pedir();
-  });
-  window.addEventListener('pagehide', ()=>conferir('pagehide'));
-  window.addEventListener('pageshow', e=>{ if(e.persisted){ saiuEm = 0; marca(); pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualizarSaudacao(); pintarIndicadorCofre(); } });
-})();
-
-/* ---------- abertura (v1.25.0): SEMPRE tranca antes de perguntar ----------
-   O cofre.js deixa a aba reabrir o cofre sozinha depois de recarregar (a sessão fica na aba). O Contador NÃO aproveita isso:
-   ao abrir ou recarregar, tranca de novo e pede o PIN. Antes de "pronto" a tela não mostra nome de criança nem chave.
-   Cofre criado e trancado, ou chaves/nomes ainda em texto aberto: abre a janela do PIN (criar ou digitar);
-   "Agora não" deixa o app abrir, mas sem nomes (texto neutro) até o PIN. */
+document.addEventListener('cofre:trancado', e=>{
+  if(e.detail && e.detail.motivo==='ocioso' && !document.hidden) toast(T('🔒 Cofre trancado (sem uso)','🔒 Vault locked (idle)'), 3500);
+});
+window.addEventListener('pageshow', e=>{ if(e.persisted){ pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualizarSaudacao(); pintarIndicadorCofre(); } });
+/* abertura: antes de "pronto" a tela não mostra nome de criança nem chave. O proteger só responde depois que a pessoa
+   resolveu a janela do PIN (digitou ou "Agora não"); "Agora não" deixa o app abrir, mas sem nomes até o PIN. */
 (async function iniciarCofre(){
   const K = window.SolverCofre;
   if(K){
-    try{ await K.pronto; }catch(e){}
-    if(K.aberto()){ try{ await K.trancar(); }catch(e){} }                          // recarregar = pede o PIN
+    try{
+      const aberto = await K.proteger({
+        motivo: Seg.MOTIVO,
+        ocupado: ()=>{ const por = Seg.ocupado(); return por.length ? por.join(', ') : false; },
+        tocando: audioTocando
+      });
+      if(!aberto && Seg.precisaPerguntar()) Seg.recusar();                       // "Agora não": não insistir até a pessoa pedir algo que precise do cofre
+    }catch(e){}
   }
   Seg.liberar();
   Guarda.apagarSaudacoes().catch(()=>{});                                          // cumprimentos antigos (tinham nomes na chave)
-  if(Seg.precisaPerguntar()) Seg.abrir(T('Digite o PIN para abrir o Contador.','Type the PIN to open Storyteller.')).catch(()=>{});
 })();
 
 // Configurações → Voz guardada: total em MB e a lista por história, cada uma com a sua lixeira
@@ -3065,9 +3058,9 @@ function mostrarGuarda(){
         <button data-apagar-voz="${esc(id)}" aria-label="Apagar a voz guardada de ${esc(h.titulo)}" title="apagar a voz desta história">🗑️</button></div>`);
     });
     $('#lista-guarda').innerHTML = linhas.join('');
-    $$('#lista-guarda [data-apagar-voz]').forEach(b=>b.addEventListener('click',()=>{
+    $$('#lista-guarda [data-apagar-voz]').forEach(b=>b.addEventListener('click',async ()=>{
       const h = historias.find(x=>x.id===b.dataset.apagarVoz);
-      if(!confirm('Apagar a voz guardada de "'+(h?h.titulo:'esta história')+'"?')) return;
+      if(!await confirmar(T('Apagar a voz guardada de "'+(h?h.titulo:'esta história')+'"?','Delete the saved voice of "'+(h?h.titulo:'this story')+'"?'), T('Apagar a voz','Delete voice'))) return;
       Guarda.limparHistoria(b.dataset.apagarVoz).then(()=>{
         if(h){ h.audioCompleto={}; h.audioPronto=false; h.audioParcial=0; salvarHistorias(); }
         toast('Voz apagada'); mostrarGuarda(); pintarAcervo(); pintarInicio();
@@ -3081,8 +3074,8 @@ function mostrarGuarda(){
     };
   });
 }
-$('#btn-limpar-audio').addEventListener('click',()=>{
-  if(!confirm('Apagar TODA a voz guardada? As histórias continuam aqui; só a voz vai precisar ser gerada de novo.')) return;
+$('#btn-limpar-audio').addEventListener('click',async ()=>{
+  if(!await confirmar(T('Apagar TODA a voz guardada? As histórias continuam aqui; só a voz vai precisar ser gerada de novo.','Delete ALL the saved voice? The stories stay here; only the voice will need to be generated again.'), T('Apagar tudo','Delete all'))) return;
   Guarda.limpar().then(()=>{
     historias.forEach(h=>{ h.audioCompleto={}; h.audioPronto=false; h.audioParcial=0; });
     salvarHistorias(); toast('Voz guardada apagada'); mostrarGuarda(); pintarAcervo(); pintarInicio();
@@ -3570,6 +3563,13 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.27.0','17/10/2026', [
+    ['Todas as janelas do app agora travam o que está atrás: enquanto uma janela está aberta, a página de trás não rola e não recebe toque. Tocar na parte escura fora da janela fecha (como "cancelar"); arrastar de dentro para fora não fecha','Every window in the app now locks what is behind it: while a window is open, the page behind does not scroll or take taps. Tapping the dark area outside the window closes it (like "cancel"); dragging from inside to outside does not close it'],
+    ['Toda janela fecha de três jeitos: pelo botão, pelo Esc e pelo Voltar do celular. Se você digitou algo e ainda não salvou, o app pergunta "Descartar o que você digitou?" antes de fechar','Every window closes three ways: with its button, with Esc and with the phone Back button. If you typed something and have not saved it yet, the app asks "Discard what you typed?" before closing'],
+    ['O menu ☰ (gaveta) virou uma janela com ✕ próprio. As perguntas "Apagar?" deixaram de ser as do navegador: abrem por cima da janela, com Cancelar, Esc e Voltar fechando só a pergunta','The ☰ menu (drawer) is now a window with its own ✕. The "Delete?" questions are no longer the browser\'s: they open on top of the window, and Cancel, Esc and Back close only the question'],
+    ['O tour do AssistONE também virou janela: Sair, Esc, Voltar e toque fora encerram o passo a passo','The AssistONE tour is also a window now: Exit, Esc, Back and tapping outside end the walkthrough'],
+    ['Por baixo: janela comum (janela.js 1.0.1), cofre 1.4.0 (as regras do PIN agora são as do cofre comum, as mesmas de antes) e módulo 1.11.0','Under the hood: shared window module (janela.js 1.0.1), vault 1.4.0 (the PIN rules are now the shared vault\'s, the same as before) and module 1.11.0']
+  ]],
   ['1.26.1','17/10/2026', [
     'A digital não fica mais escondida: com a digital ligada, a janela do cofre já tenta a digital sozinha ao abrir (se o celular pedir um toque, o botão grande está pronto) e o PIN fica embaixo, como reserva. O teclado não abre sozinho',
     'Logo depois de criar o PIN ou abrir com ele, a mesma janela pergunta uma vez "Quer abrir com a digital da próxima vez?". "Agora não" vale para este aparelho',
@@ -3783,7 +3783,7 @@ function telaNovidades(){
         <div style="font-weight:800;color:${k===0?'var(--gold)':'var(--dim)'};font-size:14px">
           ${v[0]} ${k===0?'· atual':''} <span style="font-weight:500;color:var(--dim2)">— ${v[1]}</span></div>
         <ul style="margin:6px 0 0;padding-left:18px;color:var(--dim);font-size:13.5px;line-height:1.6">
-          ${v[2].map(x=>`<li>${esc(x)}</li>`).join('')}
+          ${v[2].map(x=>`<li>${esc(Array.isArray(x) ? T(x[0],x[1]) : x)}</li>`).join('')}
         </ul>
       </div>`).join('')}
     <button class="btn sm" id="nv-f">Fechar</button>`);
@@ -4516,7 +4516,7 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
       ${situacao(tipo) ? `<div class="info" style="margin-top:12px">${esc(situacao(tipo))}</div>` : ''}
       <div style="height:12px"></div>
       ${mostrarEntrar ? `<button class="btn pri" id="sv-conv-entrar">${T('Entrar com a conta SolverONE','Sign in with a SolverONE account')}</button><div style="height:10px"></div>` : ''}
-      <button class="btn sm ghost" id="sv-conv-ok">${T('Entendi','Got it')}</button>`);
+      <button class="btn sm ghost" id="sv-conv-ok">${T('Entendi','Got it')}</button>`, {aoFechar: pararAmostra});
     const b = $('#sv-amostra');
     const tocar = ()=>{
       audioAmostra = new Audio(amostra);
@@ -4601,10 +4601,8 @@ var Plataforma = (function(){   // var: outros trechos perguntam typeof Platafor
       const b = $(sel+' [data-motor="solverone"]'); if(!b) return;
       b.addEventListener('click', e=>{ if(podeUsar(tipo)) return; e.stopImmediatePropagation(); e.preventDefault(); convite(tipo); }, true);
     });
-    // a amostra para quando o convite fecha de qualquer jeito: Entendi, toque fora, Voltar do celular ou trocar de app
+    // a amostra para quando o convite fecha de qualquer jeito (Entendi, toque fora, Esc, Voltar do celular: aoFechar do modal) ou ao trocar de app
     document.addEventListener('visibilitychange', ()=>{ if(document.hidden) pararAmostra(); });
-    $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') pararAmostra(); });
-    window.addEventListener('popstate', pararAmostra);
     const sel = $('#sel-voz-solverone');
     if(sel) sel.addEventListener('change', ()=>{ cfg.solveroneVoz = sel.value; salvarCfg(); });
     document.addEventListener('dgo:idioma', pintar);
@@ -5325,9 +5323,9 @@ const FilaVoz = (function(){
     toast(n ? n+T(' história(s) na fila de voz',' story(ies) added to the voice queue') : T('Já estava na fila','Already in the queue'));
     continuar();
   }
-  function esvaziar(){
+  async function esvaziar(){
     if(!st.ids.length) return;
-    if(!confirm(T('Tirar todas as histórias da fila? A voz que já foi baixada continua guardada.','Remove every story from the queue? Voice already downloaded stays saved.'))) return;
+    if(!await confirmar(T('Tirar todas as histórias da fila? A voz que já foi baixada continua guardada.','Remove every story from the queue? Voice already downloaded stays saved.'), T('Tirar da fila','Remove'))) return;
     st.ids = []; st.ligada = false; st.parou = ''; gravar(); acordarJa(); pintar();
   }
 
@@ -5637,20 +5635,28 @@ var Assist = (function(){
     if(!mem.visto){ mem.visto = 1; gravar(); }
   }
 
-  // tour: destaca um elemento por vez, com o texto no balão
-  function iniciarTour(){ tour = -1; passoTour(); }
+  // tour: destaca um elemento por vez, com o texto numa caixa. É uma janela comum (janela.js): a página de trás não
+  // recebe toque; Sair, Esc, Voltar e toque na parte escura encerram (o destaque fica na página, a caixa na janela).
+  let janelaTour = null, caixaTour = null;
+  function limparTour(){ $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo')); tour=-1; }
+  function iniciarTour(){
+    tour = -1;
+    caixaTour = document.createElement('div'); caixaTour.className = 'assist-balao';
+    janelaTour = SolverJanela.abrir({ conteudo:caixaTour, classe:'tour-janela', rotulo:T('Tour rápido','Quick tour'), temTexto:false,
+      aoFechar: ()=>{ limparTour(); janelaTour = caixaTour = null; } });
+    passoTour();
+  }
   function passoTour(){
     $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo'));
     tour++;
     while(tour < TOUR.length){ const el=$(TOUR[tour][0]); if(el && el.offsetParent!==null) break; tour++; }
-    if(tour >= TOUR.length){ tour=-1; balao.hidden=true; btn.setAttribute('aria-expanded','false'); toast(T('Fim do tour ✨','Tour done ✨')); return; }
+    if(tour >= TOUR.length){ janelaTour.fechar('fim'); toast(T('Fim do tour ✨','Tour done ✨')); return; }
     const p = TOUR[tour], el = $(p[0]);
     el.classList.add('tour-alvo'); el.scrollIntoView({block:'center', behavior:'smooth'});
-    balao.innerHTML = `<h4>🧭 ${T('Tour rápido','Quick tour')} · ${tour+1}/${TOUR.length}</h4><p style="margin:6px 0 10px;font-size:14px">${T(p[1],p[2])}</p>
+    caixaTour.innerHTML = `<h4>🧭 ${T('Tour rápido','Quick tour')} · ${tour+1}/${TOUR.length}</h4><p style="margin:6px 0 10px;font-size:14px">${T(p[1],p[2])}</p>
       <div class="rodape"><button data-t="sair">${T('Sair','Exit')}</button><button data-t="prox" style="color:var(--gold);font-weight:700;text-decoration:none">${T('Próximo ›','Next ›')}</button></div>`;
-    balao.hidden = false; btn.setAttribute('aria-expanded','true');
-    balao.querySelector('[data-t=prox]').onclick = passoTour;
-    balao.querySelector('[data-t=sair]').onclick = ()=>{ $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo')); tour=-1; fechar(); };
+    caixaTour.querySelector('[data-t=prox]').onclick = passoTour;
+    caixaTour.querySelector('[data-t=sair]').onclick = ()=>janelaTour.fechar('sair');
   }
 
   // uma dica curta por tela, uma vez só, alguns segundos depois de entrar
@@ -5775,7 +5781,7 @@ function abrirBusca(){
   modal(`<h3>🔍 ${T('Buscar','Search')}</h3>
     <input type="text" id="busca-geral" placeholder="${T('História, tela ou função','Story, screen or function')}" aria-label="${T('Buscar','Search')}" autocomplete="off">
     <div id="busca-geral-res" style="margin-top:10px;display:flex;flex-direction:column;gap:6px" aria-live="polite"></div>
-    <div style="height:10px"></div><button class="btn sm ghost" id="bg-f">${T('Fechar','Close')}</button>`);
+    <div style="height:10px"></div><button class="btn sm ghost" id="bg-f">${T('Fechar','Close')}</button>`, {temTexto:false});   // o que se procura não é texto a perder
   const inp = $('#busca-geral'), res = $('#busca-geral-res');
   const norm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
   function pintar(){
@@ -5800,7 +5806,7 @@ function abrirBusca(){
 /* ---------- Topo padrão: ☰ gaveta, 👤 perfil (identidade conectada, Configurações, Tema, Som, Sair), tema ----------
    Diretriz "AssistONE igual em todo lugar + topo e menus padronizados" (02/Out/2026). */
 var Topo = (function(){
-  const gav = $('#menu-lateral'), fundo = $('#gaveta-fundo'), btnMenu = $('#btn-menu');
+  const gav = $('#menu-lateral'), btnMenu = $('#btn-menu');
   const mp = $('#menu-perfil'), btnPerfil = $('#btn-perfil-topo');
   let desdeLocal = 0; try{ desdeLocal = Number(localStorage.getItem('ch_topo_desde'))||0; }catch(e){}
 
@@ -5861,20 +5867,24 @@ var Topo = (function(){
       if(op==='aviso') telaAviso();
     });
   }
-  const gavetaAberta = ()=> document.body.classList.contains('com-menu');
+  /* a gaveta ☰ é uma janela comum (janela.js): a página de trás não rola nem recebe toque; ✕, Esc, Voltar e toque na
+     parte escura fecham. O <nav> vai para dentro da janela enquanto ela está aberta e volta ao lugar dele ao fechar. */
+  let janelaGaveta = null, lugarGaveta = null;
+  const gavetaAberta = ()=> !!janelaGaveta;
   function abrirGaveta(){
     if(gavetaAberta()) return;
     fecharPerfil(); pintarGaveta();
+    lugarGaveta = document.createComment('lugar da gaveta'); gav.parentNode.insertBefore(lugarGaveta, gav);
     document.body.classList.add('com-menu'); btnMenu.setAttribute('aria-expanded','true'); gav.setAttribute('aria-hidden','false');
-    Nav.empurrar('menu');
-    const f = gav.querySelector('button.gv'); if(f) setTimeout(()=>f.focus(), 60);
+    janelaGaveta = SolverJanela.abrir({ conteudo:gav, classe:'gaveta-janela', rotulo:T('Menu','Menu'), temTexto:false, focar:gav.querySelector('button.gv'),
+      aoFechar: ()=>{
+        janelaGaveta = null;
+        if(lugarGaveta && lugarGaveta.parentNode){ lugarGaveta.parentNode.insertBefore(gav, lugarGaveta); lugarGaveta.parentNode.removeChild(lugarGaveta); }
+        lugarGaveta = null;
+        document.body.classList.remove('com-menu'); btnMenu.setAttribute('aria-expanded','false'); gav.setAttribute('aria-hidden','true');
+      } });
   }
-  function fecharGaveta(semHistorico){
-    if(!gavetaAberta()) return;
-    document.body.classList.remove('com-menu'); btnMenu.setAttribute('aria-expanded','false'); gav.setAttribute('aria-hidden','true');
-    if(semHistorico!==true) Nav.tirar('menu');
-    if(gav.contains(document.activeElement)) btnMenu.focus();
-  }
+  function fecharGaveta(){ if(janelaGaveta) janelaGaveta.fechar('fechar'); }
 
   // ---- menu do 👤 ----
   const perfilAberto = ()=> mp.classList.contains('on');
@@ -5927,12 +5937,11 @@ var Topo = (function(){
   function iniciar(){
     aplicarTema(); pintarTopo();
     btnMenu.addEventListener('click', ()=> gavetaAberta() ? fecharGaveta() : abrirGaveta());
-    fundo.addEventListener('click', ()=>fecharGaveta());
     btnPerfil.addEventListener('click', ()=> perfilAberto() ? fecharPerfil() : abrirPerfil());
     $('#btn-busca-topo').addEventListener('click', ()=>{ fecharPerfil(); abrirBusca(); });
     $('#btn-inbox-topo').addEventListener('click', ()=>{ fecharPerfil(); Inbox.abrir(); });
     document.addEventListener('click', e=>{ if(perfilAberto() && !mp.contains(e.target) && !btnPerfil.contains(e.target)) fecharPerfil(); });
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(gavetaAberta()) fecharGaveta(); else if(perfilAberto()) fecharPerfil(); } });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && perfilAberto()) fecharPerfil(); });
     ['dgo:pronto','dgo:saiu','ch:conta','dgo:idioma'].forEach(ev=>document.addEventListener(ev, ()=>{ pintarTopo(); if(perfilAberto()) pintarPerfil(); if(gavetaAberta()) pintarGaveta(); }));
     document.addEventListener('dgo:entrou', ()=>{ desdeLocal = Date.now(); try{ localStorage.setItem('ch_topo_desde', String(desdeLocal)); }catch(e){} pintarTopo(); if(perfilAberto()) pintarPerfil(); });
     window.addEventListener('resize', ()=>{ if(perfilAberto()){ const r=document.querySelector('header').getBoundingClientRect(); mp.style.top=Math.round(r.bottom+6)+'px'; } });
