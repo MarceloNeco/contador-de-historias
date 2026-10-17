@@ -634,6 +634,16 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
     {
       const { ctx, page } = await abrir(browser, base);
       await irConfig(page);
+      await page.fill('#in-gemini-key', 'abc');
+      await page.evaluate(() => { document.activeElement.blur(); });
+      await page.waitForTimeout(9500);   // passada a folga de 8 s o campo volta a esconder e o 👁 some junto
+      const e = await page.evaluate(() => { const i = document.querySelector('#in-gemini-key'), o = document.querySelector('#cfg-txt-gemini [data-olho=geminiKey]'); return { v: i.value, h: o.hidden }; });
+      conferir(e.v === '' && e.h === true, 'v1.25.1: campo escondido (vazio) = botão 👁 também escondido');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, base);
+      await irConfig(page);
       const dialogos0 = await page.locator('#solver-cofre [role=dialog]').count();
       await page.fill('#in-gemini-key', 'abc');
       const olho = page.locator('#cfg-txt-gemini [data-olho=geminiKey]');

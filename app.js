@@ -2821,7 +2821,6 @@ function pintarSegredos(){
       // v1.25.0: chave mostrada (com o PIN) ou "ver o que digito" (cofre aberto) = campo de texto; senão, de senha
       if(ehChave) el.type = (Seg.aberto() && (reveladas[c] || veDigitado[c])) ? 'text' : 'password';
       if(ctl.olho){
-        ctl.olho.hidden = !(Seg.aberto() && el.value);
         ctl.olho.textContent = veDigitado[c] ? '🙈' : '👁';
         const t = veDigitado[c] ? T('Esconder o que estou digitando','Hide what I am typing') : T('Ver o que estou digitando','See what I am typing');
         ctl.olho.title = t; ctl.olho.setAttribute('aria-label', t);
@@ -2830,11 +2829,14 @@ function pintarSegredos(){
         ctl.mostrar.hidden = !Seg.tem(c);
         ctl.mostrar.textContent = reveladas[c] ? T('🙈 Esconder a chave','🙈 Hide the key') : T('👁 Mostrar a chave (pede o PIN)','👁 Show the key (asks for the PIN)');
       }
+      (()=>{                                                   // v1.25.1: o 👁 só é decidido depois de o campo ser preenchido ou esvaziado
       if(Seg.emEspera()) return;                               // a pessoa está digitando: não mexe no valor
       if(trancado){ el.value = ''; el.placeholder = aviso; el.readOnly = true; el.dataset.cofre = '1'; }
       else if(document.activeElement===el || (ctl.olho && document.activeElement===ctl.olho) || Date.now()-(editando[c]||0) < 8000) return;   // digitando ou tocando no 👁 do campo (o foco muda no meio do toque): não esconde agora
       else if(escondida){ el.value = ''; el.placeholder = mascara; el.readOnly = false; delete el.dataset.cofre; }
       else { el.readOnly = false; delete el.dataset.cofre; el.placeholder = el.dataset.ph; el.value = Seg.agora(c); }
+      })();
+      if(ctl.olho) ctl.olho.hidden = !(Seg.aberto() && el.value);
     });
   });
 }
@@ -3564,6 +3566,9 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.25.1','17/10/2026', [
+    'Corrigido: o botão 👁 pequeno de Configurações às vezes ficava na tela com o campo da chave já escondido (vazio) e sumia e voltava ao tocar. Agora ele só aparece quando há algo digitado'
+  ]],
   ['1.25.0','17/10/2026', [
     'Recarregar a página (F5) agora SEMPRE tranca o cofre e pede o PIN. Antes, em alguns casos o app reabria sozinho e mostrava os nomes das crianças sem PIN',
     'Sair do app (aba escondida por mais de 1 minuto, ou fechar/recarregar) tranca o cofre mesmo com trabalho rodando. A única exceção é uma voz ou história sendo ouvida naquele instante. Trabalho rodando só adia o relógio dos 5 minutos de sem uso',
