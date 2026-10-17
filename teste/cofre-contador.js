@@ -75,7 +75,7 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       await criarPinPelaTela(page);
       const depois = await lerCfg(page);
       conferir(!('anthropicKey' in depois) && !('publicoNomes' in depois) && !('nomesProtegidos' in depois), 'saíram do ch_config na hora: chave da Anthropic e os dois campos de nomes');
-      conferir(depois.geminiKey === FALSO.geminiKey && depois.openaiKey === FALSO.openaiKey && depois.elevenKey === FALSO.elevenKey, 'ficaram COPIADAS (cópia temporária do Eleições): só as chaves do Gemini, da OpenAI e da ElevenLabs');
+      conferir(!('geminiKey' in depois) && !('openaiKey' in depois) && !('elevenKey' in depois), 'as chaves do Gemini, da OpenAI e da ElevenLabs também saíram na hora (sem cópia temporária: o Eleições lê pelo cofre)');
       const resto = Object.keys(OUTROS).every((k) => depois[k] === OUTROS[k]);
       conferir(resto, 'o resto do ch_config ficou como estava (voz, tema, fonte, motor…)');
       const stats = await page.evaluate(() => JSON.parse(localStorage.getItem('ch_stats')));
@@ -172,7 +172,7 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       conferir(espelhoNaHora === 'AQ.outra-chave-de-mentira-999', 'a chave do Gemini digitada aparece igual nos dois lugares da tela');
       const c = await lerCfg(page);
       conferir(!('publicoNomes' in c) && !('nomesProtegidos' in c) && !('anthropicKey' in c) && !('geminiKey' in c), 'nada voltou para o ch_config (a cópia antiga da chave trocada também saiu)');
-      conferir(c.openaiKey === FALSO.openaiKey && c.elevenKey === FALSO.elevenKey, 'as cópias das chaves que não mudaram continuam para o Eleições');
+      conferir(!('openaiKey' in c) && !('elevenKey' in c), 'as outras chaves também não têm mais cópia aberta no ch_config');
       await page.click('#sel-motor-voz button[data-motor=elevenlabs]');
       // apagar uma chave também pede o PIN: "Mostrar" (PIN de novo) e então limpar o campo
       await page.click('[data-mostrar=elevenKey]');
@@ -416,23 +416,18 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       await ctx.close();
     }
     {
-      /* aparelho que tinha "Lembrar" (versão 1.22.0): na abertura o app esquece e pede o PIN; os nomes não aparecem antes */
+      /* cofre.js 1.1.0 não tem mais "Lembrar neste aparelho": mesmo pedindo, nada é lembrado e a abertura seguinte pede o PIN
+         (o caso de quem já tinha a chave do aparelho da 1.0.0 é testado no teste do próprio cofre.js, no rootify-one) */
       const { ctx, page } = await abrir(browser, base, { semSegredos: true, pin: 'nenhum' });
-      await page.evaluate(async (pin) => { await SolverCofre.criar(pin, { lembrar: false }); }, PIN);
+      await page.evaluate(async (pin) => { await SolverCofre.criar(pin); }, PIN);
       await page.evaluate(async () => { await SolverCofre.gravar('contador:publicoNomes', 'Lia e Davi'); await SolverCofre.gravar('ia:gemini', 'AQ.chave-de-mentira-legado'); });
-      /* o jeito antigo: grava a chave de aparelho como a 1.22.0 fazia (a função original ainda está no cofre.js) */
-      await page.addInitScript(() => {});
-      const legado = await ctx.newPage(); vigiar(legado, erros);
-      await ctx.route(base + '/legado.html', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><head><meta charset="utf-8"><script src="/cofre.js"></script></head><body>legado</body></html>' }));
-      await legado.goto(base + '/legado.html');
-      await legado.evaluate(async (pin) => { await SolverCofre.abrir(pin); await SolverCofre.lembrarAparelho(); }, PIN);
-      const lembradoAntes = await legado.evaluate(() => SolverCofre.lembrado());
-      conferir(lembradoAntes, 'ponto de partida: o cofre estava "lembrado neste aparelho" (como na 1.22.0)');
-      await legado.close(); await page.close();
+      const lembrou = await page.evaluate(async () => { const r = await SolverCofre.lembrarAparelho(); return { r, lembrado: SolverCofre.lembrado() }; });
+      conferir(lembrou.r === false && !lembrou.lembrado, 'pedir "lembrar neste aparelho" não faz nada (cofre 1.1.0)');
+      await page.close();
       const nova = await ctx.newPage(); vigiar(nova, erros);
       await nova.goto(base + '/index.html'); await nova.waitForSelector('#tela-inicio', { state: 'attached' }); await nova.waitForTimeout(1500);
       const estado = await nova.evaluate(() => ({ aberto: SolverCofre.aberto(), lembrado: SolverCofre.lembrado(), topo: document.querySelector('#sub-hd').textContent, dialogo: !!document.querySelector('#solver-cofre [role=dialog]') }));
-      conferir(!estado.aberto && !estado.lembrado && estado.dialogo, 'o app esqueceu o "lembrar", trancou e pediu o PIN');
+      conferir(!estado.aberto && !estado.lembrado && estado.dialogo, 'aba nova: o cofre está trancado e o app pede o PIN');
       conferir(!/Lia|Davi/.test(estado.topo), 'sem entrar com o PIN, o cabeçalho não mostra nome');
       await resolverPin(nova, PIN, 3000); await nova.waitForTimeout(500);
       conferir(/Lia e Davi/.test(await nova.evaluate(() => document.querySelector('#sub-hd').textContent)), 'com o PIN, os nomes voltam');

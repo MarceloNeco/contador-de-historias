@@ -114,7 +114,7 @@ function salvar(chave,valor){
   try{ localStorage.setItem(chave, JSON.stringify(valor)); }catch(e){ toast('Sem espaço para salvar 😕'); }
 }
 // o ch_config nunca recebe segredo de volta. O que AINDA estiver lá em texto aberto (esperando o PIN criar o cofre,
-// ou a cópia temporária do Eleições) fica como está: só o cofre.js e o Seg mexem nisso.
+// ou a que o cofre ainda não tirou) fica como está: só o cofre.js e o Seg mexem nisso.
 function semSegredos(valor){
   const o = Object.assign({}, valor); let antigo = {};
   try{ antigo = JSON.parse(localStorage.getItem(CHAVE_C)||'{}') || {}; }catch(e){}
@@ -170,7 +170,7 @@ const Seg = (function(){
   const aberto = ()=>{ const k=C(); return !!(prontoFlag && k && k.aberto()); };
   const existe = ()=>{ const k=C(); return !!(k && (k.existe() || k.pendentes().length>0)); };
   const pendentes = ()=>{ const k=C(); return k ? k.pendentes().length : 0; };
-  // a cópia em texto aberto do ch_config (a temporária do Eleições, ou a que ainda não migrou) sai quando o valor muda ou é apagado
+  // a cópia em texto aberto do ch_config (a que ainda não migrou) sai quando o valor muda ou é apagado
   function tirarCopia(c){
     try{
       const o = JSON.parse(localStorage.getItem(CHAVE_C)||'null');
@@ -2887,28 +2887,6 @@ Seg.aoMudar(()=>{ pintarSegredos(); pintarPainelCofre(); pintarCofre(); atualiza
 document.addEventListener('dgo:idioma', ()=>{ pintarSegredos(); pintarPainelCofre(); });
 pintarSegredos(); pintarPainelCofre();
 
-/* ---------- janela do PIN mais segura, sem "Lembrar neste aparelho" (v1.23.0) ----------
-   "Lembrar" guardava uma chave no próprio navegador que abre o cofre SEM PIN para quem usar o aparelho ou o app: saiu.
-   A janela do cofre é do cofre.js (arquivo mestre, não editado aqui); o Contador esconde a opção, impede que ela seja
-   gravada e acerta os campos do PIN: sem autocompletar, sem corretor, sem copiar (a mudança definitiva é do mestre: PENDENCIAS.md). */
-(function(){
-  const K = window.SolverCofre; if(!K) return;
-  K.lembrarAparelho = function(){ return Promise.resolve(false); };                 // nunca grava chave de aparelho
-  const est = document.createElement('style');
-  est.textContent = '#solver-cofre .sc-marca{display:none !important}';
-  document.head.appendChild(est);
-  function ajustar(fundo){
-    $$('input[type=password]', fundo).forEach(i=>{
-      if(i.dataset.pinOk) return; i.dataset.pinOk = '1';
-      i.setAttribute('autocomplete','off'); i.setAttribute('autocapitalize','none'); i.setAttribute('spellcheck','false');
-      i.setAttribute('inputmode','text'); i.setAttribute('data-lpignore','true'); i.setAttribute('data-1p-ignore','');
-      ['copy','cut'].forEach(ev=>i.addEventListener(ev, e=>e.preventDefault()));
-    });
-    const l = $('#sc-lembrar', fundo); if(l) l.checked = false;
-  }
-  new MutationObserver(()=>{ const f = document.getElementById('solver-cofre'); if(f) ajustar(f); }).observe(document.body, {childList:true, subtree:true});
-})();
-
 /* ---------- trancar sozinho (v1.23.0): 5 min sem uso e ao sair do app; nunca com trabalho rodando ----------
    Trabalho rodando = fila de voz, tarefa em andamento (cópia, nuvem, foto), geração de história, ou leitor aberto com voz de
    internet. Aí o cofre espera e tranca logo que o trabalho termina (a conferência roda a cada 15 s). */
@@ -2934,16 +2912,13 @@ Seg.ocupadoSe(()=>{ const b = $('#btn-gerar'); return !!(b && b.disabled && cfg.
 })();
 
 /* ---------- abertura (v1.23.0): confere o cofre e pede o PIN logo de cara ----------
-   Antes de "pronto" a tela não mostra nome de criança nem chave. Se este aparelho tinha "Lembrar" (versão 1.22.0), esquece
-   e tranca. Cofre criado e trancado, ou chaves/nomes ainda em texto aberto: abre a janela do PIN (criar ou digitar);
+   Antes de "pronto" a tela não mostra nome de criança nem chave. (Quem tinha "Lembrar" na 1.22.0 volta a digitar o PIN: o
+   cofre.js 1.1.0 apaga essa chave do aparelho sozinho ao carregar.) Cofre criado e trancado, ou chaves/nomes ainda em texto aberto: abre a janela do PIN (criar ou digitar);
    "Agora não" deixa o app abrir, mas sem nomes (texto neutro) até o PIN. */
 (async function iniciarCofre(){
   const K = window.SolverCofre;
   if(K){
     try{ await K.pronto; }catch(e){}
-    const eraLembrado = K.lembrado();
-    try{ await K.esquecerAparelho(); }catch(e){}                                   // apaga qualquer chave de aparelho já criada
-    if(eraLembrado && K.aberto()){ try{ await K.trancar(); }catch(e){} }           // abriu sozinho por ela: tranca e pede o PIN
   }
   Seg.liberar();
   Guarda.apagarSaudacoes().catch(()=>{});                                          // cumprimentos antigos (tinham nomes na chave)
@@ -3490,6 +3465,11 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.24.0','17/10/2026', [
+    'As chaves de voz (Gemini, OpenAI e ElevenLabs) não ficam mais copiadas em texto aberto: o Eleições 2026 agora usa o mesmo cofre, então a cópia temporária saiu na hora, como as outras chaves',
+    'O cofre foi atualizado (versão 1.1.0): a janela do PIN já vem sem "Lembrar neste aparelho" e com o campo do PIN protegido (sem salvar, copiar ou recortar). Nada muda para você: o PIN continua sendo pedido ao abrir',
+    'Por baixo: saíram os remendos que o app fazia por cima da janela do PIN'
+  ]],
   ['1.23.0','17/10/2026', [
     'O app agora pede o PIN logo ao abrir (ou ao voltar para ele). Com o cofre trancado, nenhum nome de criança aparece: o cabeçalho e a saudação ficam neutros',
     'A opção "Lembrar neste aparelho" saiu: ela abria o cofre sem PIN. Quem tinha marcado, passa a digitar o PIN',

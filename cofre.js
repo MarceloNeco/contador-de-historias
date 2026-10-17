@@ -1,21 +1,24 @@
 /* =====================================================================
-   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.0.0, 16/Out/2026)
+   COFRE COMUM DE CHAVES  —  cofre.js  (SolverCofre 1.1.0, 17/Out/2026)
    ---------------------------------------------------------------------
    POR QUE ESTE ARQUIVO EXISTE
    Todos os apps da SolverONE moram no MESMO endereço (solverone.com.br/<app>/).
    Até aqui, cada app guardava as chaves de IA (e o token do Telegram) em texto
    aberto no navegador, em 4 lugares diferentes. Qualquer cópia do navegador,
    backup ou extensão curiosa lia tudo. Agora existe UM cofre só, igual em todos
-   os apps: as chaves ficam embaralhadas aqui no aparelho e só abrem com o PIN
-   (ou com "Lembrar neste aparelho").
+   os apps: as chaves ficam embaralhadas aqui no aparelho e só abrem com o PIN.
+
+   1.1.0 (17/Out/2026, pedido do dono, pendência #37 do Contador): sem "Lembrar neste
+   aparelho" (abria sem PIN para qualquer um com o aparelho destravado; quem tinha
+   ligado volta a pedir o PIN e a chave do aparelho é apagada sozinha) e o campo do
+   PIN tratado como senha que não se guarda (o navegador não oferece salvar, não
+   copia nem recorta).
 
    COMO FUNCIONA (o mesmo jeito do cofre do RootifyONE, rootify-base.js)
    - Uma chave de dados aleatória (AES-GCM 256) embaralha um objeto JSON com os
      segredos, cada um com um nome: 'ia:openai', 'ia:gemini', 'telegram:omnilife-one'…
    - Essa chave de dados fica guardada "embrulhada":
-       pelo PIN/senha (PBKDF2-SHA256, 310 mil rodadas, sal aleatório) e,
-       se a pessoa quiser, por uma chave presa a este navegador (não exportável,
-       no IndexedDB) = "Lembrar neste aparelho".
+       pelo PIN/senha (PBKDF2-SHA256, 310 mil rodadas, sal aleatório).
    - Recarregar a página (F5) não pede o PIN de novo: a chave de dados fica
      embrulhada por uma chave de sessão não exportável (IndexedDB) e o pacote
      vai para o sessionStorage, que é só desta aba e some quando ela fecha.
@@ -35,8 +38,7 @@
    rodando DENTRO da página poderia usar as chaves. A defesa é não rodar código de
    fora: Content-Security-Policy sem scripts de terceiros. Isolar de verdade pediria
    um endereço separado por app, e aí perderíamos o login e o cofre únicos (não
-   recomendado). "Lembrar neste aparelho" protege contra cópia, backup e link, mas
-   não contra alguém usando este mesmo aparelho já destravado.
+   recomendado).
 
    ARQUIVO MASTER: mora no rootify-one e vai IGUAL para todos os apps. Não editar
    a cópia de um app; mudar aqui e copiar.
@@ -45,7 +47,7 @@
   'use strict';
   if (raiz.SolverCofre && raiz.SolverCofre.__carregado) return;
 
-  var VERSAO = '1.0.0';
+  var VERSAO = '1.1.0';
   var NOME = 'dgo:global:cofre';                 /* localStorage: o cofre (embaralhado) */
   var NOME_ERROS = 'dgo:global:cofre:erros';     /* localStorage: PIN errado { n, ate } */
   var NOME_SESSAO = 'dgo:global:cofre:sessao';   /* sessionStorage: { id, pac } desta aba */
@@ -69,9 +71,6 @@
     pin: ['PIN (6 ou mais letras ou números)', 'PIN (6 or more letters or numbers)'],
     pinEx: ['Ex.: um que só você saiba', 'E.g. one only you know'],
     pinDe: ['Repita o PIN', 'Repeat the PIN'],
-    lembrar: ['Lembrar neste aparelho', 'Remember on this device'],
-    lembrarExplica: ['Abre sem digitar neste aparelho. Protege contra cópia e backup, mas quem usar este aparelho destravado também consegue usar as chaves.',
-                     'Opens without typing on this device. Protects against copies and backups, but anyone using this unlocked device can also use the keys.'],
     avisoPerda: ['Se esquecer o PIN, as chaves não voltam: aí é só colar de novo (elas continuam valendo no site de cada provedor).',
                  'If you forget the PIN the keys cannot come back: just paste them again (they still work on each provider’s site).'],
     criar: ['Criar e abrir', 'Create and open'],
@@ -370,8 +369,6 @@
       '.sc-linha-in{display:flex;gap:6px;margin-top:4px}',
       '.sc-caixa input[type=password],.sc-caixa input[type=text]{flex:1;min-width:0;min-height:44px;box-sizing:border-box;padding:8px 10px;font-size:16px;border:1px solid var(--sc-l);border-radius:10px;background:var(--sc-in);color:var(--sc-t)}',
       '.sc-olho{min-width:44px;min-height:44px;border:1px solid var(--sc-l);border-radius:10px;background:transparent;color:var(--sc-t);cursor:pointer;font-size:18px}',
-      '.sc-marca{display:flex;gap:10px;align-items:flex-start;margin:.8rem 0 0;min-height:44px;cursor:pointer}',
-      '.sc-marca input{width:22px;height:22px;margin:2px 0 0;flex:none}',
       '.sc-botoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:1rem}',
       '.sc-b{flex:1 1 140px;min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--sc-c);background:var(--sc-c);color:var(--sc-ct);font:600 16px system-ui,sans-serif;cursor:pointer}',
       '.sc-b2{background:transparent;color:var(--sc-t);border-color:var(--sc-l)}',
@@ -397,9 +394,14 @@
     return n;
   }
   var _seq = 0;
-  function campoPin(rotulo, auto) {
+  /* o PIN é senha que NÃO se guarda: o navegador e os gerenciadores de senha não oferecem salvar
+     (autocomplete off + marcas do LastPass/1Password), e não dá para copiar nem recortar o que foi digitado.
+     O 👁 fica (padrão da plataforma para campo de senha): mostra só enquanto a pessoa quer. */
+  function campoPin(rotulo) {
     var id = 'sc-pin-' + (++_seq);
-    var inp = el('input', { type: 'password', id: id, autocomplete: auto, autocapitalize: 'none', spellcheck: 'false', placeholder: t('pinEx'), minlength: String(MIN_PIN) });
+    var inp = el('input', { type: 'password', id: id, autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', inputmode: 'text',
+      'data-lpignore': 'true', 'data-1p-ignore': '', 'data-form-type': 'other', placeholder: t('pinEx'), minlength: String(MIN_PIN) });
+    ['copy', 'cut'].forEach(function (ev) { inp.addEventListener(ev, function (e) { e.preventDefault(); }); });
     var olho = el('button', { type: 'button', class: 'sc-olho', 'aria-label': t('mostrar'), 'aria-pressed': 'false', texto: '👁',
       onclick: function () { var v = inp.type === 'password'; inp.type = v ? 'text' : 'password'; olho.setAttribute('aria-pressed', v ? 'true' : 'false'); } });
     var bloco = el('div', {}, [el('label', { class: 'sc-campo', for: id, texto: rotulo }), el('div', { class: 'sc-linha-in' }, [inp, olho])]);
@@ -445,10 +447,8 @@
           if (motivo) caixa.appendChild(el('p', { texto: motivo }));
           if (aviso) caixa.appendChild(el('p', { class: 'sc-mini', role: 'status', texto: aviso }));
           caixa.appendChild(el('p', { class: 'sc-mini', texto: t('explicaCriar') }));
-          var c1 = campoPin(t('pin'), 'new-password'), c2 = campoPin(t('pinDe'), 'new-password');
-          var lem = el('input', { type: 'checkbox', id: 'sc-lembrar' });
-          var form = el('form', { novalidate: true }, [c1, c2,
-            el('label', { class: 'sc-marca', for: 'sc-lembrar' }, [lem, el('span', {}, [el('b', { texto: t('lembrar') }), el('br'), el('span', { class: 'sc-mini', texto: t('lembrarExplica') })])]),
+          var c1 = campoPin(t('pin')), c2 = campoPin(t('pinDe'));
+          var form = el('form', { novalidate: true, autocomplete: 'off' }, [c1, c2,
             el('p', { class: 'sc-mini', texto: t('avisoPerda') }), erro,
             el('div', { class: 'sc-botoes' }, [
               el('button', { type: 'submit', class: 'sc-b', texto: t('criar') }),
@@ -460,7 +460,7 @@
             if (a.length < MIN_PIN) { erro.textContent = t('curto'); c1._input.focus(); return; }
             if (a !== b) { erro.textContent = t('diferente'); c2._input.value = ''; c2._input.focus(); return; }
             var bt = form.querySelector('button[type=submit]'); bt.disabled = true; bt.textContent = t('abrindo');
-            API.criar(a, { lembrar: lem.checked }).then(function () { fim(true); }, function () {
+            API.criar(a).then(function () { fim(true); }, function () {
               bt.disabled = false; bt.textContent = t('criar'); erro.textContent = t('falhou');
             });
           });
@@ -470,11 +470,8 @@
           caixa.appendChild(el('h2', { id: 'sc-tit', texto: t('tituloAbrir') }));
           if (motivo) caixa.appendChild(el('p', { texto: motivo }));
           caixa.appendChild(el('p', { class: 'sc-mini', texto: t('explicaAbrir') }));
-          var cp = campoPin(t('pin'), 'current-password');
-          var reg = lerRegistro(), jaLembra = !!(reg && reg.envoltas && reg.envoltas.aparelho);
-          var lem2 = jaLembra ? null : el('input', { type: 'checkbox', id: 'sc-lembrar' });
-          var form2 = el('form', { novalidate: true }, [cp,
-            lem2 ? el('label', { class: 'sc-marca', for: 'sc-lembrar' }, [lem2, el('span', {}, [el('b', { texto: t('lembrar') }), el('br'), el('span', { class: 'sc-mini', texto: t('lembrarExplica') })])]) : null,
+          var cp = campoPin(t('pin'));
+          var form2 = el('form', { novalidate: true, autocomplete: 'off' }, [cp,
             erro,
             el('div', { class: 'sc-botoes' }, [
               el('button', { type: 'submit', class: 'sc-b', texto: t('abrir') }),
@@ -487,7 +484,7 @@
           form2.addEventListener('submit', function (ev) {
             ev.preventDefault();
             var bt = form2.querySelector('button[type=submit]'); bt.disabled = true; bt.textContent = t('abrindo');
-            API.abrir(cp._input.value, { lembrar: lem2 ? lem2.checked : false }).then(function () { fim(true); }, function (e) {
+            API.abrir(cp._input.value).then(function () { fim(true); }, function (e) {
               bt.disabled = false; bt.textContent = t('abrir');
               var m = e && e.message;
               erro.textContent = (m === 'esperar' || (m === 'pin-errado' && e.segundos > 0)) ? t('esperar', { s: e.segundos }) :
@@ -547,8 +544,6 @@
           gravarErros(null);
           return abrirCom(bruta, {}, reg);
         });
-      }).then(function () {
-        return opcoes.lembrar ? API.lembrarAparelho().catch(function () {}) : null;
       }).then(function () { return depoisDeAbrir('criar'); });
     },
 
@@ -572,12 +567,10 @@
         if (o.n >= ERROS_LIVRES) o.ate = Date.now() + Math.min(3600, 30 * Math.pow(2, o.n - ERROS_LIVRES)) * 1000;
         gravarErros(o);
         throw erro('pin-errado', { restam: Math.max(0, ERROS_LIVRES - o.n), segundos: segundosDeEspera() });
-      }).then(function () {
-        return opcoes.lembrar ? API.lembrarAparelho().catch(function () {}) : null;
       }).then(function () { return depoisDeAbrir('pin'); });
     },
 
-    /* sem digitar: primeiro a sessão desta aba, depois "lembrar neste aparelho". Promise<boolean> */
+    /* sem digitar: só a sessão desta aba (F5). "Lembrar neste aparelho" saiu na 1.1.0. Promise<boolean> */
     abrirSemPin: function () {
       if (E.aberto) return Promise.resolve(true);
       var reg = lerRegistro();
@@ -590,11 +583,9 @@
       var pelaSessao = (s && s.id && s.pac && s.cofre === idDe(reg))
         ? idbPegar('sessao:' + s.id).then(function (o) { if (!o || !o.k) throw erro('sem-sessao'); return decifrar(o.k, s.pac); }).then(comBruta).then(function () { return 'sessao'; })
         : Promise.reject(erro('sem-sessao'));
-      return pelaSessao.catch(function () {
+      return pelaSessao.catch(function (e) {
         if (s) apagarSessao();
-        if (!reg.envoltas.aparelho) throw erro('sem-aparelho');
-        return idbPegar('aparelho').then(function (k) { if (!k) throw erro('sem-aparelho'); return decifrar(k, reg.envoltas.aparelho); })
-          .then(comBruta).then(function () { return 'aparelho'; });
+        throw e;
       }).then(function (como) {
         return depoisDeAbrir(como);
       }).catch(function () { fecharMemoria(); return false; });
@@ -605,16 +596,9 @@
       return apagarSessao().then(function () { if (estava) avisar('cofre:trancado', { motivo: 'trancar' }); return true; });
     },
 
-    /* "Lembrar neste aparelho": a chave de dados embrulhada por uma chave presa a este navegador */
-    lembrarAparelho: function () {
-      if (!E.aberto) return Promise.reject(erro('cofre-trancado'));
-      return idbPegar('aparelho').then(function (k) {
-        return k || novaChaveFixa().then(function (k2) { return idbPor('aparelho', k2).then(function () { return k2; }); });
-      }).then(function (k) { return cifrar(k, E.bruta); }).then(function (pac) {
-        var r = lerRegistro(); if (!r) throw erro('sem-cofre');
-        r.envoltas.aparelho = pac; gravarRegistro(r); return true;
-      });
-    },
+    /* "Lembrar neste aparelho" saiu na 1.1.0 (abria sem PIN para quem pegasse o aparelho destravado).
+       A função fica só para app antigo que ainda a chame: não faz nada e responde false. */
+    lembrarAparelho: function () { return Promise.resolve(false); },
     esquecerAparelho: function () {
       var r = lerRegistro();
       if (r && r.envoltas && r.envoltas.aparelho) { delete r.envoltas.aparelho; gravarRegistro(r); }
@@ -774,8 +758,10 @@
       .catch(function () { if (fecharMemoria()) avisar('cofre:trancado', { motivo: 'outra-aba' }); });
   });
 
-  /* ao carregar: tenta continuar aberto (F5 nesta aba) ou abrir pelo aparelho lembrado, sem janela */
-  API.pronto = API.abrirSemPin().catch(function () { return false; });
+  /* ao carregar: quem tinha "Lembrar neste aparelho" (1.0.0) perde a chave do aparelho e volta a usar o PIN;
+     depois tenta continuar aberto só se for F5 nesta aba */
+  API.pronto = (API.lembrado() ? API.esquecerAparelho().catch(function () {}) : Promise.resolve())
+    .then(function () { return API.abrirSemPin(); }).catch(function () { return false; });
 
   raiz.SolverCofre = API;
 })(typeof window !== 'undefined' ? window : this);
