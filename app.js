@@ -2836,7 +2836,8 @@ function pintarSegredos(){
       else if(escondida){ el.value = ''; el.placeholder = mascara; el.readOnly = false; delete el.dataset.cofre; }
       else { el.readOnly = false; delete el.dataset.cofre; el.placeholder = el.dataset.ph; el.value = Seg.agora(c); }
       })();
-      if(ctl.olho) ctl.olho.hidden = !(Seg.aberto() && el.value);
+      // v1.25.2: o 👁 é só para quem está digitando; com a chave mostrada pelo "Mostrar" ele não aparece (o botão "Esconder" já cuida disso)
+      if(ctl.olho) ctl.olho.hidden = !(Seg.aberto() && el.value && !reveladas[c] && (veDigitado[c] || document.activeElement===el || Date.now()-(editando[c]||0) < 8000));
     });
   });
 }
@@ -3566,6 +3567,9 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.25.2','17/10/2026', [
+    'Corrigido: depois de "Mostrar a chave" aparecia um segundo botão (👁/🙈) que não fazia nada de útil. Agora o 👁 só aparece enquanto você está digitando; com a chave mostrada, só o botão "Esconder a chave"'
+  ]],
   ['1.25.1','17/10/2026', [
     'Corrigido: o botão 👁 pequeno de Configurações às vezes ficava na tela com o campo da chave já escondido (vazio) e sumia e voltava ao tocar. Agora ele só aparece quando há algo digitado'
   ]],

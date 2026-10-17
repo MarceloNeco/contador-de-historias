@@ -621,6 +621,7 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       await resolverPin(page, PIN, 3000); await page.waitForTimeout(400);
       c = await tipo();
       conferir(c.t === 'text' && c.v === FALSO.geminiKey, '"Mostrar a chave": o campo vira texto e mostra a chave de verdade');
+      conferir(await page.locator('#cfg-txt-gemini [data-olho=geminiKey]').isHidden(), 'v1.25.2: com a chave mostrada não aparece o 👁 (só "Esconder a chave")');
       await page.clock.fastForward(31000); await page.waitForTimeout(300);
       c = await tipo();
       conferir(c.t === 'password' && c.v === '', 'passados 30 segundos o campo volta a ser de senha, escondido');
