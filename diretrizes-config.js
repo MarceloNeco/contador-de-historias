@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.23.0',
+  versaoApp: '1.24.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -50,16 +50,14 @@ DGO.iniciar({
   compat: { bloqueio: false, aviso: false },                 /* sem faixa nem bloqueio de "navegador antigo" que o app nao tinha */
   feedback: { ativo: false, perguntaDiaria: false },         /* 💬 e pergunta do dia: ficam como sugestao no PENDENCIAS.md (nao foram pedidos) */
 
-  /* ---------- cofre comum de chaves (cofre.js, SolverCofre 1.0.0) ----------
+  /* ---------- cofre comum de chaves (cofre.js, SolverCofre 1.1.0) ----------
      Onde o Contador guardava segredos em texto aberto (ch_config). Na primeira vez que o cofre abre (ao criar o PIN),
-     so estes campos vao para o cofre e saem do ch_config; o resto do ch_config, as historias e as estatisticas ficam.
-     COPIA TEMPORARIA (autorizada pelo dono em 16/Out/2026): o Eleicoes (planos-candidatos-2026) le de proposito
-     geminiKey, openaiKey e elevenKey em ch_config (index.html dele, funcao chaveContador). Esses tres ficam COPIADOS
-     (manter: true) ate o Eleicoes passar a ler pelo cofre (proximo app da Fase 3); depois, tirar o manter.
-     anthropicKey e os nomes das criancas nao sao lidos por ninguem de fora: saem na hora. */
+     so estes campos vao para o cofre e saem do ch_config na hora; o resto do ch_config, as historias e as estatisticas ficam.
+     Desde a 1.24.0 nao ha mais copia temporaria: o Eleicoes (planos-candidatos-2026) passou a ler as chaves de voz
+     pelo cofre, entao geminiKey, openaiKey e elevenKey saem do ch_config como os outros campos (sem manter). */
   cofre: {
     fontes: [
-      { chave: 'ch_config', caminho: '', manter: true,
+      { chave: 'ch_config', caminho: '',
         mapa: { geminiKey: 'ia:gemini', openaiKey: 'ia:openai', elevenKey: 'ia:elevenlabs' } },
       { chave: 'ch_config', caminho: '',
         mapa: { anthropicKey: 'ia:anthropic', publicoNomes: 'contador:publicoNomes', nomesProtegidos: 'contador:nomesProtegidos' } }
