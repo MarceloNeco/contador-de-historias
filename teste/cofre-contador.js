@@ -680,55 +680,88 @@ const novaAba = async (ctx, base) => { const p = await ctx.newPage(); vigiar(p, 
       }
     }
 
-    /* 15. digital no lugar do PIN (v1.26.0): digital virtual do Chromium */
+    /* 15. digital e PIN na mesma janela (v1.26.1, cofre.js 1.3.0): digital virtual do Chromium.
+       O app só reserva #cofre-digital; todo texto e botão da digital vêm do cofre. */
     {
-      // aparelho sem digital cadastrada: o painel explica e o PIN segue
+      // aparelho sem digital cadastrada: só a frase de orientação, nenhum botão, nenhuma pergunta
       {
         const { ctx, page } = await abrir(browser, base);
         await irConfig(page);
         await page.waitForFunction(() => /cadastre uma digital/.test((document.querySelector('#cofre-digital') || {}).textContent || ''), null, { timeout: 5000 })
-          .then(() => true, () => false).then((ok) => conferir(ok, 'sem digital no aparelho: o painel diz para cadastrar uma digital no celular, sem botão de ligar'));
-        conferir((await page.locator('#btn-cofre-digital-ligar').count()) === 0, 'sem digital no aparelho: não há botão "Ligar a digital"');
+          .then(() => true, () => false).then((ok) => conferir(ok, 'sem digital no aparelho: o painel diz para cadastrar uma digital no celular'));
+        conferir((await page.locator('#cofre-digital button').count()) === 0, 'sem digital no aparelho: nenhum botão da digital e nenhuma pergunta ao criar o PIN');
         await ctx.close();
       }
       // WebAuthn não aceita endereço de IP: este trecho roda em http://localhost (mesmo servidor)
       const baseLocal = base.replace('127.0.0.1', 'localhost');
-      const { ctx, page } = await abrir(browser, baseLocal);
+      const { ctx, page } = await abrir(browser, baseLocal);          // cria o PIN (ainda sem digital no aparelho)
       const cdp = await ctx.newCDPSession(page);
       await cdp.send('WebAuthn.enable');
-      await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
-      await page.reload(); await page.waitForTimeout(600); await resolverPin(page, PIN, 2500); await page.waitForTimeout(400);
-      await irConfig(page);
-      await page.waitForSelector('#btn-cofre-digital-ligar', { timeout: 5000 });
-      conferir(true, 'com digital no aparelho e cofre aberto pelo PIN: o painel oferece "Ligar a digital"');
-      await page.click('#btn-cofre-digital-ligar');
-      await page.waitForSelector('#btn-cofre-digital-tirar', { timeout: 8000 });
-      conferir(await page.evaluate(() => SolverCofre.digitalAtiva()), 'tocar em "Ligar a digital" liga a digital (e o painel passa a oferecer "Tirar a digital")');
-      conferir(!(await cofreCru(page)).includes(FALSO.geminiKey) && !(await cofreCru(page)).includes(PIN), 'o cofre continua sem chave nem PIN em claro com a digital ligada');
-      // recarregar: pede o cofre (sempre), mas agora com o botão da digital
-      await page.reload(); await page.waitForTimeout(800);
+      const aut = (await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } })).authenticatorId;
+      const verificado = (v) => cdp.send('WebAuthn.setUserVerified', { authenticatorId: aut, isUserVerified: v });
       const j = page.locator('#solver-cofre [role=dialog]');
-      await j.waitFor({ state: 'visible', timeout: 5000 });
-      const tj = await j.textContent();
-      conferir(/Abrir com a digital/.test(tj) && /ou digite o PIN/.test(tj), 'ao recarregar o app, a janela do cofre oferece "Abrir com a digital" e o PIN');
-      conferir((await page.evaluate(() => document.querySelector('header, .topo, body').textContent)).indexOf(FALSO.publicoNomes.split(' ')[0]) === -1, 'antes de abrir (digital ou PIN) nenhum nome aparece');
-      await page.click('#solver-cofre [data-sc=digital]');
+      const recarregar = async () => { await page.reload(); await page.waitForTimeout(700); };
+      const digitalNoApp = () => page.evaluate(() => ({ txt: (document.querySelector('#cofre-digital') || {}).textContent || '', botoes: Array.from(document.querySelectorAll('#cofre-digital button')).map(b => b.getAttribute('data-sc')) }));
+      const esperarPainel = (re) => page.waitForFunction((s) => new RegExp(s).test((document.querySelector('#cofre-digital') || {}).textContent || ''), re, { timeout: 8000 }).then(() => true, () => false);
+      // 1) recarregar: o cofre pede (PIN, ainda sem digital) e, depois do PIN, a MESMA janela pergunta uma vez
+      await recarregar(); await j.waitFor({ state: 'visible', timeout: 5000 });
+      conferir((await page.locator('#solver-cofre [data-sc=digital]').count()) === 0, 'digital desligada: a janela do cofre é só o PIN');
+      await page.fill('#solver-cofre input[type=password]', PIN); await page.click('#solver-cofre button[type=submit]');
+      await page.waitForSelector('#solver-cofre [data-sc=oferta-sim]', { timeout: 8000 });
+      conferir(/Quer abrir com a digital da próxima vez\?/.test(await j.textContent()), 'depois do PIN, a mesma janela pergunta "Quer abrir com a digital da próxima vez?"');
+      await page.click('#solver-cofre [data-sc=oferta-nao]'); await j.waitFor({ state: 'hidden', timeout: 5000 }); await page.waitForTimeout(400);
+      conferir(await page.evaluate(() => SolverCofre.aberto()) && !(await page.evaluate(() => SolverCofre.digitalAtiva())), '"Agora não": o app abre normal, com a digital desligada');
+      // 2) painel (aberto): estado sempre visível; a pergunta não volta
+      await irConfig(page);
+      await esperarPainel('Digital desligada');
+      let pn = await digitalNoApp();
+      conferir(/Digital desligada/.test(pn.txt) && JSON.stringify(pn.botoes) === '["ligar"]', 'painel com o cofre aberto: "Digital desligada" e "Ligar a digital"');
+      await recarregar(); await j.waitFor({ state: 'visible', timeout: 5000 });
+      await page.fill('#solver-cofre input[type=password]', PIN); await page.click('#solver-cofre button[type=submit]');
       await j.waitFor({ state: 'hidden', timeout: 8000 });
-      await page.waitForTimeout(500);
-      conferir(await page.evaluate(() => SolverCofre.aberto()) && (await page.locator('#btn-cofre').textContent()).includes('🔓'), 'tocar na digital abre o cofre (sem PIN) e o indicador vira 🔓');
-      // "Mostrar a chave" também aceita a digital
+      conferir(true, 'depois de "Agora não", abrir com o PIN não pergunta de novo');
+      // 3) painel com o cofre trancado: mostra o estado e "Ligar" pede o PIN e depois a digital
+      await irConfig(page);
+      await trancar(page); await page.waitForTimeout(400);
+      if (await j.isVisible().catch(() => false)) await agoraNao(page).click().catch(() => {});
+      await esperarPainel('Digital desligada');
+      pn = await digitalNoApp();
+      conferir(/Digital desligada/.test(pn.txt) && JSON.stringify(pn.botoes) === '["ligar"]', 'painel com o cofre TRANCADO: também mostra "Digital desligada" e "Ligar a digital"');
+      await page.click('#cofre-digital [data-sc=ligar]');
+      await j.waitFor({ state: 'visible', timeout: 5000 });
+      conferir(/Digite o PIN para ligar a digital/.test(await j.textContent()), '"Ligar a digital" com o cofre trancado pede o PIN primeiro');
+      await page.fill('#solver-cofre input[type=password]', PIN); await page.click('#solver-cofre button[type=submit]');
+      conferir(await esperarPainel('Digital ligada') && await page.evaluate(() => SolverCofre.digitalAtiva() && !document.querySelector('#solver-cofre')), 'depois do PIN a digital é pedida, liga e o painel diz "Digital ligada" (sem repetir a pergunta)');
+      conferir(!(await cofreCru(page)).includes(FALSO.geminiKey) && !(await cofreCru(page)).includes(PIN), 'o cofre continua sem chave nem PIN em claro com a digital ligada');
+      // 4) recarregar: a janela já tenta a digital sozinha
+      await recarregar();
+      await page.waitForFunction(() => window.SolverCofre && SolverCofre.aberto() && !document.querySelector('#solver-cofre'), null, { timeout: 8000 })
+        .then(() => true, () => false).then((ok) => conferir(ok, 'com a digital ligada, ao recarregar a janela tenta a digital sozinha e o cofre abre sem tocar em nada'));
+      await page.waitForTimeout(400);
+      conferir((await page.locator('#btn-cofre').textContent()).includes('🔓'), 'o indicador do cabeçalho vira 🔓');
+      // 5) digital que não passou: botão focado, PIN embaixo, nenhum nome antes de abrir
+      await verificado(false);
+      await recarregar(); await j.waitFor({ state: 'visible', timeout: 5000 });
+      await page.waitForFunction(() => { const b = document.querySelector('#solver-cofre [data-sc=digital]'); return b && !b.disabled; }, null, { timeout: 8000 });
+      const lay = await page.evaluate(() => { const b = document.querySelector('#solver-cofre [data-sc=digital]'), inp = document.querySelector('#solver-cofre input[type=password]');
+        return { foco: document.activeElement === b, focoPin: document.activeElement === inp, abaixo: inp.getBoundingClientRect().top > b.getBoundingClientRect().bottom, txt: document.querySelector('#solver-cofre').textContent, topo: document.body.innerText.slice(0, 600) }; });
+      conferir(lay.foco && !lay.focoPin && lay.abaixo && /ou digite o PIN/.test(lay.txt), 'digital não aceita sozinha: o botão grande fica focado, o PIN fica embaixo ("ou digite o PIN") e o teclado não abre');
+      conferir(!lay.topo.includes(FALSO.publicoNomes.split(' ')[0]), 'antes de abrir (digital ou PIN) nenhum nome aparece');
+      await verificado(true);
+      await page.click('#solver-cofre [data-sc=digital]');
+      await j.waitFor({ state: 'hidden', timeout: 8000 }); await page.waitForTimeout(400);
+      conferir(await page.evaluate(() => SolverCofre.aberto()), 'tocar no botão da digital abre o cofre');
+      // 6) "Mostrar a chave" também usa a mesma janela (digital sozinha)
       await irConfig(page);
       await page.click('#cfg-txt-gemini [data-mostrar=geminiKey]');
-      await j.waitFor({ state: 'visible', timeout: 5000 });
-      conferir(/Abrir com a digital/.test(await j.textContent()), '"Mostrar a chave" também oferece a digital');
-      await page.click('#solver-cofre [data-sc=digital]');
-      await j.waitFor({ state: 'hidden', timeout: 8000 }); await page.waitForTimeout(500);
-      const mo = await page.evaluate(() => ({ t: document.querySelector('#in-gemini-key').type, v: document.querySelector('#in-gemini-key').value }));
-      conferir(mo.t === 'text' && mo.v === FALSO.geminiKey, '"Mostrar a chave" com a digital mostra a chave de verdade');
-      // tirar a digital volta ao PIN
-      await page.waitForSelector('#btn-cofre-digital-tirar', { timeout: 5000 });
-      await page.click('#btn-cofre-digital-tirar'); await page.waitForTimeout(500);
-      conferir(!(await page.evaluate(() => SolverCofre.digitalAtiva())) && (await page.locator('#btn-cofre-digital-ligar').count()) === 1, '"Tirar a digital" desliga e volta a oferecer "Ligar a digital"');
+      await page.waitForFunction(() => { const e = document.querySelector('#in-gemini-key'); return e && e.type === 'text' && e.value.length > 0; }, null, { timeout: 8000 })
+        .then(() => true, () => false).then((ok) => conferir(ok, '"Mostrar a chave" abre pela digital (mesma janela) e mostra a chave'));
+      // 7) tirar a digital pelo painel
+      await esperarPainel('Digital ligada');
+      await page.click('#cofre-digital [data-sc=tirar]');
+      conferir(await esperarPainel('Digital desligada') && !(await page.evaluate(() => SolverCofre.digitalAtiva())), '"Tirar a digital" desliga e o painel volta a "Digital desligada"');
+      // o app não desenha nada da digital por conta própria
+      conferir(!/pintarDigitalNoPainel|btn-cofre-digital/.test(require('fs').readFileSync(require('path').join(__dirname, '..', 'app.js'), 'utf8')), 'o app.js não tem painel próprio da digital (só reserva #cofre-digital)');
       await ctx.close();
     }
 
