@@ -8,7 +8,7 @@ var CACHE = 'dgo-' + VERSAO;
 self.addEventListener('install', function (e) {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function (c) {
-    return c.addAll(['./', './index.html', './cofre.js', './diretrizes.js', './diretrizes-config.js', './tarefas.js', './recursos.js', './ajuda-botao.png']).catch(function () {});
+    return c.addAll(['./', './index.html', './cofre.js', './diretrizes.js', './diretrizes-config.js', './app.js', './tarefas.js', './recursos.js', './ajuda-botao.png']).catch(function () {});
   }));
 });
 
