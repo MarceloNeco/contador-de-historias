@@ -1,0 +1,7 @@
+{
+  "formato": 1,
+  "nota": "Lista de exceção do verificador teste/sql-grants.js (Contador de Histórias). Rodar: node teste/sql-grants.js supabase. Script novo não entra aqui: nasce com GRANT (diretriz \"Permissões explícitas no Supabase\").",
+  "arquivos": [
+    { "arquivo": "supabase/contador-de-historias-v1.sql", "data": "2026-10-03", "motivo": "rascunho de 03/Out/2026 que NUNCA foi aplicado (nenhum objeto conta_* no projeto, leitura de 22/Out pelo chat Arquitetura); os 5 gatilhos conta_tg_* ficam sem EXECUTE de propósito. Antes de aplicar: fechar PUBLIC e anon nas funções que pedem login, como no Omni, e tirar o arquivo desta lista (pendência #123 do rootify-one)" }
+  ]
+}
