@@ -2,8 +2,12 @@
    como app no celular e no computador.
    Ao publicar uma versao nova do seu site, troque o numero de VERSAO
    abaixo (ex.: 'v1' -> 'v2') para o aparelho pegar os arquivos novos. */
-var VERSAO = 'v28';
-var CACHE = 'dgo-' + VERSAO;
+var VERSAO = 'v29';
+/* O cache leva o nome do app e o activate só apaga os caches DESTE app. Todos os apps e jogos da SolverONE
+   moram no mesmo endereço e dividem o espaço de cache: antes (cache "dgo-vN" e "apaga tudo que não é o meu"),
+   abrir o Contador apagava o que os jogos do Bolinho de Chuva tinham guardado para funcionar sem internet. */
+var PREFIXO = 'dgo-contador-de-historias-';
+var CACHE = PREFIXO + VERSAO;
 
 self.addEventListener('install', function (e) {
   self.skipWaiting();
@@ -14,7 +18,7 @@ self.addEventListener('install', function (e) {
 
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (nomes) {
-    return Promise.all(nomes.map(function (n) { return n === CACHE ? null : caches.delete(n); }));
+    return Promise.all(nomes.map(function (n) { return (n.indexOf(PREFIXO) === 0 && n !== CACHE) ? caches.delete(n) : null; }));
   }).then(function () { return self.clients.claim(); }));
 });
 
