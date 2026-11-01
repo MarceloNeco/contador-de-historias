@@ -3563,6 +3563,9 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.27.1','01/11/2026', [
+    ['Botão 📲 Instalar no cartão do Contador no Bolinho de Chuva: abre o app com a barra "Instalar o aplicativo", para ele ganhar ícone próprio no celular e abrir sem internet','📲 Install button on the Storyteller card in Bolinho de Chuva: opens the app with the "Install app" bar, so it gets its own icon on the phone and opens offline'],
+  ]],
   ['1.27.0','17/10/2026', [
     ['Todas as janelas do app agora travam o que está atrás: enquanto uma janela está aberta, a página de trás não rola e não recebe toque. Tocar na parte escura fora da janela fecha (como "cancelar"); arrastar de dentro para fora não fecha','Every window in the app now locks what is behind it: while a window is open, the page behind does not scroll or take taps. Tapping the dark area outside the window closes it (like "cancel"); dragging from inside to outside does not close it'],
     ['Toda janela fecha de três jeitos: pelo botão, pelo Esc e pelo Voltar do celular. Se você digitou algo e ainda não salvou, o app pergunta "Descartar o que você digitou?" antes de fechar','Every window closes three ways: with its button, with Esc and with the phone Back button. If you typed something and have not saved it yet, the app asks "Discard what you typed?" before closing'],
@@ -5968,4 +5971,15 @@ Rec.aoMudar(()=>{ Assist.aplicar(); Anuncios.pintar(); criarSemIA(); });
 window.addEventListener('beforeunload', ()=>{ if('speechSynthesis' in window) speechSynthesis.cancel(); });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) Som.parar(true); });
 
+})();
+
+/* Botão "📲 Instalar" do Bolinho de Chuva (v1.27.1): o cartão abre o Contador com ?instalar=1 e só então carrega a
+   barra "Instalar o aplicativo" (bolinho-de-chuva/instalar.js, do Portal, mesmo endereço). Abrindo normal, nada muda. */
+(function () {
+  if (!/[?&]instalar\b/.test(location.search) || location.protocol === 'file:') return;
+  var s = document.createElement('script');
+  s.src = '/bolinho-de-chuva/instalar.js';
+  s.setAttribute('data-nome', 'Contador de Histórias'); s.setAttribute('data-icone', 'icone-192.png');
+  s.setAttribute('data-so-com', 'instalar'); s.setAttribute('data-flutuante', ''); s.setAttribute('data-sw', 'nao');
+  document.body.appendChild(s);
 })();
