@@ -2,7 +2,7 @@
    como app no celular e no computador.
    Ao publicar uma versao nova do seu site, troque o numero de VERSAO
    abaixo (ex.: 'v1' -> 'v2') para o aparelho pegar os arquivos novos. */
-var VERSAO = 'v30';
+var VERSAO = 'v31';
 /* O cache leva o nome do app e o activate só apaga os caches DESTE app. Todos os apps e jogos da SolverONE
    moram no mesmo endereço e dividem o espaço de cache: antes (cache "dgo-vN" e "apaga tudo que não é o meu"),
    abrir o Contador apagava o que os jogos do Bolinho de Chuva tinham guardado para funcionar sem internet. */
