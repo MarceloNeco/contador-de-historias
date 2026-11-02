@@ -3563,6 +3563,9 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.27.2','02/11/2026', [
+    ['Tela cheia no celular e no tablet: no primeiro toque some a barra de endereço do navegador (ex.: tablet Fire), como um aplicativo','Full screen on phones and tablets: the first tap hides the browser address bar (e.g. Fire tablet), like an app'],
+  ]],
   ['1.27.1','01/11/2026', [
     ['Botão 📲 Instalar no cartão do Contador no Bolinho de Chuva: abre o app com a barra "Instalar o aplicativo", para ele ganhar ícone próprio no celular e abrir sem internet','📲 Install button on the Storyteller card in Bolinho de Chuva: opens the app with the "Install app" bar, so it gets its own icon on the phone and opens offline'],
   ]],
@@ -5982,4 +5985,21 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden) Som.para
   s.setAttribute('data-nome', 'Contador de Histórias'); s.setAttribute('data-icone', 'icone-192.png');
   s.setAttribute('data-so-com', 'instalar'); s.setAttribute('data-flutuante', ''); s.setAttribute('data-sw', 'nao');
   document.body.appendChild(s);
+})();
+
+/* Tela cheia no celular e no tablet (ex.: tablet Fire, cujo navegador abre o atalho ainda com a barra de endereço):
+   no PRIMEIRO TOQUE pede tela cheia (some a barra de endereço). Só em tela de toque e só se ainda não estiver como
+   aplicativo; se a pessoa sair, não insiste. iPhone não permite: lá nada acontece. */
+(function () {
+  var d = document, el = d.documentElement;
+  if (!(el.requestFullscreen || el.webkitRequestFullscreen) || !window.matchMedia) return;
+  if (!matchMedia("(pointer: coarse)").matches || matchMedia("(display-mode: fullscreen)").matches || matchMedia("(display-mode: standalone)").matches) return;
+  var eventos = ["pointerup", "touchend", "click", "keydown"];   // o navegador só libera quando o dedo sai da tela
+  function primeiroToque(e) {
+    if (e && e.target && e.target.closest && e.target.closest(".bc-inst, .bc-fundo, .sa-aviso")) return;
+    if (d.fullscreenElement || d.webkitFullscreenElement) return parar();
+    try { var p = el.requestFullscreen ? el.requestFullscreen({ navigationUI: "hide" }) : el.webkitRequestFullscreen(); if (p && p.then) p.then(parar, function () {}); else parar(); } catch (e2) {}
+  }
+  function parar() { eventos.forEach(function (t) { d.removeEventListener(t, primeiroToque, true); }); }
+  eventos.forEach(function (t) { d.addEventListener(t, primeiroToque, true); });
 })();
