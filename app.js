@@ -3563,6 +3563,9 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.27.3','02/11/2026', [
+    ['O botão 📲 Instalar do Bolinho de Chuva continua funcionando depois da mudança do Bolinho para o endereço solverone.com.br/kids','The Bolinho de Chuva 📲 Install button keeps working after Bolinho moved to solverone.com.br/kids'],
+  ]],
   ['1.27.2','02/11/2026', [
     ['Tela cheia no celular e no tablet: no primeiro toque some a barra de endereço do navegador (ex.: tablet Fire), como um aplicativo','Full screen on phones and tablets: the first tap hides the browser address bar (e.g. Fire tablet), like an app'],
   ]],
@@ -5977,11 +5980,11 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden) Som.para
 })();
 
 /* Botão "📲 Instalar" do Bolinho de Chuva (v1.27.1): o cartão abre o Contador com ?instalar=1 e só então carrega a
-   barra "Instalar o aplicativo" (bolinho-de-chuva/instalar.js, do Portal, mesmo endereço). Abrindo normal, nada muda. */
+   barra "Instalar o aplicativo" (instalar.js do Bolinho de Chuva, em solverone.com.br/kids/). Abrindo normal, nada muda. */
 (function () {
   if (!/[?&]instalar\b/.test(location.search) || location.protocol === 'file:') return;
   var s = document.createElement('script');
-  s.src = '/bolinho-de-chuva/instalar.js';
+  s.src = '/kids/instalar.js';
   s.setAttribute('data-nome', 'Contador de Histórias'); s.setAttribute('data-icone', 'icone-192.png');
   s.setAttribute('data-so-com', 'instalar'); s.setAttribute('data-flutuante', ''); s.setAttribute('data-sw', 'nao');
   document.body.appendChild(s);
