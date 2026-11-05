@@ -544,3 +544,20 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Pergunta ao fechar com texto digitado | Descartar o que você digitou? (Descartar / Continuar) | Discard what you typed? (Discard / Keep editing) |
 
 > A pergunta "Descartar?" mora no `janela.js` (PT/EN); o app não tem texto dela. A lista de versões 1.27.0 está em PT e EN no `HISTORICO` do `app.js` (as versões antigas continuam só em português).
+
+---
+
+# v1.28.0 — Música de fundo
+
+| Onde | PT | EN |
+|---|---|---|
+| Configurações, título | 🎶 Música de fundo | 🎶 Background music |
+| Interruptor | Música de fundo · Animada na abertura, alegre enquanto escolhe a história e calminha, bem baixinho, enquanto a história é contada. | Background music · Lively at the opening, cheerful while choosing the story and calm, very soft, while the story is told. |
+| Botão e volume | ⏭️ Trocar a música · Volume da música: N% | ⏭️ Change the music · Music volume: N% |
+| Listas | Na abertura · Enquanto escolhe a história · Enquanto a história é contada | At the opening · While choosing the story · While the story is told |
+| Tocando agora | 🎶 Tocando: Música — Autor (domínio público) · Música desligada. · Quietinha: a história terminou. Volta quando você mexer no app. · Começa no próximo toque na tela. | 🎶 Playing: Song — Author (public domain) · Music is off. · Quiet: the story ended. It comes back when you use the app. · Starts on the next tap on the screen. |
+| Explicação | Músicas gravadas de verdade, só instrumentais, de domínio público (acervo FreePD, CC0): podem tocar em qualquer lugar, sem direitos autorais. Começa no primeiro toque na tela. Quando a história termina, a música some devagar para não acordar ninguém. | Real recorded music, instrumental only, in the public domain (FreePD library, CC0): it can play anywhere, with no copyright. It starts on the first tap on the screen. When the story ends, the music fades out slowly so it does not wake anyone. |
+| Menu 👤 | 🎶 Música de fundo | 🎶 Background music |
+| Botão 🎶 da história | Desligar a música de fundo · Ligar a música de fundo · 🎶 Música de fundo ligada · 🔇 Música de fundo desligada | Turn background music off · Turn background music on · 🎶 Background music on · 🔇 Background music off |
+
+> Os nomes das músicas ficam no original (são nomes próprios das obras).

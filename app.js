@@ -129,7 +129,8 @@ const configPadrao = {
   carregarGithub:true,
   fonte:19, telaAcesa:true, destaque:true, usarVozGuardada:true,
   protegerNomes:true, comandosVoz:false, comandosIA:false,
-  tema:'escuro', reduzirAnimacoes:false
+  tema:'escuro', reduzirAnimacoes:false,
+  musica:true, volMusica:60, musicaAbertura:0, musicaNavegar:0, musicaHistoria:0
 };
 const statsPadrao = { leituras:0, segundos:0, ultimaNoite:'', sequencia:0 };
 
@@ -693,6 +694,196 @@ const Som = (function(){
     },
     parar(rapido){ if(ctx) pararTudo(rapido); }
   };
+})();
+
+/* ----------------------------- música de fundo (v1.28.0) -----------------------------
+   Músicas GRAVADAS, instrumentais, de domínio público (FreePD, CC0 — a mesma fonte da Bagunçolândia; créditos em
+   CREDITOS.md), na pasta musicas/. Três momentos:
+   - abertura: uma bem animada ao abrir o app (uma vez por abertura);
+   - navegar: enquanto escolhe a história, cria ou mexe nos ajustes (alegre, mais leve, uma depois da outra);
+   - historia: com a história aberta, uma calma e baixinha por baixo da voz (mais baixa ainda enquanto a voz fala).
+   Quando a história termina, a música some devagar e fica quieta (é hora de dormir) até a pessoa mexer no app de novo.
+   O volume passa pelo WebAudio (no iPhone o volume do <audio> não muda). O navegador só deixa tocar som depois de um
+   toque: a música começa no primeiro toque em qualquer lugar. Com "economia de dados" ligada, não começa sozinha.
+   Outro som do app tocando fora da história (testar a voz, amostra da voz premium): a música abaixa até ele acabar.
+   Fora da história, ao sair do app a música para; dentro da história com a voz lendo (tela apagada), continua baixinha. */
+const Musica = (function(){
+  const LISTA = {
+    abertura: [
+      {a:'happy-whistling-ukulele', t:'Happy Whistling Ukulele', au:'Rafael Krux'},
+      {a:'ukulele-song', t:'Ukulele Song', au:'Rafael Krux'},
+      {a:'funshine', t:'Funshine', au:'Kevin MacLeod'}
+    ],
+    navegar: [
+      {a:'spring-chicken', t:'Spring Chicken', au:'Bryan Teoh'},
+      {a:'my-giant-bunny-friend', t:'My Giant Bunny Friend', au:'Bryan Teoh'},
+      {a:'inventing-flight', t:'Inventing Flight', au:'Bryan Teoh'},
+      {a:'slice-of-life', t:'Slice of Life', au:'Bryan Teoh'},
+      {a:'city-sunshine', t:'City Sunshine', au:'Kevin MacLeod'}
+    ],
+    historia: [
+      {a:'kalimba-relaxation-music', t:'Kalimba Relaxation Music', au:'Kevin MacLeod'},
+      {a:'lovely-piano-song', t:'Lovely Piano Song', au:''},
+      {a:'shining-stars', t:'Shining Stars', au:''},
+      {a:'infinite-peace', t:'Infinite Peace', au:'Kevin MacLeod'}
+    ]
+  };
+  const CAMPO = {abertura:'musicaAbertura', navegar:'musicaNavegar', historia:'musicaHistoria'};
+  // quanto de volume em cada momento (vezes o volume escolhido nas Configurações)
+  const NIVEL = {abertura:0.8, navegar:0.45, historia:0.22, falando:0.12};
+  let audio = null, ctx = null, ganho = null, modo = '', faixa = -1, aberturaFeita = false, dormindo = false;
+  let comecou = false, falhas = 0, tFade = 0;
+  const outros = new Set();          // outros sons do app tocando agora (voz, amostra…)
+
+  const lerFaixa = m => { const i = Number(cfg[CAMPO[m]])||0; return ((i % LISTA[m].length) + LISTA[m].length) % LISTA[m].length; };
+  const dentroDaHistoria = ()=> document.body.classList.contains('com-leitor');
+  const vozFalando = ()=> { try{ return !!(Leitor && Leitor.estaTocando()); }catch(e){ return false; } };
+  function modoAgora(){
+    if(!cfg.musica || dormindo) return '';
+    if(dentroDaHistoria()) return 'historia';
+    if(document.hidden) return '';
+    return aberturaFeita ? 'navegar' : 'abertura';
+  }
+  function nivelAgora(){
+    const base = (Number(cfg.volMusica)||0)/100;
+    if(modo==='historia') return base * ((vozFalando() || outros.size) ? NIVEL.falando : NIVEL.historia);
+    return outros.size ? 0 : base * NIVEL[modo];
+  }
+  function montar(){
+    if(audio) return;
+    audio = new Audio(); audio.preload = 'auto';
+    audio.addEventListener('ended', terminou);
+    audio.addEventListener('error', ()=>{ if(!audio.getAttribute('src')) return; if(++falhas < 6) proxima(); else parar(); });   // sem internet e fora do cache: tenta a próxima; nenhuma → silêncio
+    audio.addEventListener('playing', ()=>{ falhas = 0; });
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(AC){
+      try{ ctx = new AC(); ganho = ctx.createGain(); ganho.gain.value = 0; ctx.createMediaElementSource(audio).connect(ganho); ganho.connect(ctx.destination); }
+      catch(e){ ctx = null; ganho = null; }
+    }
+    if(!ganho) audio.volume = 0;
+  }
+  function volume(v, segundos){
+    if(ganho){ ganho.gain.cancelScheduledValues(ctx.currentTime); ganho.gain.setTargetAtTime(v, ctx.currentTime, (segundos||0.8)/3); return; }
+    // sem WebAudio: rampa no próprio <audio>
+    clearInterval(tFade); const de = audio.volume, passos = Math.max(1, Math.round((segundos||0.8)*20)); let k = 0;
+    tFade = setInterval(()=>{ k++; audio.volume = Math.max(0, Math.min(1, de + (v-de)*k/passos)); if(k>=passos) clearInterval(tFade); }, 50);
+  }
+  function tocar(m, i){
+    montar();
+    if(ctx && ctx.state==='suspended') ctx.resume().catch(()=>{});
+    const novaFaixa = m!==modo || i!==faixa;
+    modo = m; faixa = i;
+    if(novaFaixa){
+      const it = LISTA[m][i];
+      const trocar = ()=>{
+        if(modo!==m || faixa!==i) return;
+        audio.src = 'musicas/' + it.a + '.mp3';
+        audio.play().then(()=>volume(nivelAgora(), 2)).catch(()=>{});
+        pintar();
+      };
+      // parada: entra já (no iPhone o primeiro play precisa acontecer dentro do toque); tocando: some rápido e troca
+      if(audio.paused){ volume(0, 0.05); trocar(); }
+      else { volume(0, 0.3); setTimeout(trocar, 320); }
+    } else {
+      if(audio.paused) audio.play().catch(()=>{});
+      volume(nivelAgora(), 1.2);
+    }
+  }
+  function parar(devagar){
+    if(!audio) return;
+    const m = modo; modo = '';
+    volume(0, devagar ? 8 : 0.5);
+    setTimeout(()=>{ if(!modo && audio) audio.pause(); }, devagar ? 9000 : 700);
+    if(m) pintar();
+  }
+  function terminou(){
+    if(modo==='abertura'){ aberturaFeita = true; atualizar(); return; }
+    proxima(true);
+  }
+  // próxima música do momento (sozinha, quando uma acaba, ou pelo botão "Trocar")
+  function proxima(sozinha){
+    const m = modo || modoAgora(); if(!m) return;
+    cfg[CAMPO[m]] = (lerFaixa(m) + 1) % LISTA[m].length;
+    if(!sozinha) salvarCfg(); else salvar(CHAVE_C, cfg);
+    faixa = -1; tocar(m, lerFaixa(m));
+  }
+  // olha como o app está e põe a música certa no volume certo
+  function atualizar(){
+    if(!comecou) return;
+    const m = modoAgora();
+    if(!m){ if(modo) parar(); return; }
+    // a abertura não volta depois de ter tocado; e se a pessoa já foi para a história, a abertura conta como feita
+    if(m==='historia') aberturaFeita = true;
+    tocar(m, (m===modo && faixa>=0) ? faixa : lerFaixa(m));
+  }
+  function acordar(){ dormindo = false; atualizar(); }
+  // fim da história: some devagar e fica quieta até a pessoa mexer no app
+  function fimDaHistoria(){ if(!cfg.musica) return; dormindo = true; parar(true); }
+  function comecar(){
+    if(comecou) return;
+    comecou = true;
+    atualizar();
+  }
+  function pintar(){
+    const el = $('#mu-tocando'); if(!el) return;
+    const m = modo, it = m && faixa>=0 ? LISTA[m][faixa] : null;
+    el.textContent = !cfg.musica ? T('Música desligada.','Music is off.')
+      : it ? '🎶 ' + T('Tocando','Playing') + ': ' + it.t + (it.au ? ' — ' + it.au : '') + ' (' + T('domínio público','public domain') + ')'
+      : dormindo ? T('Quietinha: a história terminou. Volta quando você mexer no app.','Quiet: the story ended. It comes back when you use the app.')
+      : T('Começa no próximo toque na tela.','Starts on the next tap on the screen.');
+    ['abertura','navegar','historia'].forEach(k=>{ const s = $('#mu-sel-'+k); if(s) s.value = String(lerFaixa(k)); });
+    const b = $('#btn-musica-leitor'); if(b){ b.textContent = cfg.musica ? '🎶' : '🔇'; b.setAttribute('aria-label', cfg.musica ? T('Desligar a música de fundo','Turn background music off') : T('Ligar a música de fundo','Turn background music on')); b.setAttribute('aria-pressed', String(!!cfg.musica)); }
+  }
+  function ligarDesligar(ligar){
+    cfg.musica = ligar===undefined ? !cfg.musica : !!ligar; salvarCfg();
+    const tg = $('#tg-musica'); if(tg){ tg.classList.toggle('on', cfg.musica); tg.setAttribute('aria-checked', String(cfg.musica)); }
+    dormindo = false;
+    if(cfg.musica){ comecou = true; atualizar(); } else parar();
+    pintar();
+  }
+  function iniciar(){
+    // as listas das Configurações
+    ['abertura','navegar','historia'].forEach(k=>{
+      const s = $('#mu-sel-'+k); if(!s) return;
+      s.innerHTML = LISTA[k].map((it,i)=>`<option value="${i}">${esc(it.t)}${it.au ? ' — '+esc(it.au) : ''}</option>`).join('');
+      s.addEventListener('change', ()=>{ cfg[CAMPO[k]] = Number(s.value)||0; salvarCfg(); if(modo===k){ faixa = -1; tocar(k, lerFaixa(k)); } else if(cfg.musica){ comecou = true; } });
+    });
+    const tg = $('#tg-musica');
+    if(tg){
+      tg.classList.toggle('on', !!cfg.musica); tg.setAttribute('role','switch'); tg.setAttribute('tabindex','0'); tg.setAttribute('aria-checked', String(!!cfg.musica));
+      tg.setAttribute('aria-label', T('Música de fundo','Background music'));
+      tg.addEventListener('click', ()=>ligarDesligar());
+      tg.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); ligarDesligar(); } });
+    }
+    const rng = $('#rng-musica'), lbl = $('#lbl-musica');
+    if(rng){ rng.value = cfg.volMusica; if(lbl) lbl.textContent = cfg.volMusica;
+      rng.addEventListener('input', ()=>{ cfg.volMusica = Number(rng.value); if(lbl) lbl.textContent = cfg.volMusica; if(modo) volume(nivelAgora(), 0.2); });
+      rng.addEventListener('change', salvarCfg); }
+    const tr = $('#btn-musica-trocar'); if(tr) tr.addEventListener('click', ()=>{ if(!cfg.musica) ligarDesligar(true); comecou = true; dormindo = false; proxima(); });
+    const bl = $('#btn-musica-leitor'); if(bl) bl.addEventListener('click', ()=>{ ligarDesligar(); toast(cfg.musica ? T('🎶 Música de fundo ligada','🎶 Background music on') : T('🔇 Música de fundo desligada','🔇 Background music off')); });
+    // o navegador só deixa tocar depois de um toque; economia de dados ligada → só quando a pessoa ligar
+    const poupar = !!(navigator.connection && navigator.connection.saveData);
+    const primeiroToque = e=>{
+      if(e.target && e.target.closest && e.target.closest('#tg-musica,#btn-musica-leitor')) return;   // esses botões decidem sozinhos
+      document.removeEventListener('pointerdown', primeiroToque, true); document.removeEventListener('keydown', primeiroToque, true);
+      if(!poupar) comecar();
+    };
+    document.addEventListener('pointerdown', primeiroToque, true); document.addEventListener('keydown', primeiroToque, true);
+    // abrir e fechar a história (classe com-leitor no body) e a voz começando/parando
+    // (fechar a história depois que ela terminou NÃO acorda a música: é hora de dormir; trocar de aba ou dar play acorda)
+    let mudouDentro = dentroDaHistoria();
+    new MutationObserver(()=>{ const dentro = dentroDaHistoria(); if(dentro!==mudouDentro){ mudouDentro = dentro; atualizar(); } }).observe(document.body, {attributes:true, attributeFilter:['class']});
+    $$('nav.tabs button').forEach(b=>b.addEventListener('click', acordar));
+    document.addEventListener('play', e=>{ if(audio && e.target===audio) return; outros.add(e.target); if(modo) volume(nivelAgora(), 0.4); }, true);
+    ['pause','ended','emptied'].forEach(ev=>document.addEventListener(ev, e=>{ if(audio && e.target===audio) return; if(outros.delete(e.target) && modo) volume(nivelAgora(), 1.5); }, true));
+    document.addEventListener('visibilitychange', ()=>{
+      // fora da história, ou com a voz parada: sair do app para a música; voltar retoma
+      if(document.hidden && !(dentroDaHistoria() && vozFalando())){ if(modo) parar(); return; }
+      if(!document.hidden) atualizar();
+    });
+    pintar();
+  }
+  return { iniciar, atualizar, acordar, fimDaHistoria, ligarDesligar, proxima: ()=>proxima(), pintar, lista: LISTA };
 })();
 
 /* ----------------------------- vozes / leitura ----------------------------- */
@@ -1412,7 +1603,7 @@ const Leitor = (function(){
         }
       }catch(e){
         if(meu!==execucaoId) return;
-        tocando=false; esteiraLigada=false; iconePlay(false); Som.parar(true);
+        tocando=false; esteiraLigada=false; iconePlay(false); Som.parar(true); Musica.atualizar();
         status('deu erro');
         modal(`<h3>A leitura parou 🙁</h3><p class="hint">${esc(e.message||e)}</p>
           <div class="ok" style="margin-top:12px">Tudo o que já tinha baixado <b>continua guardado</b>. Seu lugar na história também foi salvo — dá para voltar depois e continuar daqui.</div>
@@ -1438,6 +1629,7 @@ const Leitor = (function(){
     if(pos>=fila.length && tocando){
       tocando=false; esteiraLigada=false; iconePlay(false); barra();
       Som.tocar('fim'); destacar(null);
+      Musica.fimDaHistoria();                         // hora de dormir: a música some devagar
       status('fim da história 💜');
       if(!contou){ contou=true; registrarLeitura(); }
       somarTempo();
@@ -1507,12 +1699,14 @@ const Leitor = (function(){
     if(audio){ try{ audio.pause(); }catch(e){} }
     Som.parar(true);
     iconePlay(false); status('pausado'); manterTela(false); somarTempo(); salvarPosicao(); midia('paused');
+    Musica.atualizar();
   }
   function play(){
     if(!fila.length) return;
     Som.ligar();
     $('#barra-retomar').classList.add('oculto');
     tocando=true; iconePlay(true); manterTela(true);
+    Musica.acordar();                               // a música de fundo abaixa para a voz
     executar();
   }
   // antes de dar play, avisa se o áudio ainda não está todo baixado
@@ -3563,6 +3757,13 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.28.0','05/11/2026', [
+    ['Música de fundo, como nos outros apps do Kids: uma bem animada na abertura, alegres enquanto escolhe a história e uma calminha, bem baixinho, enquanto a história é contada (mais baixa ainda quando a voz está falando)','Background music, like the other Kids apps: a lively one at the opening, cheerful ones while choosing the story and a calm one, very soft, while the story is told (even softer while the voice is speaking)'],
+    ['Músicas gravadas de verdade, só instrumentais e de domínio público (sem direitos autorais): ukulele e assobio na abertura, kalimba e piano na hora da história','Real recorded music, instrumental only and in the public domain (no copyright): ukulele and whistling at the opening, kalimba and piano at story time'],
+    ['Quando a história termina, a música some devagar para não acordar ninguém','When the story ends, the music fades out slowly so it does not wake anyone'],
+    ['Em Configurações → 🎶 Música de fundo: ligar e desligar, volume, ⏭️ Trocar a música e escolher a música de cada momento. Também dá para ligar e desligar no menu 👤 e no botão 🎶 da história','In Settings → 🎶 Background music: on and off, volume, ⏭️ Change the music and choose the music for each moment. You can also turn it on and off in the 👤 menu and with the 🎶 button in the story'],
+    ['Funciona sem internet: a primeira música de cada momento fica guardada no aparelho, e as outras ficam guardadas na primeira vez que tocam','Works offline: the first song of each moment is kept on the device, and the others are kept the first time they play']
+  ]],
   ['1.27.3','02/11/2026', [
     ['O botão 📲 Instalar do Bolinho de Chuva continua funcionando depois da mudança do Bolinho para o endereço solverone.com.br/kids','The Bolinho de Chuva 📲 Install button keeps working after Bolinho moved to solverone.com.br/kids'],
   ]],
@@ -5913,6 +6114,7 @@ var Topo = (function(){
       <button class="mp" type="button" role="menuitem" data-mp="config"><span class="i">⚙️</span>${T('Configurações','Settings')}</button>
       <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${cfg.tema==='claro'}" data-mp="tema"><span class="i">🌓</span>${T('Tema claro','Light theme')}<span class="toggle${cfg.tema==='claro'?' on':''}" aria-hidden="true"></span></button>
       <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.efeitos}" data-mp="som"><span class="i">🔊</span>${T('Efeitos sonoros','Sound effects')}<span class="toggle${cfg.efeitos?' on':''}" aria-hidden="true"></span></button>
+      <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.musica}" data-mp="musica"><span class="i">🎶</span>${T('Música de fundo','Background music')}<span class="toggle${cfg.musica?' on':''}" aria-hidden="true"></span></button>
       <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.assistOne}" data-mp="assist"><span class="i">💬</span>AssistONE<span class="toggle${cfg.assistOne?' on':''}" aria-hidden="true"></span></button>
       ${id.visitante ? '' : `<hr><button class="mp sair" type="button" role="menuitem" data-mp="sair"><span class="i">🚪</span>${T('Sair','Sign out')}</button>`}`;
     $$('[data-mp]', mp).forEach(b=>b.onclick=()=>{
@@ -5920,6 +6122,7 @@ var Topo = (function(){
       if(op==='config'){ fecharPerfil(); const t=$('nav.tabs button[data-tela=config]'); if(t) t.click(); }
       if(op==='tema'){ alternarTema(); pintarPerfil(); }
       if(op==='som'){ $('#tg-efeitos').click(); pintarPerfil(); }
+      if(op==='musica'){ Musica.ligarDesligar(); pintarPerfil(); }
       if(op==='assist'){ $('#tg-assist').click(); pintarPerfil(); }
       if(op==='entrar-local'){ fecharPerfil(); try{ DGO.abrirLogin(); }catch(e){ toast(T('Login indisponível agora','Login unavailable now')); } }
       if(op==='entrar-nuvem'){ fecharPerfil(); Plataforma.entrar(); }
@@ -5964,6 +6167,7 @@ Inbox.iniciar();
 aplicarCfgNaTela(); pintarTudo();
 aplicarConfigDaUrl();
 // as histórias vêm do IndexedDB (rápido, mas não é na hora): depois de carregar, a tela e os selos se atualizam
+Musica.iniciar();
 Dados.iniciar().then(()=>{ pintarTudo(); atualizarVozGuardada(true); carregarDoGithub().finally(()=>Nuvem.iniciar()); });
 Assist.iniciar();
 // chegou arquivo novo do RootifyONE: redesenha o que depende dos interruptores
