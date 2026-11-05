@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.27.3',
+  versaoApp: '1.28.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -81,7 +81,8 @@ DGO.iniciar({
     '#chips-personagem',
     '[data-motor="solverone"]',  /* botões da SolverONE: o app escreve o texto em PT/EN (muda com o plano) */
     '#sv-conta',                 /* cartão da conta SolverONE: o app escreve em PT/EN (muda ao entrar e sair) */
-    '#nv-conta', '#nv-selo',     /* nuvem (v1.20.0): o app escreve em PT/EN */
+    '#nv-conta', '#nv-selo',
+    '#mu-tocando', '#btn-musica-leitor'   /* música de fundo (v1.28.0): o app escreve em PT/EN */,     /* nuvem (v1.20.0): o app escreve em PT/EN */
     '#cofre-painel', '#aviso-voz-arquivo',  /* cofre (v1.22.0): o app escreve em PT/EN */
     /* campos de chave e de nomes: o app troca o placeholder (aviso "guardado no cofre"); o tradutor guardaria o texto
        velho e o poria de volta */
@@ -155,6 +156,15 @@ DGO.iniciar({
   traducoes: {
     '✨ Conta SolverONE': '✨ SolverONE account',
     '☁️ Minhas histórias na conta': '☁️ My stories in the account',
+    '🎶 Música de fundo': '🎶 Background music',
+    'Música de fundo': 'Background music',
+    'Animada na abertura, alegre enquanto escolhe a história e calminha, bem baixinho, enquanto a história é contada.': 'Lively at the opening, cheerful while choosing the story and calm, very soft, while the story is told.',
+    '⏭️ Trocar a música': '⏭️ Change the music',
+    'Volume da música:': 'Music volume:',
+    'Na abertura': 'At the opening',
+    'Enquanto escolhe a história': 'While choosing the story',
+    'Enquanto a história é contada': 'While the story is told',
+    'Músicas gravadas de verdade, só instrumentais, de domínio público (acervo FreePD, CC0): podem tocar em qualquer lugar, sem direitos autorais. Começa no primeiro toque na tela. Quando a história termina, a música some devagar para não acordar ninguém.': 'Real recorded music, instrumental only, in the public domain (FreePD library, CC0): it can play anywhere, with no copyright. It starts on the first tap on the screen. When the story ends, the music fades out slowly so it does not wake anyone.',
     'Trazer as histórias que vêm com o app': 'Bring the stories that come with the app',
     'Ao abrir, buscar as histórias novas do acervo do app.': 'On opening, fetch new stories from the app\'s library.',
     'A cópia sai protegida por uma senha sua e por um código para anotar num papel. Para trazer de volta, aqui ou em outro aparelho, use Trazer uma cópia: nada se repete.': 'The copy comes out protected by your password and by a code to write down on paper. To bring it back, here or on another device, use Restore a copy: nothing is repeated.',

@@ -2,12 +2,27 @@
    como app no celular e no computador.
    Ao publicar uma versao nova do seu site, troque o numero de VERSAO
    abaixo (ex.: 'v1' -> 'v2') para o aparelho pegar os arquivos novos. */
-var VERSAO = 'v31';
+var VERSAO = 'v32';
 /* O cache leva o nome do app e o activate só apaga os caches DESTE app. Todos os apps e jogos da SolverONE
    moram no mesmo endereço e dividem o espaço de cache: antes (cache "dgo-vN" e "apaga tudo que não é o meu"),
    abrir o Contador apagava o que os jogos do Bolinho de Chuva tinham guardado para funcionar sem internet. */
 var PREFIXO = 'dgo-contador-de-historias-';
 var CACHE = PREFIXO + VERSAO;
+/* Músicas de fundo (v1.28.0): cache próprio, fora do prefixo acima, para não baixar tudo de novo a cada versão.
+   Ao ativar, guarda a primeira música de cada momento (para tocar sem internet), uma de cada vez e só fora do 4G e da
+   economia de dados; as outras ficam guardadas na primeira vez que tocam. */
+var CACHE_MUSICAS = 'dgo-contador-musicas-v1';
+var PRIMEIRAS = ['musicas/happy-whistling-ukulele.mp3', 'musicas/spring-chicken.mp3', 'musicas/kalimba-relaxation-music.mp3'];
+function guardarPrimeiras() {
+  var con = self.navigator && self.navigator.connection;
+  if (con && (con.saveData || con.type === 'cellular')) return Promise.resolve();
+  return caches.open(CACHE_MUSICAS).then(function (c) {
+    return PRIMEIRAS.reduce(function (fila, a) {
+      var url = new URL(a, self.registration.scope).href;
+      return fila.then(function () { return c.match(url).then(function (r) { return r || fetch(url).then(function (resp) { if (resp.status === 200) return c.put(url, resp); }); }).catch(function () {}); });
+    }, Promise.resolve());
+  });
+}
 
 self.addEventListener('install', function (e) {
   self.skipWaiting();
@@ -19,7 +34,7 @@ self.addEventListener('install', function (e) {
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (nomes) {
     return Promise.all(nomes.map(function (n) { return (n.indexOf(PREFIXO) === 0 && n !== CACHE) ? caches.delete(n) : null; }));
-  }).then(function () { return self.clients.claim(); }));
+  }).then(function () { return self.clients.claim(); }).then(function () { guardarPrimeiras(); }));   // músicas sem segurar a ativação
 });
 
 self.addEventListener('fetch', function (e) {
@@ -27,6 +42,19 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // nao mexe em API externa
+
+  /* músicas: o <audio> pede pedaços (Range → 206), que o cache não aceita; guarda uma cópia inteira (200) pela URL */
+  if (/\/musicas\/[^/]+\.mp3$/i.test(url.pathname)) {
+    e.respondWith(caches.open(CACHE_MUSICAS).then(function (c) {
+      return c.match(url.href).then(function (r) {
+        return r || fetch(new Request(url.href)).then(function (resp) {
+          if (resp.status === 200) { var copia = resp.clone(); c.put(url.href, copia).catch(function () {}); }
+          return resp;
+        });
+      });
+    }));
+    return;
+  }
 
   /* paginas: tenta a rede primeiro (conteudo sempre atual), cache como reserva */
   if (req.mode === 'navigate') {

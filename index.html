@@ -884,6 +884,25 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     <div class="sons" id="sons-teste"></div>
   </div>
 
+  <div class="tit">🎶 Música de fundo</div>
+  <div class="card">
+    <div class="sw">
+      <div class="txt"><b>Música de fundo</b><span>Animada na abertura, alegre enquanto escolhe a história e calminha, bem baixinho, enquanto a história é contada.</span></div>
+      <div class="toggle on" id="tg-musica"></div>
+    </div>
+    <p class="hint" id="mu-tocando" aria-live="polite"></p>
+    <button class="btn sm" id="btn-musica-trocar">⏭️ Trocar a música</button>
+    <label class="f">Volume da música: <span id="lbl-musica">60</span>%</label>
+    <input type="range" id="rng-musica" min="0" max="100" step="5" value="60">
+    <label class="f" for="mu-sel-abertura">Na abertura</label>
+    <select id="mu-sel-abertura"></select>
+    <label class="f" for="mu-sel-navegar">Enquanto escolhe a história</label>
+    <select id="mu-sel-navegar"></select>
+    <label class="f" for="mu-sel-historia">Enquanto a história é contada</label>
+    <select id="mu-sel-historia"></select>
+    <div class="hint">Músicas gravadas de verdade, só instrumentais, de domínio público (acervo FreePD, CC0): podem tocar em qualquer lugar, sem direitos autorais. Começa no primeiro toque na tela. Quando a história termina, a música some devagar para não acordar ninguém.</div>
+  </div>
+
   <div class="tit">✨ IA que escreve as histórias</div>
   <div class="card">
     <div class="cofre" id="cofre-lista" aria-label="Chaves salvas"></div>
@@ -1071,6 +1090,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     <button class="icobtn" id="btn-fechar-leitor" aria-label="Fechar a história">✕</button>
     <button class="icobtn" id="btn-inicio-leitor" aria-label="Ir para o Início" title="Início">🌙</button>
     <b id="leitor-titulo"></b>
+    <button class="icobtn" id="btn-musica-leitor" aria-pressed="true" aria-label="Desligar a música de fundo" title="Música de fundo">🎶</button>
     <button class="icobtn" id="btn-fav">☆</button>
     <button class="icobtn" id="btn-menu-hist">⋯</button>
   </div>
