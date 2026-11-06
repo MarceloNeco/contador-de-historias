@@ -2,7 +2,7 @@
    como app no celular e no computador.
    Ao publicar uma versao nova do seu site, troque o numero de VERSAO
    abaixo (ex.: 'v1' -> 'v2') para o aparelho pegar os arquivos novos. */
-var VERSAO = 'v32';
+var VERSAO = 'v33';
 /* O cache leva o nome do app e o activate só apaga os caches DESTE app. Todos os apps e jogos da SolverONE
    moram no mesmo endereço e dividem o espaço de cache: antes (cache "dgo-vN" e "apaga tudo que não é o meu"),
    abrir o Contador apagava o que os jogos do Bolinho de Chuva tinham guardado para funcionar sem internet. */
@@ -27,7 +27,10 @@ function guardarPrimeiras() {
 self.addEventListener('install', function (e) {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function (c) {
-    return c.addAll(['./', './index.html', './janela.js', './cofre.js', './diretrizes.js', './diretrizes-config.js', './app.js', './tarefas.js', './recursos.js', './ajuda-botao.png']).catch(function () {});
+    /* v33: também o acervo (historias.json, só texto, ~220 KB), a capa e o fundo da história e os ícones (~330 KB):
+       sem eles, sem internet o acervo de um aparelho novo ficava vazio e a capa sumia */
+    return c.addAll(['./', './index.html', './janela.js', './cofre.js', './diretrizes.js', './diretrizes-config.js', './app.js', './tarefas.js', './recursos.js', './ajuda-botao.png',
+      './historias.json', './capa.jpg', './fundo-historia.jpg', './manifest.json', './icone-180.png', './icone-192.png', './icone-512.png']).catch(function () {});
   }));
 });
 
@@ -36,6 +39,9 @@ self.addEventListener('activate', function (e) {
     return Promise.all(nomes.map(function (n) { return (n.indexOf(PREFIXO) === 0 && n !== CACHE) ? caches.delete(n) : null; }));
   }).then(function () { return self.clients.claim(); }).then(function () { guardarPrimeiras(); }));   // músicas sem segurar a ativação
 });
+
+/* resposta de "sem internet" para o que não está guardado (em vez de um pedido quebrado) */
+function semInternet() { return new Response('', { status: 503, statusText: 'Offline' }); }
 
 self.addEventListener('fetch', function (e) {
   var req = e.request;
@@ -70,6 +76,23 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
+  /* listas .json (o acervo historias.json?t=<hora>, anúncios, recados, interruptores do RootifyONE): rede primeiro, a
+     última cópia boa como reserva. A cópia fica guardada pelo endereço SEM o "?t=…" (o app põe a hora para não pegar
+     cópia velha; com ela no nome, a reserva nunca era achada). Sem internet e sem cópia: "sem internet" (503), que o app
+     já entende como "nada novo" (sem anúncio, sem recado) — nunca um pedido quebrado. */
+  if (/\.json$/i.test(url.pathname)) {
+    var chave = url.origin + url.pathname;
+    e.respondWith(
+      fetch(req).then(function (r) {
+        if (r && r.status === 200) { var copia = r.clone(); caches.open(CACHE).then(function (c) { c.put(chave, copia); }); }
+        return r;
+      }).catch(function () {
+        return caches.open(CACHE).then(function (c) { return c.match(chave, { ignoreSearch: true }); }).then(function (r) { return r || semInternet(); });
+      })
+    );
+    return;
+  }
+
   /* demais arquivos: cache primeiro, atualizando em segundo plano */
   e.respondWith(
     caches.match(req).then(function (cacheado) {
@@ -79,7 +102,7 @@ self.addEventListener('fetch', function (e) {
           caches.open(CACHE).then(function (c) { c.put(req, copia); });
         }
         return r;
-      }).catch(function () { return cacheado; });
+      }).catch(function () { return cacheado || semInternet(); });
       return cacheado || rede;
     })
   );

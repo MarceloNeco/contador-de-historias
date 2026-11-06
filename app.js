@@ -1605,7 +1605,7 @@ const Leitor = (function(){
         if(meu!==execucaoId) return;
         tocando=false; esteiraLigada=false; iconePlay(false); Som.parar(true); Musica.atualizar();
         status('deu erro');
-        modal(`<h3>A leitura parou 🙁</h3><p class="hint">${esc(e.message||e)}</p>
+        modal(`<h3>A leitura parou 🙁</h3><p class="hint">${esc(semNet(e) ? TXT_SEM_NET() : (e.message||e))}</p>
           <div class="ok" style="margin-top:12px">Tudo o que já tinha baixado <b>continua guardado</b>. Seu lugar na história também foi salvo — dá para voltar depois e continuar daqui.</div>
           <div style="height:14px"></div>
           <button class="btn ok" id="err-nativo">📱 Continuar agora com a voz do celular</button>
@@ -2329,7 +2329,13 @@ function avisoGeracaoPasso(k, n, txt){
   const t=$('#ger-txt'); if(t) t.textContent = txt;
 }
 
+// sem internet (v1.28.1): o que precisa de internet avisa com clareza em vez de mostrar "Failed to fetch"
+const semNet = e => navigator.onLine===false || /failed to fetch|networkerror|load failed/i.test((e && e.message) || '');
+const TXT_SEM_NET = ()=> T('Sem internet agora. As histórias do acervo e a voz do celular funcionam sem internet; criar com a IA e as vozes de internet voltam quando a conexão voltar.',
+  'No internet right now. The library stories and the phone voice work offline; creating with AI and internet voices come back when the connection is back.');
+
 async function gerarHistoria(){
+  if(navigator.onLine===false){ toast('📡 '+TXT_SEM_NET(), 6000); return; }
   if(!Rec.ligado('criar-com-ia', true)){ toast(T('Criar com IA foi desligado pela administração da SolverONE.','Create with AI was turned off by the SolverONE administration.'), 4000); return; }
   const o = dadosDoFormulario();
   let anterior = null;
@@ -2391,9 +2397,10 @@ async function gerarHistoria(){
   }catch(e){
     const velho = !!e.modeloVelho;
     const feitos = parcial ? parcial.caps.length : 0;
-    modal(`<h3>${e.sobrecarga ? 'O Google está lotado agora 🙁' : 'Não deu certo 🙁'}</h3><p class="hint">${esc(e.message||e)}</p>
+    const net = !e.sobrecarga && semNet(e);
+    modal(`<h3>${e.sobrecarga ? 'O Google está lotado agora 🙁' : net ? T('Sem internet 📡','No internet 📡') : 'Não deu certo 🙁'}</h3><p class="hint">${esc(net ? TXT_SEM_NET() : (e.message||e))}</p>
       ${feitos ? `<div class="ok" style="margin-top:12px">Os <b>${feitos}</b> capítulo(s) que já ficaram prontos estão guardados. Ao tocar em gerar de novo, com os mesmos campos, ele continua do capítulo ${feitos+1} — sem gastar cota com o que já saiu.</div>` : ''}
-      ${(velho||e.sobrecarga||e.cota||feitos) ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Configurações → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
+      ${(velho||e.sobrecarga||e.cota||feitos||net) ? '' : '<div class="info" style="margin-top:12px">Confira a chave em <b>Configurações → IA que escreve as histórias</b>. Se a chave estiver certa e mesmo assim não funcionar, pode ser cota esgotada do dia.</div>'}
       <div style="height:14px"></div>
       ${velho ? '<button class="btn ok" id="m-ajustes">Ir para as Configurações</button><div style="height:10px"></div>' : ''}
       ${(e.sobrecarga||(e.cota && !e.fimDoMes)||feitos) ? '<button class="btn ok" id="m-denovo">🔄 Tentar de novo</button><div style="height:10px"></div>' : ''}
@@ -3757,6 +3764,11 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.28.1','06/11/2026', [
+    ['Funciona de verdade sem internet (no avião, no carro, sem sinal): depois de abrir uma vez com internet, o acervo de histórias, a capa e a leitura com a voz do celular ficam guardados no aparelho','Really works offline (on the plane, in the car, with no signal): after opening once online, the story library, the cover and reading with the phone voice are kept on the device'],
+    ['Sem internet, criar com a IA e as vozes de internet avisam com clareza que precisam de conexão, em vez de mostrar um erro','Offline, creating with AI and internet voices clearly say they need a connection, instead of showing an error'],
+    ['Anúncios e mensagens sem internet: o app usa os últimos que guardou, ou simplesmente não mostra nada novo','Ads and messages offline: the app uses the last ones it kept, or simply shows nothing new']
+  ]],
   ['1.28.0','05/11/2026', [
     ['Música de fundo, como nos outros apps do Kids: uma bem animada na abertura, alegres enquanto escolhe a história e uma calminha, bem baixinho, enquanto a história é contada (mais baixa ainda quando a voz está falando)','Background music, like the other Kids apps: a lively one at the opening, cheerful ones while choosing the story and a calm one, very soft, while the story is told (even softer while the voice is speaking)'],
     ['Músicas gravadas de verdade, só instrumentais e de domínio público (sem direitos autorais): ukulele e assobio na abertura, kalimba e piano na hora da história','Real recorded music, instrumental only and in the public domain (no copyright): ukulele and whistling at the opening, kalimba and piano at story time'],

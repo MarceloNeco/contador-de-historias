@@ -561,3 +561,12 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 | Botão 🎶 da história | Desligar a música de fundo · Ligar a música de fundo · 🎶 Música de fundo ligada · 🔇 Música de fundo desligada | Turn background music off · Turn background music on · 🎶 Background music on · 🔇 Background music off |
 
 > Os nomes das músicas ficam no original (são nomes próprios das obras).
+
+---
+
+# v1.28.1 — Funciona sem internet
+
+| Onde | PT | EN |
+|---|---|---|
+| Criar com IA sem internet (aviso) e erro de rede ao criar ou ao ler com voz de internet | Sem internet agora. As histórias do acervo e a voz do celular funcionam sem internet; criar com a IA e as vozes de internet voltam quando a conexão voltar. | No internet right now. The library stories and the phone voice work offline; creating with AI and internet voices come back when the connection is back. |
+| Título da janela de erro ao criar | Sem internet 📡 | No internet 📡 |
