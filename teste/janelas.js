@@ -212,35 +212,32 @@ async function main() {
       await ctx.close();
     }
 
-    /* ---------- 5. tour do AssistONE ---------- */
-    console.log('\n5. Tour do AssistONE');
+    /* ---------- 5. padrão do Bolinho de Chuva (1.29.0): sem AssistONE e sem anúncios ---------- */
+    console.log('\n5. Sem AssistONE e sem anúncios (padrão Bolinho de Chuva)');
     {
       const { ctx, page } = await abrir(browser, base);
-      await page.click('#assist-btn'); await page.waitForTimeout(300);
-      const balaoFecha = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); };
-      conferir(await page.locator('#assist-balao:not([hidden])').count() === 1, 'o balão do AssistONE abre (não é janela)');
-      await balaoFecha();
-      conferir(await page.locator('#assist-balao:not([hidden])').count() === 0, 'o balão fecha com Esc');
-      await page.click('#assist-btn'); await page.waitForTimeout(300);
-      await page.mouse.click(30, 120); await page.waitForTimeout(250);
-      conferir(await page.locator('#assist-balao:not([hidden])').count() === 0, 'o balão fecha com toque fora');
-      for (const como of ['Sair', 'Esc', 'Voltar', 'fora']) {
-        await page.click('#assist-btn'); await page.waitForTimeout(300);
-        await page.click('#assist-balao [data-op=tour]'); await page.waitForTimeout(450);
-        if (como === 'Sair') conferir((await page.locator('dialog.tour-janela[open]').count()) === 1 && (await page.locator('.tour-alvo').count()) === 1, 'o tour abre como janela comum, com um destaque na página');
-        if (como === 'Sair') conferir((await ondeCai(page, 'nav.tabs button[data-tela=acervo]')) === 'janela', 'durante o tour a página de trás não recebe toque');
-        if (como === 'Sair') await page.click('dialog.tour-janela [data-t=sair]');
-        if (como === 'Esc') await page.keyboard.press('Escape');
-        if (como === 'Voltar') await page.goBack();
-        if (como === 'fora') await page.mouse.click(5, 5);
-        await page.waitForTimeout(450);
-        conferir((await abertas(page)) === 0 && (await page.locator('.tour-alvo').count()) === 0, 'tour: ' + como + ' encerra e tira o destaque');
-      }
-      await page.click('#assist-btn'); await page.waitForTimeout(300);
-      await page.click('#assist-balao [data-op=tour]'); await page.waitForTimeout(450);
-      for (let i = 0; i < 12 && (await abertas(page)); i++) { await page.click('dialog.tour-janela [data-t=prox]').catch(() => {}); await page.waitForTimeout(250); }
-      conferir((await abertas(page)) === 0, 'passando todos os passos, o tour termina e a janela fecha');
-      conferir(!(await sobraNoHistorico(page)), 'histórico sem sobra depois do tour');
+      const pedidos = []; page.on('request', (r) => pedidos.push(r.url()));
+      await page.reload(); await page.waitForTimeout(1500);
+      conferir((await page.locator('#assist-btn, #assist-balao, #assist-dica, .assist').count()) === 0, 'nenhum botão, balão ou dica do AssistONE na página');
+      conferir((await page.locator('#ad-faixa, .ad-faixa').count()) === 0, 'nenhuma faixa de anúncios');
+      conferir(!pedidos.some((u) => /anuncios\.json/.test(u)), 'o app nem busca a lista de anúncios');
+      conferir(await page.evaluate(() => localStorage.getItem('ch_assist') === null), 'o que o AssistONE guardava no aparelho foi apagado');
+      await page.click('#btn-perfil-topo'); await page.waitForTimeout(300);
+      conferir(!/AssistONE/.test(await page.locator('#menu-perfil').innerText()), 'menu 👤 sem AssistONE');
+      await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+      await page.click('#btn-menu'); await page.waitForTimeout(350);
+      conferir(!/AssistONE/.test(await page.locator('dialog[open]').innerText()), 'menu ☰ sem AssistONE');
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+      await page.click('nav.tabs button[data-tela=config]'); await page.waitForTimeout(300);
+      conferir(!/AssistONE/.test(await page.locator('#tela-config').innerText()), 'Configurações sem o cartão do AssistONE');
+      await page.click('nav.tabs button[data-tela=inicio]'); await page.waitForTimeout(200);
+      await page.click('#btn-busca-topo');
+      await page.waitForTimeout(350);
+      await page.fill('#busca-geral', 'música');
+      await page.waitForTimeout(300);
+      const achou = await page.locator('#busca-geral-res').innerText();
+      conferir(/Música de fundo/.test(achou), '🔍 Buscar continua achando as seções das Configurações (' + achou.replace(/\s+/g, ' ').slice(0, 60) + ')');
+      await page.keyboard.press('Escape'); await page.waitForTimeout(250);
       await ctx.close();
     }
 
