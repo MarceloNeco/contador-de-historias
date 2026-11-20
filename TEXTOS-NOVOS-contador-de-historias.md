@@ -570,3 +570,15 @@ Sem texto novo na tela: a amostra toca ao abrir o convite e aceita MP3 ou WAV.
 |---|---|---|
 | Criar com IA sem internet (aviso) e erro de rede ao criar ou ao ler com voz de internet | Sem internet agora. As histórias do acervo e a voz do celular funcionam sem internet; criar com a IA e as vozes de internet voltam quando a conexão voltar. | No internet right now. The library stories and the phone voice work offline; creating with AI and internet voices come back when the connection is back. |
 | Título da janela de erro ao criar | Sem internet 📡 | No internet 📡 |
+
+---
+
+# v1.29.0 — Sem AssistONE e sem anúncios (padrão do Bolinho de Chuva)
+
+Nenhum texto novo para a pessoa: saíram textos. Saíram o cartão "💛 AssistONE" (AssistONE ativado, Abrir o AssistONE,
+Recomeçar dicas), o item AssistONE dos menus ☰ e 👤, o balão, as dicas, o tour e a faixa de anúncios (ANÚNCIO, Fechar
+anúncios). Mudou um texto:
+
+| Onde | PT | EN |
+|---|---|---|
+| Configurações → Reduzir animações | Para as transições do app. | Stops the app transitions. |

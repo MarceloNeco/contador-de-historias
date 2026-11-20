@@ -69,8 +69,6 @@
       "ids": [
         "aviso-voz-arquivo",
         "btn-apagar-tudo",
-        "btn-assist-abrir",
-        "btn-assist-reset",
         "btn-aviso",
         "btn-cofre-trancar",
         "btn-dgo-config",
@@ -120,7 +118,6 @@
         "sons-teste",
         "sv-conta",
         "tg-adiantar",
-        "tg-assist",
         "tg-comandos-ia",
         "tg-comandos-voz",
         "tg-destaque",
@@ -151,7 +148,6 @@
         "💾 Histórias e cópia de segurança",
         "⚡ Voz guardada no aparelho",
         "🎤 Comandos de voz (experimental)",
-        "💛 AssistONE",
         "📖 Leitura",
         "✨ Conta SolverONE",
         "☁️ Minhas histórias na conta",
@@ -163,7 +159,6 @@
   },
   "corpo": [
     "DIV#.lados",
-    "DIV#ad-faixa.ad-faixa",
     "HEADER#.",
     "NAV#menu-lateral.gaveta",
     "DIV#menu-perfil.menu-perfil",
@@ -171,9 +166,6 @@
     "MAIN#.wrap",
     "DIV#leitor.leitor",
     "DIV#toast.toast",
-    "BUTTON#assist-btn.assist",
-    "DIV#assist-balao.assist-balao",
-    "DIV#assist-dica.assist-dica",
     "NAV#.tabs",
     "BUTTON#nv-selo."
   ],

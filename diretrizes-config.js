@@ -14,7 +14,7 @@ DGO.iniciar({
                                 marceloneco.github.io, e e isto que impede os
                                 dados de um vazarem para o outro. */
   nome: { pt: 'UM Contador de Histórias', en: 'ONE Storyteller' },
-  versaoApp: '1.28.1',
+  versaoApp: '1.29.0',
   cor: '#a78bfa',
   corFundoBarra: '#140b22',
 
@@ -29,10 +29,10 @@ DGO.iniciar({
 
   /* ---------- anuncio do topo ---------- */
   anuncios: {
-    ativo: false,       /* DESLIGADO de proposito: o banner deste modulo (1.0.0) e uma imagem fixa.
-                           A faixa em carrossel, igual a dos outros apps, fica no index.html
-                           (bloco "anuncios" no script) e le /solverone-dados/anuncios.json. */
+    ativo: false,       /* DESLIGADO: o Contador e da familia Bolinho de Chuva (Kids), que nao tem anuncio
+                           nenhum (dono, 16/Nov/2026). A faixa em carrossel saiu na 1.29.0. */
     popup: { ativo: false },   /* o pop-up do modulo novo (1.10.0) tambem fica desligado */
+    arquivo: '',        /* e nem busca a lista (anuncios.json): o modulo pediria mesmo desligado */
     link: 'https://marceloneco.github.io/',
     imagem: '',         /* vazio = placeholder <ANUNCIE AQUI>.
                            Depois troque por 'banner.jpg' */
@@ -87,8 +87,7 @@ DGO.iniciar({
     /* campos de chave e de nomes: o app troca o placeholder (aviso "guardado no cofre"); o tradutor guardaria o texto
        velho e o poria de volta */
     '#in-gemini-key', '#in-gemini-key-voz', '#in-openai-key', '#in-openai-key2', '#in-eleven-key', '#in-anthropic-key',
-    '#in-publico-nomes', '#in-nomes-protegidos',
-    '#assist-admin'              /* aviso "Desligado pela administração": o app escreve em PT/EN */
+    '#in-publico-nomes', '#in-nomes-protegidos'
   ],
 
   /* ---------- barras que ficam grudadas no topo ----------
@@ -185,11 +184,6 @@ DGO.iniciar({
     'Saiba mais': 'Learn more',
     'Testar a chave': 'Test the key',
     'Chaves salvas': 'Saved keys',
-    'AssistONE ativado': 'AssistONE on',
-    'O ajudante do canto: ajuda da tela, tour rápido e busca.': 'The corner helper: screen help, quick tour and search.',
-    'Abrir o AssistONE': 'Open AssistONE',
-    'Recomeçar dicas': 'Restart tips',
-    'Fechar anúncios': 'Close ads',
     'Fila de voz': 'Voice queue',
     'Baixa a voz de várias histórias, uma por vez, e tenta de novo sozinha quando a cota acaba.': 'Downloads the voice of several stories, one at a time, and retries on its own when the quota runs out.',
     'Escolher histórias': 'Choose stories',
@@ -204,7 +198,7 @@ DGO.iniciar({
     'Tema claro': 'Light theme',
     'Fundo claro para o dia. O escuro é o padrão, feito para a hora de dormir.': 'Light background for daytime. Dark is the default, made for bedtime.',
     'Reduzir animações': 'Reduce animations',
-    'Para o balanço do AssistONE e as transições do app.': 'Stops the AssistONE bounce and the app transitions.',
+    'Para as transições do app.': 'Stops the app transitions.',
     'Notificações, instalação e nuvem': 'Notifications, install and cloud',
     'Menu': 'Menu',
     'Buscar': 'Search',

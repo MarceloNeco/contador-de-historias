@@ -121,7 +121,6 @@ const configPadrao = {
   openaiInstr:'Leia como um pai contando história de dormir: voz calma, carinhosa, pausas naturais e emoção nas falas dos personagens.',
   geminiVoice:'Sulafat', geminiModelTts:'gemini-3.1-flash-tts-preview',
   geminiInstr:'Leia esta história de dormir em português do Brasil como um pai contando para as filhas: voz calma e carinhosa, ritmo tranquilo, pausas naturais, e emoção diferente na fala de cada personagem. Não comente nada, apenas leia o texto.',
-  assistOne:true,
   solveroneVoz:'', solveroneModeloVoz:'',
   motorTexto:'gemini', geminiModel:'gemini-3.6-flash',
   anthropicModel:'claude-sonnet-4-5', openaiModelTxt:'gpt-4o-mini',
@@ -2560,7 +2559,6 @@ function irTela(nome, semHistorico){
   $$('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tela===nome));
   document.body.classList.toggle('larga', nome==='acervo');   // lista usa a tela toda; texto não
   window.scrollTo({top:0,behavior:'instant'});
-  if(Assist) Assist.aoTrocarTela(nome);
 }
 $$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
   irTela(b.dataset.tela);
@@ -3764,6 +3762,11 @@ function telaTransferencia(){
 
 /* ----------------------------- versão e avisos ----------------------------- */
 const HISTORICO = [
+  ['1.29.0','20/11/2026', [
+    ['O Contador passa a seguir o padrão dos jogos do Bolinho de Chuva: sem o ajudante AssistONE (botão do canto, balão, dicas e tour)','The Storyteller now follows the Rainy Day Donuts games standard: no AssistONE helper (corner button, balloon, tips and tour)'],
+    ['Sem anúncios: saiu a faixa do topo que mostrava os outros apps da plataforma','No ads: the top strip that showed the platform\'s other apps is gone'],
+    ['A 🔍 Buscar continua achando histórias, telas e as seções das Configurações','🔍 Search still finds stories, screens and the Settings sections']
+  ]],
   ['1.28.1','06/11/2026', [
     ['Funciona de verdade sem internet (no avião, no carro, sem sinal): depois de abrir uma vez com internet, o acervo de histórias, a capa e a leitura com a voz do celular ficam guardados no aparelho','Really works offline (on the plane, in the car, with no signal): after opening once online, the story library, the cover and reading with the phone voice are kept on the device'],
     ['Sem internet, criar com a IA e as vozes de internet avisam com clareza que precisam de conexão, em vez de mostrar um erro','Offline, creating with AI and internet voices clearly say they need a connection, instead of showing an error'],
@@ -5622,107 +5625,6 @@ const FilaVoz = (function(){
 })();
 FilaVoz.iniciar();
 
-/* ---------- anúncios: faixa em carrossel no topo, igual aos outros apps ----------
-   A lista vem de um arquivo, na ordem: anuncios.json deste repositório (se um dia existir, para
-   uma lista só deste app) → lista central do RootifyONE (/solverone-dados/anuncios.json) →
-   anuncios.json do portal → a lista de reserva abaixo (sem internet e sem nada guardado).
-   O app nunca anuncia a si mesmo. Assinante e anunciante não veem anúncio. */
-const Anuncios = (function(){
-  const SITE_BASE = location.origin + '/';
-  const FONTES = ['anuncios.json', '/solverone-dados/anuncios.json', '/anuncios.json'];
-  const CH_FECHADO = 'ch_anuncio_fechado', CH_CONTA = 'ch_anuncios_contagem';
-  const RESERVA = [
-    { id:'moneytrio', nome:'MoneyTRIO', cor:'#d6a076', glifo:'💰', link:SITE_BASE+'investify-me/',
-      frase:{pt:'Você sabe quanto gastou este mês? A resposta costuma surpreender.', en:'Do you know what you spent this month? The answer usually surprises.'} },
-    { id:'rise-one', nome:'RiseONE', cor:'#beb0ec', glifo:'🏃', link:SITE_BASE+'rise-one/',
-      frase:{pt:'O treino que você não registra é o treino que você esquece.', en:"The workout you don't log is the workout you forget."} },
-    { id:'omnilife-one', nome:'OmniLifeONE', cor:'#e4a460', glifo:'🧩', link:SITE_BASE+'omnilife-one/',
-      frase:{pt:'A casa, a agenda e os documentos da família num lugar só.', en:'Home, calendar and family papers in one place.'} },
-    { id:'planos-candidatos-2026', nome:{pt:'Eleições 2026', en:'Elections 2026'}, cor:'#a4c4a6', glifo:'🗳️', link:SITE_BASE+'planos-candidatos-2026/',
-      frase:{pt:'Antes de decidir o seu voto, leia o que eles escreveram.', en:'Before deciding your vote, read what they actually wrote.'} },
-    { id:'cifras-violao', nome:{pt:'Cifras e Acordes', en:'Chords'}, cor:'#eaa4b8', glifo:'🎸', link:SITE_BASE+'cifras-violao/',
-      frase:{pt:'Aquela música que você sempre quis tocar está a um tom de distância.', en:'That song you always wanted to play is one key away.'} }
-  ];
-  const DOMINIOS = ['marceloneco.github.io','solverone.com.br','www.solverone.com.br'];
-  let lista = null, cfgAd = { velocidade:40 }, chave = '', contouExibicao = false;
-
-  // texto em PT/EN: aceita "texto" ou {pt, en}
-  const txt = v => v && typeof v==='object' ? (idiomaEN() ? (v.en||v.pt) : (v.pt||v.en)) || '' : (v||'');
-  // link de outro app da família: fica no endereço atual (solverone.com.br ou github.io), sem trocar de origem
-  function linkDe(a){
-    try{
-      const u = new URL(a.link || SITE_BASE, location.href);
-      if(DOMINIOS.includes(u.hostname) && DOMINIOS.includes(location.hostname)) return location.origin + u.pathname + u.search + u.hash;
-      return u.href;
-    }catch(e){ return SITE_BASE; }
-  }
-  function ehEsteApp(a){ return String(a.id||'').toLowerCase()==='contador-de-historias' || /\/contador-de-historias\/?(\?|#|$)/.test(a.link||''); }
-  function daFaixa(){
-    return (lista || RESERVA).filter(a=>a && a.ativo!==false && !ehEsteApp(a) && (!a.onde || a.onde.includes('faixa')));
-  }
-  function fechado(){ try{ return sessionStorage.getItem(CH_FECHADO)==='1'; }catch(e){ return false; } }
-  function semAnuncio(){ try{ return !!(window.DGO && DGO.sessao && DGO.sessao().semAnuncios); }catch(e){ return false; } }
-  function contar(id, k){
-    try{
-      const s = JSON.parse(localStorage.getItem(CH_CONTA)||'{}') || {};
-      s[id] = s[id] || {v:0, c:0}; s[id][k]++;
-      localStorage.setItem(CH_CONTA, JSON.stringify(s));
-    }catch(e){}
-  }
-  function icone(a){
-    const g = esc(a.glifo || a.emoji || '✨'), cor = /^#[0-9a-f]{3,8}$/i.test(a.cor||'') ? a.cor : '';
-    if(a.imagem) return `<img class="ad-ico" src="${esc(a.imagem)}" alt="" loading="lazy">`;
-    return `<span class="ad-ico" aria-hidden="true"${cor ? ` style="background:${cor}"` : ''}>${g}</span>`;
-  }
-  function pintar(){
-    const faixa = $('#ad-faixa'); if(!faixa) return;
-    const ads = daFaixa();
-    const mostrar = ads.length && !fechado() && !semAnuncio() && Rec.ligado('anuncios', true);
-    faixa.hidden = !mostrar;
-    $('#ad-tag').textContent = T('ANÚNCIO','AD');
-    $('#ad-fechar').setAttribute('aria-label', T('Fechar anúncios','Close ads'));
-    $('#ad-fechar').title = T('Fechar anúncios','Close ads');
-    faixa.setAttribute('aria-label', T('Anúncios','Ads'));
-    if(!mostrar) return;
-    const k = (idiomaEN()?'en':'pt') + ads.map(a=>a.id).join();
-    if(k===chave) return; chave = k;
-    const um = ads.map(a=>`<a class="ad-item" href="${esc(linkDe(a))}" target="_blank" rel="noopener" data-ad="${esc(a.id||'')}">${icone(a)}<b>${esc(txt(a.nome||a.titulo))}</b><span class="ad-frase">${esc(txt(a.frase||a.texto))}</span></a>`).join('');
-    // a lista vai duas vezes: quando a primeira sai pela esquerda, a cópia já está no lugar (laço sem costura)
-    const tr = $('#ad-trilho');
-    tr.innerHTML = um + um.replace(/class="ad-item"/g, 'class="ad-item" aria-hidden="true" tabindex="-1"');
-    tr.style.setProperty('--ad-seg', Math.max(15, ads.length * (400/(cfgAd.velocidade||40)) * 2) + 's');
-    if(!contouExibicao){ contouExibicao = true; ads.forEach(a=>contar(a.id,'v')); }
-  }
-  async function carregar(){
-    for(const u of FONTES){
-      try{
-        const r = await fetch(u, {cache:'no-cache'});
-        if(!r.ok) continue;
-        const j = await r.json();
-        if(j && Array.isArray(j.anuncios) && j.anuncios.length){ lista = j.anuncios; Object.assign(cfgAd, j.config||{}); break; }
-      }catch(e){}
-    }
-    chave = ''; pintar();
-  }
-  function iniciar(){
-    $('#ad-fechar').addEventListener('click', ()=>{ try{ sessionStorage.setItem(CH_FECHADO,'1'); }catch(e){} pintar(); });
-    $('#ad-trilho').addEventListener('click', e=>{ const a = e.target.closest('[data-ad]'); if(a) contar(a.dataset.ad,'c'); });
-    // no celular, um toque fora dos links pausa o carrossel e outro solta
-    $('#ad-janela').addEventListener('touchstart', e=>{ if(!e.target.closest('a')) $('#ad-janela').classList.toggle('parado'); }, {passive:true});
-    // imagem de anúncio que não carrega vira o glifo
-    $('#ad-trilho').addEventListener('error', e=>{ const i=e.target; if(i.tagName==='IMG'){ const s=document.createElement('span'); s.className='ad-ico'; s.textContent='✨'; i.replaceWith(s); } }, true);
-    document.addEventListener('dgo:idioma', ()=>{ chave=''; pintar(); });
-    document.addEventListener('dgo:pronto', pintar);
-    document.addEventListener('dgo:saiu', ()=>{ chave=''; pintar(); });
-    // a faixa fechada volta no próximo login
-    document.addEventListener('dgo:entrou', ()=>{ try{ sessionStorage.removeItem(CH_FECHADO); }catch(e){} chave=''; pintar(); });
-    pintar();
-    carregar();
-  }
-  return { iniciar, pintar };
-})();
-Anuncios.iniciar();
-
 /* ---------- menos texto nas Configurações ----------
    Explicações longas ficam recolhidas num "Saiba mais". Nada some: só espera o toque. */
 (function(){
@@ -5734,47 +5636,17 @@ Anuncios.iniciar();
   });
 })();
 
-/* ---------- AssistONE: ajuda no mesmo lugar em todas as telas ----------
-   Personagem no canto, balão com a ajuda da tela atual, tour rápido, busca e uma dica por tela.
-   O balão não entra no histórico: o Voltar do celular continua fechando as telas. */
-var Assist = (function(){
-  const CH = 'ch_assist';
-  let mem = {}; try{ mem = JSON.parse(localStorage.getItem(CH)||'{}')||{}; }catch(e){ mem = {}; }
-  mem.dicas = mem.dicas || {};
-  const gravar = ()=>{ try{ localStorage.setItem(CH, JSON.stringify(mem)); }catch(e){} };
-  const btn = $('#assist-btn'), balao = $('#assist-balao'), dica = $('#assist-dica');
-  let tour = -1, dicaTimer = null;
-
-  // o que dá para fazer em cada tela: título, frase, atalhos que já executam e a ajuda completa
+/* ---------- índice da 🔍 Busca: as telas e as seções das Configurações ----------
+   Era parte do AssistONE. Desde a 1.29.0 o Contador segue o padrão do Bolinho de Chuva (repositório kids): nenhum
+   jogo tem AssistONE nem anúncio. Fica só o índice que a busca do topo usa. */
+const Indice = (function(){
+  try{ localStorage.removeItem('ch_assist'); }catch(e){}   // o que o AssistONE guardava no aparelho não serve mais
   const TELAS = {
-    inicio: { t:['Início','Home'], s:'home principal',
-      f:['A história da noite, o que estava ouvindo e os atalhos.','Tonight\'s story, what you were listening to and the shortcuts.'],
-      a:[ ['✨ Criar história','✨ Create a story', ()=>irTela('nova')], ['📚 Acervo','📚 Library', ()=>irTela('acervo')] ],
-      d:['Toque numa história para ouvir. "Continuar ouvindo" retoma de onde parou. O 🎲 sorteia outra sugestão.',
-         'Tap a story to listen. "Keep listening" resumes where you stopped. The 🎲 picks another suggestion.'] },
-    acervo: { t:['Acervo','Library'], s:'histórias biblioteca buscar favoritas lidas',
-      f:['Todas as histórias, com busca e filtros por idade e estado.','Every story, with search and filters by age and state.'],
-      a:[ ['🔎 Buscar','🔎 Search', ()=>{ const b=$('#busca'); if(b){ b.focus(); } }], ['★ Favoritas','★ Favourites', ()=>{ const b=$('#filtro-estado [data-estado=fav]'); if(b) b.click(); }] ],
-      d:['Os filtros de cima combinam entre si. O selo ⚡ mostra quem já tem voz guardada; a ↓ baixa a voz para ouvir sem internet.',
-         'The top filters combine. The ⚡ badge shows stories with saved voice; ↓ downloads the voice to listen offline.'] },
-    nova: { t:['Criar','Create'], s:'nova história ia escrever gerar',
-      f:['A IA escreve a partir dos seus pedidos, ou você mesmo escreve.','The AI writes from your requests, or you write it yourself.'],
-      a:[ ['🎲 Sortear tema','🎲 Shuffle topic', ()=>{ const b=$('#btn-mais-temas'); if(b) b.click(); }], ['✍️ Eu escrevo','✍️ I write', ()=>{ const b=$('#modo-nova [data-modo=manual]'); if(b) b.click(); }] ],
-      d:['Só o tema é obrigatório: o resto pode ficar em branco. Para gerar, é preciso uma chave de IA em Configurações.',
-         'Only the topic is required: the rest can stay blank. Generating needs an AI key in Settings.'] },
-    config: { t:['Configurações','Settings'], s:'configurações chave voz ia backup',
-      f:['Voz, IA, chaves, backup e o que mais o app precisa.','Voice, AI, keys, backup and whatever else the app needs.'],
-      a:[ ['🔑 Chaves de IA','🔑 AI keys', ()=>rolarAte('#cofre-lista')], ['🔊 Motor de voz','🔊 Voice engine', ()=>rolarAte('#sel-motor-voz')], ['📥 Fila de voz','📥 Voice queue', ()=>rolarAte('#fila-voz-status')], ['🆕 Novidades','🆕 What\'s new', ()=>{ const b=$('#btn-novidades'); if(b) b.click(); }] ],
-      d:['Cada seção tem um "Saiba mais" com a explicação completa. As chaves ficam só neste aparelho.',
-         'Each section has a "Learn more" with the full explanation. Keys stay on this device only.'] }
+    inicio: { t:['Início','Home'], s:'home principal' },
+    acervo: { t:['Acervo','Library'], s:'histórias biblioteca buscar favoritas lidas' },
+    nova:   { t:['Criar','Create'], s:'nova história ia escrever gerar' },
+    config: { t:['Configurações','Settings'], s:'configurações chave voz ia backup' }
   };
-  const TOUR = [
-    ['#hd-marca', 'Toque no nome do app para voltar ao Início, de qualquer lugar.', 'Tap the app name to go back Home from anywhere.'],
-    ['nav.tabs', 'A barra de baixo leva ao Início, ao Acervo, a Criar e às Configurações.', 'The bottom bar takes you Home, to the Library, Create and Settings.'],
-    ['#btn-menu', 'O ☰ abre o menu com todas as telas, a busca e as mensagens.', 'The ☰ opens the menu with every screen, search and messages.'],
-    ['#btn-perfil-topo', 'O perfil mostra quem está conectado e abre Configurações, tema, som e Sair.', 'The profile shows who is signed in and opens Settings, theme, sound and Sign out.'],
-    ['#assist-btn', 'Eu fico sempre aqui. Toque quando precisar de ajuda.', 'I\'m always here. Tap whenever you need help.']
-  ];
   const i = k => T(k[0], k[1]);
   function rolarAte(sel){
     const el = $(sel); if(!el) return;
@@ -5812,115 +5684,8 @@ var Assist = (function(){
     return {lista:[], parecidos};
   }
 
-  function aberto(){ return !balao.hidden; }
-  const ativo = ()=>cfg.assistOne && Rec.ligado('assistone', true);
-  function abrir(modo){
-    if(!ativo()) return;
-    esconderDica();
-    const tela = TELAS[telaAtual] || TELAS.inicio;
-    const boasVindas = modo==='boasvindas';
-    balao.innerHTML = `
-      <h4>${boasVindas ? T('Olá! Eu sou o AssistONE 👋','Hi! I\'m AssistONE 👋') : 'AssistONE'}</h4>
-      <div class="onde"><b>📍 ${T('Você está em','You are in')} ${i(tela.t)}</b><p>${i(tela.f)}</p>
-        ${tela.a.map((a,k)=>`<button data-atalho="${k}">${T(a[0],a[1])}</button>`).join('')}</div>
-      <div class="opc">
-        <button data-op="tour">🧭 ${T('Tour rápido','Quick tour')}</button>
-        <button data-op="busca">🔍 ${T('Procurar algo','Find something')}</button>
-        <button data-op="ajuda">❓ ${T('Ajuda desta tela','Help for this screen')}</button>
-      </div>
-      <div id="assist-busca" hidden><input type="text" placeholder="${T('O que você procura?','What are you looking for?')}" aria-label="${T('Procurar','Search')}"><div class="res"></div></div>
-      <div class="rodape"><button data-op="fechar">${T('Agora não','Not now')}</button><button data-op="desligar">${T('Desligar o AssistONE','Turn AssistONE off')}</button></div>`;
-    balao.hidden = false; btn.setAttribute('aria-expanded','true');
-    $$('#assist-balao [data-atalho]').forEach(b=>b.addEventListener('click',()=>{ fechar(); tela.a[Number(b.dataset.atalho)][2](); }));
-    $$('#assist-balao [data-op]').forEach(b=>b.addEventListener('click',()=>{
-      const op = b.dataset.op;
-      if(op==='fechar') fechar();
-      if(op==='desligar'){ fechar(); cfg.assistOne=false; salvarCfg(); aplicar(); const tg=$('#tg-assist'); if(tg) tg.classList.remove('on'); toast(T('AssistONE desligado. Religue em Configurações → AssistONE.','AssistONE off. Turn it back on in Settings → AssistONE.'), 4000); }
-      if(op==='tour'){ fechar(); iniciarTour(); }
-      if(op==='ajuda'){ fechar(); modal(`<h3>${i(tela.t)}</h3><p class="hint" style="font-size:14px">${i(tela.d)}</p><div style="height:14px"></div><button class="btn sm ghost" id="mfechar">${T('Fechar','Close')}</button>`); $('#mfechar').onclick=fecharModal; }
-      if(op==='busca'){ const bx=$('#assist-busca'); bx.hidden=false; bx.querySelector('input').focus(); }
-    }));
-    const inp = $('#assist-busca input'), res = $('#assist-busca .res');
-    function pintarBusca(){
-      const {lista, parecidos} = buscar(inp.value);
-      const mostrar = lista.length ? lista : parecidos;
-      res.innerHTML = (lista.length ? '' : (inp.value.trim() ? `<div class="nada">${T('Não achei.','Nothing found.')}${parecidos.length ? ' '+T('Você quis dizer…','Did you mean…') : ''}</div>` : ''))
-        + mostrar.map((x,k)=>`<button class="btn sm ghost" data-res="${k}">${esc(x.r)}</button>`).join('');
-      $$('#assist-busca [data-res]').forEach(b=>b.addEventListener('click',()=>{ fechar(); mostrar[Number(b.dataset.res)].ir(); }));
-    }
-    inp.addEventListener('input', pintarBusca);
-    inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const b=$('#assist-busca [data-res]'); if(b) b.click(); } });
-  }
-  function fechar(){
-    if(!aberto()) return;
-    balao.hidden = true; btn.setAttribute('aria-expanded','false');
-    if(!mem.visto){ mem.visto = 1; gravar(); }
-  }
-
-  // tour: destaca um elemento por vez, com o texto numa caixa. É uma janela comum (janela.js): a página de trás não
-  // recebe toque; Sair, Esc, Voltar e toque na parte escura encerram (o destaque fica na página, a caixa na janela).
-  let janelaTour = null, caixaTour = null;
-  function limparTour(){ $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo')); tour=-1; }
-  function iniciarTour(){
-    tour = -1;
-    caixaTour = document.createElement('div'); caixaTour.className = 'assist-balao';
-    janelaTour = SolverJanela.abrir({ conteudo:caixaTour, classe:'tour-janela', rotulo:T('Tour rápido','Quick tour'), temTexto:false,
-      aoFechar: ()=>{ limparTour(); janelaTour = caixaTour = null; } });
-    passoTour();
-  }
-  function passoTour(){
-    $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo'));
-    tour++;
-    while(tour < TOUR.length){ const el=$(TOUR[tour][0]); if(el && el.offsetParent!==null) break; tour++; }
-    if(tour >= TOUR.length){ janelaTour.fechar('fim'); toast(T('Fim do tour ✨','Tour done ✨')); return; }
-    const p = TOUR[tour], el = $(p[0]);
-    el.classList.add('tour-alvo'); el.scrollIntoView({block:'center', behavior:'smooth'});
-    caixaTour.innerHTML = `<h4>🧭 ${T('Tour rápido','Quick tour')} · ${tour+1}/${TOUR.length}</h4><p style="margin:6px 0 10px;font-size:14px">${T(p[1],p[2])}</p>
-      <div class="rodape"><button data-t="sair">${T('Sair','Exit')}</button><button data-t="prox" style="color:var(--gold);font-weight:700;text-decoration:none">${T('Próximo ›','Next ›')}</button></div>`;
-    caixaTour.querySelector('[data-t=prox]').onclick = passoTour;
-    caixaTour.querySelector('[data-t=sair]').onclick = ()=>janelaTour.fechar('sair');
-  }
-
-  // uma dica curta por tela, uma vez só, alguns segundos depois de entrar
-  function esconderDica(){ dica.hidden = true; clearTimeout(dicaTimer); }
-  function aoTrocarTela(nome){
-    esconderDica();
-    if(!ativo() || Rec.valor('assistone.dicas', true)===false || aberto() || mem.dicas[nome] || !TELAS[nome]) return;
-    dicaTimer = setTimeout(()=>{
-      if(aberto() || document.body.classList.contains('com-modal') || document.body.classList.contains('com-leitor') || telaAtual!==nome) return;
-      mem.dicas[nome] = 1; gravar();
-      dica.innerHTML = `💡 ${i(TELAS[nome].f)}<br><button data-d="ok">${T('Entendi','Got it')}</button><button data-d="mais">${T('Mais ajuda','More help')}</button>`;
-      dica.hidden = false;
-      dica.querySelector('[data-d=ok]').onclick = esconderDica;
-      dica.querySelector('[data-d=mais]').onclick = ()=>{ esconderDica(); abrir(); };
-      dicaTimer = setTimeout(esconderDica, 9000);
-    }, 2500);
-  }
-
-  function aplicar(){
-    document.body.classList.toggle('sem-assist', !ativo()); if(!ativo()){ fechar(); esconderDica(); }
-    const adm = $('#assist-admin');
-    if(adm){ adm.hidden = Rec.ligado('assistone', true); adm.textContent = T('Desligado pela administração da SolverONE.','Turned off by the SolverONE administration.'); }
-  }
-  function recomecar(){ mem = {dicas:{}}; gravar(); toast(T('Dicas e passo a passo recomeçados','Tips and tour reset')); abrir('boasvindas'); }
-  function iniciar(){
-    aplicar();
-    btn.addEventListener('click', ()=>{ if(aberto()) fechar(); else abrir(); });
-    document.addEventListener('click', e=>{ if(aberto() && tour<0 && !balao.contains(e.target) && !btn.contains(e.target)) fechar(); });
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && aberto()){ $$('.tour-alvo').forEach(x=>x.classList.remove('tour-alvo')); tour=-1; fechar(); } });
-    document.addEventListener('dgo:idioma', ()=>{ aplicar(); if(aberto() && tour<0) abrir(); });
-    // primeira visita: apresenta-se, mas só quando nenhuma janela estiver aberta
-    if(ativo() && !mem.visto){
-      let tentativas = 0;
-      const tentar = ()=>{ if(document.body.classList.contains('com-modal') || document.body.classList.contains('com-leitor')){ if(++tentativas<12) setTimeout(tentar, 2000); return; } abrir('boasvindas'); };
-      setTimeout(tentar, 1500);
-    }
-  }
-  return { iniciar, abrir, fechar, aplicar, recomecar, aoTrocarTela, buscar };
+  return { buscar };
 })();
-chave('#tg-assist','assistOne', Assist.aplicar);
-$('#btn-assist-abrir').addEventListener('click', ()=>{ if(!cfg.assistOne){ toast(T('Ligue o AssistONE primeiro','Turn AssistONE on first')); return; } Assist.abrir(); });
-$('#btn-assist-reset').addEventListener('click', Assist.recomecar);
 
 /* ---------- 📥 Mensagens (inbox) ----------
    Uma caixa só para: avisos do administrador (recados.json deste repositório e /solverone-dados/recados.json,
@@ -5998,7 +5763,7 @@ var Inbox = (function(){
   return { abrir, iniciar, naoLidos };
 })();
 
-/* ---------- 🔍 Busca do topo: histórias + telas e funções (índice do AssistONE) ---------- */
+/* ---------- 🔍 Busca do topo: histórias + telas e funções (Indice) ---------- */
 function abrirBusca(){
   modal(`<h3>🔍 ${T('Buscar','Search')}</h3>
     <input type="text" id="busca-geral" placeholder="${T('História, tela ou função','Story, screen or function')}" aria-label="${T('Buscar','Search')}" autocomplete="off">
@@ -6010,7 +5775,7 @@ function abrirBusca(){
     const q = inp.value.trim(); if(!q){ res.innerHTML=''; return; }
     const nq = norm(q);
     const hs = historias.filter(h=>norm(h.titulo+' '+(h.tema||'')+' '+(h.personagens||'')+' '+(h.serie||'')).includes(nq)).slice(0,8);
-    const fn = Assist.buscar(q), fns = fn.lista.length ? fn.lista : fn.parecidos;
+    const fn = Indice.buscar(q), fns = fn.lista.length ? fn.lista : fn.parecidos;
     res.innerHTML = (hs.length ? `<div class="tit" style="margin:4px 0">${T('Histórias','Stories')}</div>` : '')
       + hs.map((h,k)=>`<button class="btn sm ghost" data-bh="${k}" style="justify-content:flex-start">📖 ${esc(h.titulo)}</button>`).join('')
       + (fns.length ? `<div class="tit" style="margin:8px 0 4px">${T('Telas e funções','Screens and functions')}${fn.lista.length ? '' : ' · '+T('você quis dizer…','did you mean…')}</div>` : '')
@@ -6075,7 +5840,6 @@ var Topo = (function(){
       + `<hr>
          <button class="gv" type="button" data-gv="busca"><span class="i">🔍</span>${T('Buscar','Search')}</button>
          <button class="gv" type="button" data-gv="inbox"><span class="i">📥</span>${T('Mensagens','Messages')}${Inbox.naoLidos() ? ' <span class="badge" style="position:static;margin-left:auto">'+Inbox.naoLidos()+'</span>' : ''}</button>
-         <button class="gv" type="button" data-gv="assist"><span class="i">💬</span>AssistONE</button>
          <button class="gv" type="button" data-gv="novidades"><span class="i">🆕</span>${T('Novidades','What\'s new')}</button>
          <button class="gv" type="button" data-gv="aviso"><span class="i">📄</span>${T('Aviso de uso','Terms of use')}</button>
          <div class="gv-rodape">${T('versão','version')} ${VERSAO}</div>`;
@@ -6084,7 +5848,6 @@ var Topo = (function(){
       const op = b.dataset.gv; fecharGaveta();
       if(op==='busca') abrirBusca();
       if(op==='inbox') Inbox.abrir();
-      if(op==='assist'){ if(!cfg.assistOne){ toast(T('Ligue o AssistONE em Configurações','Turn AssistONE on in Settings')); } else setTimeout(()=>Assist.abrir(), 250); }
       if(op==='novidades') telaNovidades();
       if(op==='aviso') telaAviso();
     });
@@ -6127,7 +5890,6 @@ var Topo = (function(){
       <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${cfg.tema==='claro'}" data-mp="tema"><span class="i">🌓</span>${T('Tema claro','Light theme')}<span class="toggle${cfg.tema==='claro'?' on':''}" aria-hidden="true"></span></button>
       <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.efeitos}" data-mp="som"><span class="i">🔊</span>${T('Efeitos sonoros','Sound effects')}<span class="toggle${cfg.efeitos?' on':''}" aria-hidden="true"></span></button>
       <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.musica}" data-mp="musica"><span class="i">🎶</span>${T('Música de fundo','Background music')}<span class="toggle${cfg.musica?' on':''}" aria-hidden="true"></span></button>
-      <button class="mp" type="button" role="menuitemcheckbox" aria-checked="${!!cfg.assistOne}" data-mp="assist"><span class="i">💬</span>AssistONE<span class="toggle${cfg.assistOne?' on':''}" aria-hidden="true"></span></button>
       ${id.visitante ? '' : `<hr><button class="mp sair" type="button" role="menuitem" data-mp="sair"><span class="i">🚪</span>${T('Sair','Sign out')}</button>`}`;
     $$('[data-mp]', mp).forEach(b=>b.onclick=()=>{
       const op = b.dataset.mp;
@@ -6135,7 +5897,6 @@ var Topo = (function(){
       if(op==='tema'){ alternarTema(); pintarPerfil(); }
       if(op==='som'){ $('#tg-efeitos').click(); pintarPerfil(); }
       if(op==='musica'){ Musica.ligarDesligar(); pintarPerfil(); }
-      if(op==='assist'){ $('#tg-assist').click(); pintarPerfil(); }
       if(op==='entrar-local'){ fecharPerfil(); try{ DGO.abrirLogin(); }catch(e){ toast(T('Login indisponível agora','Login unavailable now')); } }
       if(op==='entrar-nuvem'){ fecharPerfil(); Plataforma.entrar(); }
       if(op==='sair-local'){ try{ DGO.sair(); }catch(e){} toast(T('Você saiu da conta deste aparelho','Signed out of this device\'s account')); pintarPerfil(); pintarTopo(); }
@@ -6181,9 +5942,8 @@ aplicarConfigDaUrl();
 // as histórias vêm do IndexedDB (rápido, mas não é na hora): depois de carregar, a tela e os selos se atualizam
 Musica.iniciar();
 Dados.iniciar().then(()=>{ pintarTudo(); atualizarVozGuardada(true); carregarDoGithub().finally(()=>Nuvem.iniciar()); });
-Assist.iniciar();
 // chegou arquivo novo do RootifyONE: redesenha o que depende dos interruptores
-Rec.aoMudar(()=>{ Assist.aplicar(); Anuncios.pintar(); criarSemIA(); });
+Rec.aoMudar(()=>{ criarSemIA(); });
 
 // desbloqueia o áudio no primeiro toque (regra dos celulares)
 ['touchend','click'].forEach(ev=>document.addEventListener(ev, function um(){

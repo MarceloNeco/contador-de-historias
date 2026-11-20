@@ -46,7 +46,7 @@ header{
 }
 .hd{display:flex;align-items:center;gap:6px;padding:10px 12px;max-width:var(--coluna);margin:0 auto}
 @media (min-width:600px){.hd{gap:10px;padding:12px 16px}}
-/* padrão comum (diretriz AssistONE e menu): ☰ + nome (= Início) | … | 🔍 📥 👤 — todos com 44 px de toque */
+/* padrão comum (diretriz do topo e menu): ☰ + nome (= Início) | … | 🔍 📥 👤 — todos com 44 px de toque */
 .hd .icobtn{width:44px;height:44px;flex:none}
 #btn-cofre{width:38px;font-size:18px}
 small[data-guardado]{display:block;margin:4px 2px 0;font-size:12px;font-weight:700;color:#6ee7b7}
@@ -379,31 +379,6 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   font-size:12px;font-weight:600;color:var(--dim);display:flex;flex-direction:column;gap:4px;align-items:center}
 .sons button .e{font-size:20px}
 .sons button.on{border-color:var(--gold);color:var(--gold)}
-/* ---------- faixa de anúncios do topo: [ANÚNCIO] · [carrossel] · [×] ---------- */
-.ad-faixa{position:relative;z-index:41;background:var(--bg2);border-bottom:1px solid var(--line);
-  padding-top:env(safe-area-inset-top)}
-.ad-faixa[hidden]{display:none}
-.ad-faixa .ad-in{display:flex;align-items:center;gap:8px;max-width:var(--coluna);margin:0 auto;padding:3px 8px 3px 10px;min-height:42px}
-.ad-faixa .ad-tag{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-weight:800;letter-spacing:.14em;
-  color:var(--dim2);flex:none;line-height:1}
-.ad-janela{flex:1;min-width:0;overflow:hidden;
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
-  mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
-.ad-trilho{display:flex;gap:26px;width:max-content;animation:ad-anda var(--ad-seg,40s) linear infinite}
-.ad-janela:hover .ad-trilho,.ad-janela.parado .ad-trilho,
-body.com-leitor .ad-trilho,body.com-modal .ad-trilho{animation-play-state:paused}
-@keyframes ad-anda{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.ad-item{display:flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none;color:var(--txt);
-  font-size:13px;padding:3px 6px;border-radius:12px}
-.ad-item:hover,.ad-item:focus-visible{background:var(--card)}
-.ad-item .ad-ico{width:28px;height:28px;border-radius:9px;flex:none;display:inline-flex;align-items:center;
-  justify-content:center;font-size:16px;background:var(--card2);object-fit:cover}
-.ad-item b{font-weight:800}
-.ad-item span.ad-frase{color:var(--dim)}
-.ad-fechar{width:32px;height:32px;border-radius:50%;flex:none;background:var(--card);border:1px solid var(--line);
-  color:var(--dim);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center}
-@media (prefers-reduced-motion:reduce){.ad-trilho{animation:none}.ad-janela{overflow-x:auto}}
-@media print{.ad-faixa{display:none!important}}
 /* ---------- SolverONE: voz e IA da plataforma ---------- */
 .sv-status{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.5}
 .sv-status b{color:var(--txt)}
@@ -436,52 +411,9 @@ details.saiba summary::-webkit-details-marker{display:none}
 details.saiba summary::before{content:"▸";transition:transform .15s}
 details.saiba[open] summary::before{transform:rotate(90deg)}
 details.saiba > :not(summary){margin-top:4px}
-/* ---------- AssistONE: ajudante no canto, no mesmo lugar em todas as telas ---------- */
-/* o personagem (ajuda-botao.png, o mesmo em todos os apps): botão redondo de 58 px, fundo SEMPRE escuro
-   (também no tema claro), anel dourado e um balanço leve que para com o balão aberto ou com "reduzir movimento" */
-.assist{position:fixed;right:16px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:150;width:58px;height:58px;
-  border-radius:50%;padding:0;cursor:pointer;border:1px solid rgba(201,162,74,.55);
-  background:radial-gradient(circle at 50% 38%,#232838,#11141c 72%);
-  box-shadow:0 6px 18px rgba(0,0,0,.28),0 0 0 3px rgba(201,162,74,.16);
-  animation:aone-flutua 3.2s ease-in-out infinite;transition:width .25s,height .25s}
-.assist img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;pointer-events:none}
-.assist:focus-visible{outline:3px solid var(--roxo);outline-offset:3px}
-.assist.grande,.assist[aria-expanded="true"]{width:84px;height:84px;animation:none}
-@keyframes aone-flutua{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-@media (prefers-reduced-motion:reduce){.assist{animation:none;transition:none}}
-body.sem-animacao .assist{animation:none}
-body.com-menu .assist, body.com-menu .assist-balao, body.com-menu .assist-dica,
-body.com-modal .assist, body.com-leitor .assist, body.sem-assist .assist,
-body.com-modal .assist-balao, body.com-leitor .assist-balao, body.sem-assist .assist-balao,
-body.com-modal .assist-dica, body.com-leitor .assist-dica, body.sem-assist .assist-dica{display:none!important}
-body:not(.sem-assist){padding-bottom:calc(150px + env(safe-area-inset-bottom))}
-body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
-.assist-balao{position:fixed;right:14px;left:14px;bottom:calc(168px + env(safe-area-inset-bottom));z-index:310;
-  max-width:400px;margin-left:auto;background:var(--bg2);border:1px solid var(--line);border-radius:22px;
-  padding:16px;box-shadow:var(--sh);max-height:calc(100vh - 210px);overflow-y:auto;animation:sobe .2s ease-out}
-.assist-balao[hidden]{display:none}
-.assist-balao h4{margin:0 0 4px;font-size:16px}
-.assist-balao .onde{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0}
-.assist-balao .onde b{display:block;font-size:14px;margin-bottom:2px}
-.assist-balao .onde p{margin:0 0 6px;font-size:13px;color:var(--dim)}
-.assist-balao .opc{display:flex;flex-direction:column;gap:6px}
-.assist-balao .opc button{text-align:left;padding:11px 12px;border-radius:14px;background:var(--card);
-  border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--txt);min-height:44px;width:100%}
-.assist-balao .onde button{padding:8px 11px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);
-  font-size:13px;font-weight:600;color:var(--txt);min-height:40px;margin:4px 4px 0 0}
-.assist-balao input[type=text]{margin-top:8px}
-.assist-balao .res{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.assist-balao .res .nada{font-size:13px;color:var(--dim2)}
-.assist-balao .rodape{display:flex;justify-content:space-between;gap:10px;margin-top:10px}
-.assist-balao .rodape button{font-size:12px;color:var(--dim2);text-decoration:underline;padding:6px 0;min-height:32px}
-.assist-dica{position:fixed;right:80px;bottom:calc(100px + env(safe-area-inset-bottom));z-index:149;
-  max-width:min(300px,calc(100vw - 100px));background:var(--bg2);border:1px solid var(--line);
-  border-radius:16px 16px 4px 16px;padding:10px 12px;font-size:13px;box-shadow:var(--sh);animation:sobe .2s ease-out}
-.assist-dica[hidden]{display:none}
-.assist-dica button{color:var(--gold);font-weight:700;font-size:13px;padding:8px 10px 0 0;min-height:32px}
+/* destaque de onde a busca levou (era do tour do AssistONE) */
 .tour-alvo{outline:3px solid var(--gold)!important;outline-offset:3px;border-radius:14px;
   box-shadow:0 0 0 6px rgba(255,200,121,.25)!important}
-@media (prefers-reduced-motion:reduce){.assist-balao,.assist-dica{animation:none}}
 </style>
 </head>
 <body>
@@ -489,15 +421,6 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <div class="lados" aria-hidden="true">
   <div class="lado esq"></div>
   <div class="lado dir"></div>
-</div>
-
-<!-- faixa do topo: só anúncio. O × fecha a faixa inteira até o fim da sessão (volta ao entrar de novo). -->
-<div class="ad-faixa" id="ad-faixa" data-recurso="anuncios" role="complementary" aria-label="Anúncios" hidden>
-  <div class="ad-in">
-    <span class="ad-tag" id="ad-tag">ANÚNCIO</span>
-    <div class="ad-janela" id="ad-janela"><div class="ad-trilho" id="ad-trilho"></div></div>
-    <button class="ad-fechar" id="ad-fechar" type="button" aria-label="Fechar anúncios" title="Fechar anúncios">×</button>
-  </div>
 </div>
 
 <!-- topo padrão: ☰ + nome (tocar = Início) | … | 🔍 busca, 📥 mensagens, 👤 perfil. Sem 🏠, ⚙️ e PT|EN (foram para Configurações e para o 👤). -->
@@ -716,7 +639,7 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
       <div class="toggle" id="tg-tema"></div>
     </div>
     <div class="sw">
-      <div class="txt"><b>Reduzir animações</b><span>Para o balanço do AssistONE e as transições do app.</span></div>
+      <div class="txt"><b>Reduzir animações</b><span>Para as transições do app.</span></div>
       <div class="toggle" id="tg-reduzir"></div>
     </div>
   </div>
@@ -1027,20 +950,6 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
     </div>
   </div>
 
-  <div class="tit">💛 AssistONE</div>
-  <div class="card">
-    <p class="hint" id="assist-admin" style="margin:0" hidden></p>
-    <div class="sw" data-recurso="assistone">
-      <div class="txt"><b>AssistONE ativado</b><span>O ajudante do canto: ajuda da tela, tour rápido e busca.</span></div>
-      <div class="toggle on" id="tg-assist"></div>
-    </div>
-    <div style="height:12px" data-recurso="assistone"></div>
-    <div class="linha" data-recurso="assistone">
-      <button class="btn sm" id="btn-assist-abrir">💬 Abrir o AssistONE</button>
-      <button class="btn sm ghost" id="btn-assist-reset">↺ Recomeçar dicas</button>
-    </div>
-  </div>
-
   <div class="tit">📖 Leitura</div>
   <div class="card">
     <label class="f">Tamanho da letra: <span id="lbl-fonte">19</span>px</label>
@@ -1127,13 +1036,6 @@ body:not(.sem-assist) .toast{bottom:calc(160px + env(safe-area-inset-bottom))}
 <!-- ====================== MODAL ======================
      As janelas do app (modal(), gaveta ☰, tour, confirmações) são <dialog> criados pelo janela.js na hora de abrir. -->
 <div class="toast" id="toast"></div>
-
-<!-- AssistONE: o ajudante, sempre no mesmo canto -->
-<button class="assist" id="assist-btn" data-recurso="assistone" type="button" aria-label="AssistONE — ajuda e assistente" aria-haspopup="dialog" aria-expanded="false">
-  <img src="ajuda-botao.png" alt="" width="58" height="58">
-</button>
-<div class="assist-balao" id="assist-balao" data-recurso="assistone" role="dialog" aria-label="AssistONE" hidden></div>
-<div class="assist-dica" id="assist-dica" data-recurso="assistone" hidden></div>
 
 <nav class="tabs">
   <div class="inner">
